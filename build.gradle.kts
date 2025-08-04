@@ -31,8 +31,14 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // Swagger
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
     //
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    // DB tunneling
+    implementation("com.jcraft:jsch:0.1.55")
+    // DB driver
+    implementation("mysql:mysql-connector-java:8.0.32")
 }
 
 tasks.withType<Test> {
