@@ -2,6 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "3.5.3"
     id("io.spring.dependency-management") version "1.1.7"
+    id("com.diffplug.spotless") version "7.2.1"
 }
 
 group = "com.sns"
@@ -31,16 +32,27 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    // Swagger
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
-    //
+
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8") // Swagger
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    // DB tunneling
-    implementation("com.jcraft:jsch:0.1.55")
-    // DB driver
-    implementation("mysql:mysql-connector-java:8.0.32")
+    implementation("com.jcraft:jsch:0.1.55") // SSH tunneling
+    implementation("mysql:mysql-connector-java:8.0.32") // DB driver
+    // Auth
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+    //
+    implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
 }
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+spotless {
+    java {
+        trimTrailingWhitespace()
+        removeUnusedImports()
+        googleJavaFormat()
+        endWithNewline()
+    }
 }

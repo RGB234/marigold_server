@@ -1,18 +1,20 @@
 package com.sns.marigold.user.service;
 
+import com.sns.marigold.user.dto.UserCreateDTO;
 import com.sns.marigold.user.dto.UserProfileDTO;
-import com.sns.marigold.user.dto.UserSignUpDTO;
+import com.sns.marigold.user.dto.UserUpdateDTO;
 
 public interface UserService {
-    UserSignUpDTO create(UserSignUpDTO userSignUpDTO);
 
-    UserProfileDTO getByNickname(String nickname);
+  UserProfileDTO create(UserCreateDTO userSignUpDTO);
 
-    UserProfileDTO updateProfile(UserProfileDTO userProfileDTO);
+  UserProfileDTO update(Long id, UserUpdateDTO userUpdateProfileDTO);
 
-    boolean softDelete(Long id);
+  UserProfileDTO get(String username);
 
-    boolean hardDelete(Long id);
+  boolean softDelete(Long id);
 
-    boolean restore(Long id);
+  void hardDelete(Long id);
+
+  boolean restore(Long id);
 }
