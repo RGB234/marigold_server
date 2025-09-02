@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>개발 중</title>
+
+  <!-- Google Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <style>
+    :root { color-scheme: light; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #ffffff; /* 흰 배경 */
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", Arial, sans-serif;
+    }
+    .wrap {
+      height: 100%;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      gap: 12px;
+    }
+    .material-icons {
+      font-size: 72px;       /* 아이콘 크기 */
+      line-height: 1;
+    }
+    .title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .muted {
+      font-size: 14px;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap" role="main" aria-label="개발 중 페이지">
+    <span class="material-icons" aria-hidden="true">construction</span>
+    <div class="title">개발 중</div>
+    <!-- 필요하면 보조 문구 사용 -->
+    <!-- <div class="muted">서비스 준비 중입니다. 잠시만 기다려 주세요.</div> -->
+  </main>
+</body>
+</html>
