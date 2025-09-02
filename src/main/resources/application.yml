@@ -1,0 +1,65 @@
+assets:
+    user:
+      defaultImg: img/default
+
+url:
+  base: http://localhost:8080
+  path:
+    signup: /signup
+    main: /home
+spring:
+  application:
+    name: marigold
+
+  profiles:
+    include: oauth
+
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: create
+#    show-sql: true
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # SSH tunneling
+    # forwardedPort is assigned by global.config.SshTunnelingInitializer in global.config.DataSourceSshTunnelingConfig
+    url: jdbc:mysql://localhost:[forwardedPort]/marigold1
+    username: admin
+    password: 2020105691
+
+ssh:
+  host: ec2-54-180-91-20.ap-northeast-2.compute.amazonaws.com
+  port: 22
+  user: ec2-user
+  private_key: "D:\\ssh\\rsa-pair.pem"
+  remote_host: "freetier-1.c3c4u60eetaw.ap-northeast-2.rds.amazonaws.com"
+  remote_port: 3306
+
+server:
+  port: 8080 #default
+
+
+logging:
+  level:
+    org:
+      hibernate:
+        SQL: debug
+        type:
+          descriptor:
+            sql:
+              BasicBinder: trace
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: local

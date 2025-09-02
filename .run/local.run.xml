@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="local" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="marigold.main" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.sns.marigold.MarigoldApplication" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
