@@ -1,66 +1,82 @@
 package com.sns.marigold.user.service;
 
-import com.sns.marigold.user.dao.UserDAO;
+import com.sns.marigold.auth.RandomUsernameGenerator;
+import com.sns.marigold.user.dto.UserCreateDTO;
 import com.sns.marigold.user.dto.UserProfileDTO;
-import com.sns.marigold.user.dto.UserSignUpDTO;
+import com.sns.marigold.user.dto.UserUpdateDTO;
 import com.sns.marigold.user.entity.UserEntity;
+import com.sns.marigold.user.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    private final UserDAO userDAO;
-    private final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
+  private final UserRepository userRepository;
+  private final RandomUsernameGenerator randomUsernameGenerator;
 
-    @Override
-    public UserSignUpDTO create(@RequestBody @Valid UserSignUpDTO userSignUpDTO) {
-        logger.info("req body : {}", userSignUpDTO);
-        UserEntity userEntity = userSignUpDTO.toUserEntity();
-        userDAO.save(userEntity);
-        return userSignUpDTO;
+  @Transactional
+  @Override
+  public UserProfileDTO create(UserCreateDTO userCreateDTO) {
+    int maxAttempts = 3;
+
+    for (int i = 0; i < maxAttempts; i++) {
+      String username = randomUsernameGenerator.generate();
+      UserEntity user = userCreateDTO.toUserEntity();
+
+      user.setUsername(username);
+
+      try {
+        UserEntity savedUser = userRepository.save(user);
+        return UserProfileDTO.fromUserEntity(savedUser);
+      } catch (DataIntegrityViolationException e) {
+        log.error("DataIntegrityViolationException : {}", e.getMessage());
+        log.error("Retrying... ( {} / {} )", i + 1, maxAttempts);
+      }
     }
+    throw new IllegalStateException("계정 생성 실패. 잠시 후 다시 시도해주십시오.");
+  }
 
-    @Override
-    public UserProfileDTO getByNickname(String nickname) {
-        UserEntity userEntity = userDAO.getByNickname(nickname)
-            .orElseThrow(() -> new EntityNotFoundException("존재하지 않는 유저 ID"));
-        return userEntity.toUserProfileDTO();
-    }
+  @Transactional
+  @Override
+  public UserProfileDTO update(Long id, UserUpdateDTO userUpdateDTO) {
+    UserEntity userEntity =
+      userRepository
+        .findById(id)
+        .orElseThrow(() -> new EntityNotFoundException("해당 사용자를 찾을 수 없습니다."));
 
-    @Transactional
-    @Override
-    public UserProfileDTO updateProfile(UserProfileDTO userProfileDTO) {
-        UserEntity userEntity = userDAO.getByNickname(userProfileDTO.getNickname())
-            .orElseThrow(() -> new EntityNotFoundException("존재하지 않는 유저 닉네임"));
+    userEntity.updateFrom(userUpdateDTO);
+    return UserProfileDTO.fromUserEntity(userEntity);
+  }
 
-        userEntity.setBirthday(userProfileDTO.getBirthday());
-        userEntity.setGender(userProfileDTO.getGender());
-        userEntity.setPhotoURL(userProfileDTO.getPhotoURL());
-        userEntity.setNickname(userProfileDTO.getNickname());
-        userDAO.save(userEntity);
-        return userProfileDTO;
-    }
+  @Override
+  public UserProfileDTO get(String username) {
+    UserEntity userEntity =
+      userRepository
+        .findByUsername(username)
+        .orElseThrow(() -> new EntityNotFoundException("해당 사용자를 찾을 수 없습니다."));
 
-    @Override
-    public boolean softDelete(Long id) {
-        return false;
-    }
+    return UserProfileDTO.fromUserEntity(userEntity);
+  }
 
-    @Override
-    public boolean hardDelete(Long id) {
-        return userDAO.hardDeleteById(id);
-    }
+  @Override
+  public boolean softDelete(Long id) {
+    return false;
+  }
 
-    @Override
-    public boolean restore(Long id) {
-        return false;
-    }
+  @Override
+  public void hardDelete(Long id) {
+    userRepository.deleteById(id);
+  }
+
+  @Override
+  public boolean restore(Long id) {
+    return false;
+  }
 }

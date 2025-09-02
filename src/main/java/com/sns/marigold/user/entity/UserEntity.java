@@ -1,13 +1,18 @@
 package com.sns.marigold.user.entity;
 
-import com.sns.marigold.global.type.GenderType;
-import com.sns.marigold.user.dto.UserProfileDTO;
+import com.sns.marigold.global.enums.ProviderInfo;
+import com.sns.marigold.global.enums.Role;
+import com.sns.marigold.user.dto.UserUpdateDTO;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,47 +23,33 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
 public class UserEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // Auto increment
-    @Column(name = "id", unique = true, nullable = false)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY) // Auto increment
+  @Column(name = "id", unique = true, nullable = false)
+  private Long id;
 
-    @Column(length = 50, unique = true, nullable = false)
-    private String email;
+  @NotNull
+  @Enumerated(EnumType.STRING)
+  private ProviderInfo providerInfo; // 소셜로그인 제공 서비스 종류 (Google, Kakao, ...)
 
-    @Column(length = 100, nullable = false)
-    private String password;
+  @NotNull
+  private String providerId; // 소셜로그인 계정 id
 
-    @Column(length = 20, unique = true, nullable = false)
-    private String nickname;
+  @Column(nullable = false)
+  @Enumerated(EnumType.STRING)
+  private Role role;
 
-    //    @JsonFormat(pattern = "yyyy-MM-dd")
-    @Column(nullable = false)
-//    private LocalDate birthday;
-    private String birthday;
+  @Column(length = 20, unique = true, nullable = false)
+  private String username;
 
-    @Column(length = 10, nullable = false)
-    private GenderType gender;
-//    private String gender;
 
-    //    @Column(length=100, nullable = false)
-    @Column(length = 100, nullable = true)
-    private String photoURL;
+  public UserEntity() {
+  }
 
-    public UserEntity() {
-    }
-
-    public UserProfileDTO toUserProfileDTO(){
-        return UserProfileDTO.builder()
-            .nickname(nickname)
-            .birthday(birthday)
-            .gender(gender)
-            .photoURL(photoURL)
-            .build();
-    }
+  public void updateFrom(UserUpdateDTO updateDto) {
+    this.username = updateDto.getUsername();
+  }
 }
-
-
