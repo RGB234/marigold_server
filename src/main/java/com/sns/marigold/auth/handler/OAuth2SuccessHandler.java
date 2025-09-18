@@ -1,73 +1,57 @@
 package com.sns.marigold.auth.handler;
 
-import com.sns.marigold.global.enums.Role;
-import com.sns.marigold.user.entity.UserEntity;
-import com.sns.marigold.user.repository.UserRepository;
-import jakarta.persistence.EntityNotFoundException;
+import com.sns.marigold.auth.PersonalUserPrincipal;
+import com.sns.marigold.user.entity.PersonalUser;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
-import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 @Slf4j
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-  private final String SIGNUP_URL;
-  private final String MAIN_URL;
-  private final UserRepository userRepository;
+  final String REDIRECT_URL;
 
-  public OAuth2SuccessHandler(
-      @Value("${url.base}") String baseURL,
-      @Value("${url.path.signup}") String signUpPath,
-      @Value("${url.path.main}") String mainPath,
-      UserRepository userRepository) {
-    this.userRepository = userRepository;
-    this.SIGNUP_URL = baseURL + signUpPath;
-    this.MAIN_URL = baseURL + mainPath;
+  public OAuth2SuccessHandler(@Value("${app.url.frontend.base}") String baseUrl,
+    @Value("${app.url.frontend.main}") String mainUrl) {
+    REDIRECT_URL = String.format("%s%s", baseUrl, mainUrl);
   }
 
   @Override
   public void onAuthenticationSuccess(
-      HttpServletRequest request, HttpServletResponse response, Authentication authentication)
-      throws IOException, ServletException {
+    HttpServletRequest request, HttpServletResponse response, Authentication authentication)
+    throws IOException, ServletException {
+    // OAuth2User 정보
+    PersonalUserPrincipal userPrincipal = (PersonalUserPrincipal) authentication.getPrincipal();
+    PersonalUser user = userPrincipal.getUser();
 
-    //        log.info("session :  {}", request.getSession().toString());
+    assert user != null;
+    String uid = user.getId().toString();
+    String role = user.getRole().toString();
 
-    OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-    String providerId = oAuth2User.getName();
+    // 세션에 최소한의 사용자 정보 저장
+    HttpSession session = request.getSession(); // 세션 생성 (Tomcat)
+    session.setAttribute("uid", uid);
+    session.setAttribute("role", role);
 
-    UserEntity user =
-        userRepository
-            .findByProviderId(providerId)
-            .orElseThrow(
-                () -> new EntityNotFoundException(("User not found with providerId : " + "###")));
+    // JSON 응답 보내기
+//    response.setContentType("application/json");
+//    response.setCharacterEncoding("UTF-8");
+//    response.setStatus(HttpServletResponse.SC_OK);
+//
+//    String json = String.format("{\"isAuthenticated\":true,\"uid\":\"%s\", \"role\": %s}", uid,
+//      role);
+//    response.getWriter().write(json);
+//    response.getWriter().flush();
 
-    //        log.info("user provider id: {}", user.getProviderId());
-
-    String redirectUrl = getRedirectUrlByRole(user.getRole(), providerId);
-    getRedirectStrategy().sendRedirect(request, response, redirectUrl);
-  }
-
-  private String getRedirectUrlByRole(Role role, String providerId) {
-    //        if (role == Role.NOT_REGISTERED){
-    if (role == Role.ROLE_NOT_REGISTERED) {
-      return UriComponentsBuilder.fromUriString(SIGNUP_URL)
-          //                .queryParam("providerId", providerId)
-          .build()
-          .toUriString();
-    }
-
-    return UriComponentsBuilder.fromUriString(MAIN_URL)
-        //            .queryParam("providerId", providerId)
-        .build()
-        .toUriString();
+    // redirect
+    response.sendRedirect(REDIRECT_URL);
   }
 }

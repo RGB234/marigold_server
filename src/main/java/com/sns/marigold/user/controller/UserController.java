@@ -1,9 +1,13 @@
 package com.sns.marigold.user.controller;
 
-import com.sns.marigold.user.dto.UserCreateDTO;
-import com.sns.marigold.user.dto.UserProfileDTO;
-import com.sns.marigold.user.dto.UserUpdateDTO;
-import com.sns.marigold.user.service.UserServiceImpl;
+import com.sns.marigold.user.dto.InstitutionUserCreateDto;
+import com.sns.marigold.user.dto.InstitutionUserResponseDto;
+import com.sns.marigold.user.dto.InstitutionUserUpdateDto;
+import com.sns.marigold.user.dto.PersonalUserCreateDto;
+import com.sns.marigold.user.dto.PersonalUserResponseDto;
+import com.sns.marigold.user.dto.PersonalUserUpdateDto;
+import com.sns.marigold.user.service.InstitutionUserService;
+import com.sns.marigold.user.service.PersonalUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,39 +21,65 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-// @Controller("/user")
 @RestController
 @RequestMapping("/user")
 @RequiredArgsConstructor
 @Slf4j
 public class UserController {
 
-  private final UserServiceImpl userService;
+  private final InstitutionUserService institutionUserService;
+  private final PersonalUserService personalUserService;
 
-  @PostMapping("/create")
-  public UserProfileDTO create(@RequestBody @Valid UserCreateDTO userCreateDTO) {
-    return userService.create(userCreateDTO);
+  // ** create **
+
+  @PostMapping("/create/institution")
+  public InstitutionUserResponseDto create(@RequestBody @Valid InstitutionUserCreateDto dto) {
+    return institutionUserService.create(dto);
   }
 
-  @GetMapping("/{nickname}")
-  public UserProfileDTO get(@PathVariable("nickname") String nickname) {
-    return userService.get(nickname);
+  @PostMapping("/create/person")
+  public PersonalUserResponseDto create(@RequestBody @Valid PersonalUserCreateDto dto) {
+    return personalUserService.create(dto);
   }
 
-  @PatchMapping("update/{id}")
-  public UserProfileDTO update(
-      @PathVariable Long id, @RequestBody @Valid UserUpdateDTO userUpdateDTO) {
-    return userService.update(id, userUpdateDTO);
+  // ** update **
+
+  @PatchMapping("settings/institution/{id}")
+  public InstitutionUserResponseDto update(
+    @PathVariable Long id, @RequestBody @Valid InstitutionUserUpdateDto dto) {
+    return institutionUserService.update(id, dto);
   }
 
-  @DeleteMapping("/hard-delete/{id}")
-  public ResponseEntity<String> hardDelete(@PathVariable("id") Long id) {
-    userService.hardDelete(id);
+  @PatchMapping("settings/person/{id}")
+  public PersonalUserResponseDto updateUsername(
+    @PathVariable Long id, @RequestBody @Valid PersonalUserUpdateDto dto
+  ) {
+    return personalUserService.update(id, dto);
+  }
+
+  // ** get **
+
+  @GetMapping("/institution/{username}")
+  public InstitutionUserResponseDto getInstitution(@PathVariable("username") String username) {
+    return institutionUserService.getByUsername(username);
+  }
+
+  @GetMapping("/person/{username}")
+  public PersonalUserResponseDto getPerson(@PathVariable("username") String username) {
+    return personalUserService.getByUsername(username);
+  }
+
+  // ** delete **
+
+  @DeleteMapping("/delete/institution/{id}")
+  public ResponseEntity<String> deleteInstitution(@PathVariable("id") Long id) {
+    institutionUserService.delete(id);
     return ResponseEntity.ok().body("User deleted successfully");
   }
 
-  //    @DeleteMapping("/soft-delete")
-  //    public String softDelete(){
-  //
-  //    };
+  @DeleteMapping("/delete/person/{id}")
+  public ResponseEntity<String> deletePerson(@PathVariable("id") Long id) {
+    personalUserService.delete(id);
+    return ResponseEntity.ok().body("User deleted successfully");
+  }
 }
