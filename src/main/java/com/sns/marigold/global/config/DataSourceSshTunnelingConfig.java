@@ -8,9 +8,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
+
 @Configuration
 @RequiredArgsConstructor
 public class DataSourceSshTunnelingConfig {
+
   private final SshTunnelingInitializer sshTunnelingInitializer;
   Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
 

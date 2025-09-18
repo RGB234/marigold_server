@@ -5,6 +5,7 @@ import lombok.Getter;
 
 @Getter
 public class GoogleOAuth2UserInfo extends OAuth2UserInfo {
+
   private final String sub;
   private final String email;
 
@@ -16,11 +17,11 @@ public class GoogleOAuth2UserInfo extends OAuth2UserInfo {
 
   @Override
   public String getName() {
-    return this.sub;
+    return sub;
   }
 
   @Override
   public String getEmail() {
-    return this.email;
+    return email;
   }
 }

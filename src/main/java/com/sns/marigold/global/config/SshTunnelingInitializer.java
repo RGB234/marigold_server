@@ -6,40 +6,34 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.KeyPair;
 import com.jcraft.jsch.Session;
 import jakarta.annotation.PreDestroy;
-import jakarta.validation.constraints.NotNull;
 import java.io.File;
 import java.util.Properties;
-import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.validation.annotation.Validated;
 
 @Component
-@ConfigurationProperties(prefix = "ssh") // application.properties 값 사용
-@Validated
-@Setter
+//@ConfigurationProperties(prefix = "ssh") // application.properties 값 사용
 public class SshTunnelingInitializer {
 
   // ** SSH host **
-  @NotNull
+  @Value("${ssh.host}")
   private String host; // application.properties 의 ssh.host 값과 자동 매핑
-  @NotNull
+  @Value("${ssh.port}")
   private int port;
-  @NotNull
+  @Value("${ssh.user}")
   private String user;
-  @NotNull
+  @Value("${ssh.private_key}")
   private String privateKey;
 
   // ** Remote host **
-  @NotNull
+  @Value("${ssh.remote_host}")
   private String remoteHost;
-  @NotNull
+  @Value("${ssh.remote_port}")
   private int remotePort;
 
   private Session session;
-
   private final Logger logger = LoggerFactory.getLogger(SshTunnelingInitializer.class);
 
   @PreDestroy

@@ -40,8 +40,8 @@ dependencies {
     // Auth
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
-    //
-    implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
+    // session
+    implementation("org.springframework.session:spring-session-core")
 }
 
 tasks.withType<Test> {

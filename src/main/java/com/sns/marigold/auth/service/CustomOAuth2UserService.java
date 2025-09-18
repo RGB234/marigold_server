@@ -2,14 +2,13 @@ package com.sns.marigold.auth.service;
 
 import com.sns.marigold.auth.OAuth2UserInfo;
 import com.sns.marigold.auth.OAuth2UserInfoFactory;
-import com.sns.marigold.auth.RandomUsernameGenerator;
-import com.sns.marigold.auth.UserPrincipal;
+import com.sns.marigold.auth.PersonalUserPrincipal;
 import com.sns.marigold.global.enums.ProviderInfo;
-import com.sns.marigold.global.enums.Role;
-import com.sns.marigold.user.dto.UserCreateDTO;
-import com.sns.marigold.user.entity.UserEntity;
-import com.sns.marigold.user.repository.UserRepository;
-import com.sns.marigold.user.service.UserService;
+import com.sns.marigold.user.dto.PersonalUserCreateDto;
+import com.sns.marigold.user.dto.PersonalUserResponseDto;
+import com.sns.marigold.user.entity.PersonalUser;
+import com.sns.marigold.user.repository.PersonalUserRepository;
+import com.sns.marigold.user.service.PersonalUserService;
 import jakarta.transaction.Transactional;
 import java.util.Map;
 import java.util.Optional;
@@ -27,11 +26,11 @@ import org.springframework.validation.annotation.Validated;
 @RequiredArgsConstructor
 @Slf4j
 @Validated
-public class CustomOAuth2UserService implements OAuth2UserService {
+public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
-  private final UserRepository userRepository;
-  private final UserService userService;
-  private final RandomUsernameGenerator usernameGenerator;
+  private final PersonalUserService userService;
+  private final PersonalUserRepository userRepository;
+
 
   @Override
   @Transactional
@@ -48,51 +47,39 @@ public class CustomOAuth2UserService implements OAuth2UserService {
     //        }
 
     String userNameAttributeName =
-        userRequest
-            .getClientRegistration()
-            .getProviderDetails()
-            .getUserInfoEndpoint()
-            .getUserNameAttributeName();
+      userRequest
+        .getClientRegistration()
+        .getProviderDetails()
+        .getUserInfoEndpoint()
+        .getUserNameAttributeName();
 
-    //        log.info("userNameAttributeName : {}", userNameAttributeName);
-
-    String providerCode = userRequest.getClientRegistration().getRegistrationId();
-    //        log.info("providerCode : {}", providerCode);
-
-    ProviderInfo providerInfo = ProviderInfo.fromProvider(providerCode);
-    //        log.info("providerInfo : {}", providerInfo);
+    String providerCode = userRequest.getClientRegistration().getRegistrationId(); // "google", ...
+    ProviderInfo providerInfo = ProviderInfo.fromString(providerCode);
 
     OAuth2UserInfo oAuth2UserInfo =
-        OAuth2UserInfoFactory.getOAuth2UserInfo(providerInfo, attributes);
+      OAuth2UserInfoFactory.getOAuth2UserInfo(providerInfo, attributes);
 
     String providerId = oAuth2UserInfo.getName();
-    String email = oAuth2UserInfo.getEmail();
 
-    //        String providerId = attributes.get(userNameAttributeName).toString();
-    //        String email = attributes.get("email").toString();
+    PersonalUser user = getUser(providerInfo, providerId);
 
-    UserEntity user = getUser(providerId, providerInfo, email);
-
-    return new UserPrincipal(user, attributes, userNameAttributeName);
+    return new PersonalUserPrincipal(user, attributes, userNameAttributeName);
   }
 
-  private UserEntity getUser(String providerId, ProviderInfo providerInfo, String email) {
-    Optional<UserEntity> optionalUser = userRepository.findByProviderId(providerId);
+  private PersonalUser getUser(ProviderInfo providerInfo, String providerId) {
+    Optional<PersonalUser> optionalUser = userRepository.findByProviderInfoAndProviderId(
+      providerInfo, providerId);
     if (optionalUser.isEmpty()) {
-      // 일단 계정 생성
-      // 계정 생성 후 리다이렉션 되는 회원가입 페이지에서 추가 정보 입력
-      UserCreateDTO userCreateDTO =
-          UserCreateDTO.builder()
-              .email(email)
-              .role(Role.ROLE_NOT_REGISTERED)
-              .providerId(providerId)
-              .providerInfo(providerInfo)
-              .username(usernameGenerator.generate())
-              .build();
+      // 자동 계정 생성
+      PersonalUserCreateDto dto = PersonalUserCreateDto.builder()
+        .providerInfo(providerInfo)
+        .providerId(providerId)
+        .build();
+      PersonalUserResponseDto responseDto = userService.create(dto);
 
-      userService.create(userCreateDTO);
-      return userCreateDTO.toUserEntity();
+      return userService.findById(responseDto.getId());
     }
     return optionalUser.get();
+
   }
 }
