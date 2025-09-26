@@ -14,5 +14,5 @@ import lombok.NoArgsConstructor;
 public class PersonalUserUpdateDto {
 
   @Size(min = 3, max = 12)
-  private String username;
+  private String nickname;
 }

@@ -9,6 +9,7 @@ import com.sns.marigold.user.entity.PersonalUser;
 import com.sns.marigold.user.repository.PersonalUserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,29 +40,17 @@ public class PersonalUserService {
 
   @Transactional
   public UUID create(PersonalUserCreateDto dto) {
-    int maxAttempts = 3;
+    String nickname = randomUsernameGenerator.generate();
 
-    for (int i = 0; i < maxAttempts; i++) {
-      // 유저명은 랜덤 생성
-      // 이후 설정에서 변경 가능
-      String username = randomUsernameGenerator.generate();
+    PersonalUser user = PersonalUser.builder()
+      .providerInfo(dto.getProviderInfo())
+      .providerId(dto.getProviderId())
+      .nickname(nickname)
+      .build();
 
-      PersonalUser user = PersonalUser.builder()
-        .providerInfo(dto.getProviderInfo())
-        .providerId(dto.getProviderId())
-        .username(username)
-        .build();
-
-      try {
-        personalUserRepository.save(user);
+    personalUserRepository.save(user);
 //        return PersonalUserResponseDto.fromUser(user);
-        return user.getId();
-      } catch (DataIntegrityViolationException e) {
-        log.info("DataIntegrityViolationException : {}", e.getMessage());
-        log.info("Retrying... ( {} / {} )", i + 1, maxAttempts);
-      }
-    }
-    throw new IllegalStateException("계정 생성 실패. 잠시 후 다시 시도해주십시오.");
+    return user.getId();
   }
 
   // ** update **
@@ -85,10 +74,9 @@ public class PersonalUserService {
     return PersonalUserResponseDto.fromUser(user);
   }
 
-  public PersonalUserResponseDto getByUsername(String username) {
-    PersonalUser user = personalUserRepository.findByUsername(username)
-      .orElseThrow(() -> new EntityNotFoundException("해당 사용자를 찾을 수 없습니다"));
-    return PersonalUserResponseDto.fromUser(user);
+  public List<PersonalUserResponseDto> getByNickname(String nickname) {
+    List<PersonalUser> users = personalUserRepository.findByNickname(nickname);
+    return users.stream().map(PersonalUserResponseDto::fromUser).toList();
   }
 
   // ** Delete **
