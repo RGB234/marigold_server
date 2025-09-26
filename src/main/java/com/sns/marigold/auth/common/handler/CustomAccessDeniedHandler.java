@@ -1,4 +1,4 @@
-package com.sns.marigold.auth.handler;
+package com.sns.marigold.auth.common.handler;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,22 +19,22 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
 
   @Override
   public void handle(
-      HttpServletRequest request,
-      HttpServletResponse response,
-      AccessDeniedException accessDeniedException)
-      throws IOException {
+    HttpServletRequest request,
+    HttpServletResponse response,
+    AccessDeniedException accessDeniedException)
+    throws IOException {
     log.error(
-        "🚫 Access Denied - URI: {}, User: {}, Message: {}",
-        request.getRequestURI(),
-        request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "anonymous",
-        accessDeniedException.getMessage());
+      "🚫 Access Denied - URI: {}, User: {}, Message: {}",
+      request.getRequestURI(),
+      request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "anonymous",
+      accessDeniedException.getMessage());
 
     log.error("{} ", Arrays.stream(accessDeniedException.getStackTrace()).toArray());
 
     Collection<? extends GrantedAuthority> authorities =
-        (request.getUserPrincipal() instanceof Authentication)
-            ? ((Authentication) request.getUserPrincipal()).getAuthorities()
-            : Collections.emptyList();
+      (request.getUserPrincipal() instanceof Authentication)
+        ? ((Authentication) request.getUserPrincipal()).getAuthorities()
+        : Collections.emptyList();
 
     log.error("   - Authorities: {}", authorities);
 

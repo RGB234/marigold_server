@@ -5,3 +5,8 @@ spring:
   profiles:
     #    active: dev
     include: oauth
+
+server:
+  servlet:
+    session:
+      timeout: 30m   # 30분

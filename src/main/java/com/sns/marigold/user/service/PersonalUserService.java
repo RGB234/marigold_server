@@ -1,6 +1,6 @@
 package com.sns.marigold.user.service;
 
-import com.sns.marigold.auth.RandomUsernameGenerator;
+import com.sns.marigold.auth.oauth2.RandomUsernameGenerator;
 import com.sns.marigold.global.enums.ProviderInfo;
 import com.sns.marigold.user.dto.PersonalUserCreateDto;
 import com.sns.marigold.user.dto.PersonalUserResponseDto;
@@ -9,6 +9,7 @@ import com.sns.marigold.user.entity.PersonalUser;
 import com.sns.marigold.user.repository.PersonalUserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -22,15 +23,8 @@ public class PersonalUserService {
   private final PersonalUserRepository personalUserRepository;
   private final RandomUsernameGenerator randomUsernameGenerator;
 
-  public PersonalUser findById(Long id) {
-    return personalUserRepository
-      .findById(id)
-      .orElseThrow(() -> new EntityNotFoundException("해당 사용자를 찾을 수 없습니다."));
-  }
-
-  public PersonalUser findByUsername(String username) {
-    return personalUserRepository
-      .findByUsername(username)
+  public PersonalUser findById(UUID id) {
+    return personalUserRepository.findById(id)
       .orElseThrow(() -> new EntityNotFoundException("해당 사용자를 찾을 수 없습니다."));
   }
 
@@ -44,7 +38,7 @@ public class PersonalUserService {
   // ** create **
 
   @Transactional
-  public PersonalUserResponseDto create(PersonalUserCreateDto dto) {
+  public UUID create(PersonalUserCreateDto dto) {
     int maxAttempts = 3;
 
     for (int i = 0; i < maxAttempts; i++) {
@@ -60,10 +54,11 @@ public class PersonalUserService {
 
       try {
         personalUserRepository.save(user);
-        return PersonalUserResponseDto.fromUser(user);
+//        return PersonalUserResponseDto.fromUser(user);
+        return user.getId();
       } catch (DataIntegrityViolationException e) {
-        log.error("DataIntegrityViolationException : {}", e.getMessage());
-        log.error("Retrying... ( {} / {} )", i + 1, maxAttempts);
+        log.info("DataIntegrityViolationException : {}", e.getMessage());
+        log.info("Retrying... ( {} / {} )", i + 1, maxAttempts);
       }
     }
     throw new IllegalStateException("계정 생성 실패. 잠시 후 다시 시도해주십시오.");
@@ -72,32 +67,36 @@ public class PersonalUserService {
   // ** update **
 
   @Transactional
-  public PersonalUserResponseDto update(Long id, PersonalUserUpdateDto dto) {
-    int updatedRows = personalUserRepository.update(id, dto.getUsername());
-    if (updatedRows == 0) {
-      throw new EntityNotFoundException("해당 사용자를 찾을 수 없습니다");
-    }
+  public PersonalUserResponseDto update(UUID id, PersonalUserUpdateDto dto) {
+    // 업데이트 된 사용자 정보 가져오기
     PersonalUser user = personalUserRepository.findById(id).orElseThrow(() ->
       new EntityNotFoundException("해당 사용자를 찾을 수 없습니다"));
-    
+
+    user.update(dto);
+
     return PersonalUserResponseDto.fromUser(user);
   }
 
   // ** Get **
 
-  public PersonalUserResponseDto get(Long id) {
-    PersonalUser user = findById(id);
+  public PersonalUserResponseDto getById(UUID id) {
+    PersonalUser user = personalUserRepository.findById(id)
+      .orElseThrow(() -> new EntityNotFoundException("해당 사용자를 찾을 수 없습니다"));
     return PersonalUserResponseDto.fromUser(user);
   }
 
   public PersonalUserResponseDto getByUsername(String username) {
-    PersonalUser user = findByUsername(username);
+    PersonalUser user = personalUserRepository.findByUsername(username)
+      .orElseThrow(() -> new EntityNotFoundException("해당 사용자를 찾을 수 없습니다"));
     return PersonalUserResponseDto.fromUser(user);
   }
 
   // ** Delete **
 
-  public void delete(Long id) {
+  public void delete(UUID id) {
+    if (!personalUserRepository.existsById(id)) {
+      throw new EntityNotFoundException("해당 사용자를 찾을 수 없습니다");
+    }
     personalUserRepository.deleteById(id);
   }
 }

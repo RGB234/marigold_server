@@ -14,7 +14,7 @@ public enum Species {
   BIRDS("조류", "BIRDS"),
   REPTILES("파충류", "REPTILES"),
   FISH("어류", "FISH"),
-  ETC("기타", "ETC");
+  ETC("기타외", "OTHER");
 
   private final String name;
   @JsonValue

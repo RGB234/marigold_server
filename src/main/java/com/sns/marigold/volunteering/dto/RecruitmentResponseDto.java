@@ -3,6 +3,7 @@ package com.sns.marigold.volunteering.dto;
 import com.sns.marigold.user.dto.InstitutionUserResponseDto;
 import com.sns.marigold.volunteering.entity.VolunteeringRecruitment;
 import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -20,11 +21,9 @@ public class RecruitmentResponseDto {
 
   private String text;
 
-  private InstitutionUserResponseDto writer;
+  private UUID writerId;
 
-  public static RecruitmentResponseDto fromEntity(VolunteeringRecruitment entity) {
-    InstitutionUserResponseDto writer = InstitutionUserResponseDto.fromUser(entity.getWriter());
-
+  public static RecruitmentResponseDto from(VolunteeringRecruitment entity) {
     return RecruitmentResponseDto
       .builder()
       .id(entity.getId())
@@ -33,7 +32,7 @@ public class RecruitmentResponseDto {
       .location(entity.getLocation())
       .date(entity.getDate())
       .text(entity.getText())
-      .writer(writer)
+      .writerId(entity.getWriter().getId())
       .build();
   }
 

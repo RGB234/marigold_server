@@ -1,4 +1,4 @@
-package com.sns.marigold.auth;
+package com.sns.marigold.auth.oauth2;
 
 import com.sns.marigold.user.entity.PersonalUser;
 import java.util.Collection;
@@ -29,7 +29,10 @@ public class PersonalUserPrincipal implements OAuth2User {
     this.user = user;
     this.attributes = attributes;
     this.nameAttributeKey = nameAttributeKey;
-    this.authorities = Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name()));
+    this.authorities = Collections.singletonList(new SimpleGrantedAuthority(
+        user.getRole().name())
+//        Role.ROLE_PERSON.name())
+    );
   }
 
   @Override

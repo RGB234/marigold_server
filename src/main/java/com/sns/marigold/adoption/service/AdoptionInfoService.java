@@ -1,20 +1,22 @@
 package com.sns.marigold.adoption.service;
 
+import com.sns.marigold.adoption.dto.AdoptionDetailedInfoResponseDto;
 import com.sns.marigold.adoption.dto.AdoptionInfoCreateDto;
 import com.sns.marigold.adoption.dto.AdoptionInfoResponseDto;
+import com.sns.marigold.adoption.dto.AdoptionInfoSearchFilterDto;
 import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.adoption.repository.AdoptionInfoRepository;
-import com.sns.marigold.global.enums.ProviderInfo;
+import com.sns.marigold.adoption.specification.AdoptionInfoSpecification;
 import com.sns.marigold.user.entity.User;
-import com.sns.marigold.user.service.InstitutionUserService;
-import com.sns.marigold.user.service.PersonalUserService;
+import com.sns.marigold.user.service.UserService;
 import jakarta.transaction.Transactional;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.SessionAttribute;
 
 @Service
 @RequiredArgsConstructor
@@ -22,16 +24,12 @@ import org.springframework.web.bind.annotation.SessionAttribute;
 public class AdoptionInfoService {
 
   private final AdoptionInfoRepository adoptionInfoRepository;
-  private final PersonalUserService personalUserService;
-  private final InstitutionUserService institutionUserService;
+  private final UserService userService;
 
   @Transactional
   public void createInfo(AdoptionInfoCreateDto dto,
-    @SessionAttribute("userId") String userId) {
-
-    User user =
-
-      log.info("user : {}", user);
+    UUID uid) {
+    User user = userService.findById(uid);
 
     AdoptionInfo adoptionInfo = AdoptionInfo
       .builder()
@@ -40,7 +38,7 @@ public class AdoptionInfoService {
       .name(dto.getName())
       .age(dto.getAge())
       .sex(dto.getSex())
-      .location(dto.getLocation())
+      .area(dto.getArea())
       .weight(dto.getWeight())
       .neutering(dto.getNeutering())
       .features(dto.getFeatures())
@@ -50,9 +48,31 @@ public class AdoptionInfoService {
   }
 
   public List<AdoptionInfoResponseDto> getAll() {
-    return adoptionInfoRepository.findAll()
-      .stream()
-      .map(AdoptionInfoResponseDto::fromAdoptionInfo)
+    List<AdoptionInfo> list = adoptionInfoRepository.findAll();
+    return list.stream().map(AdoptionInfoResponseDto::from).collect(Collectors.toList());
+  }
+
+  // 일반 검색
+  public List<AdoptionInfoResponseDto> search(AdoptionInfoSearchFilterDto dto) {
+    List<AdoptionInfo> list = adoptionInfoRepository.findAll(
+      Specification.allOf(
+        AdoptionInfoSpecification.hasSpecies(dto.getSpecies()),
+        AdoptionInfoSpecification.hasSex(dto.getSex())
+      ));
+    return list.stream().map(AdoptionInfoResponseDto::from).collect(Collectors.toList());
+  }
+
+  // 작성자로 검색
+  public List<AdoptionInfoResponseDto> searchByWriterId(UUID uid) {
+    List<AdoptionInfo> list = adoptionInfoRepository.findAllByWriter_Id(uid);
+    return list.stream()
+      .map(AdoptionInfoResponseDto::from)
       .collect(Collectors.toList());
+  }
+
+  // 상세
+  public AdoptionDetailedInfoResponseDto getDetail(UUID id) {
+    AdoptionInfo info = adoptionInfoRepository.findByIdWithWriter_Id(id);
+    return AdoptionDetailedInfoResponseDto.from(info);
   }
 }

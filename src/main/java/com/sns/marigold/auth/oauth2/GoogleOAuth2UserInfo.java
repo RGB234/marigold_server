@@ -1,4 +1,4 @@
-package com.sns.marigold.auth;
+package com.sns.marigold.auth.oauth2;
 
 import java.util.Map;
 import lombok.Getter;

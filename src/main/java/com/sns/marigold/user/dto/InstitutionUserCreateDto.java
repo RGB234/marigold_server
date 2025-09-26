@@ -1,32 +1,42 @@
 package com.sns.marigold.user.dto;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.NoArgsConstructor;
 
-@Builder
 @Getter
-@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InstitutionUserCreateDto {
-
-  @Size(min = 3, max = 12)
-  private String username;
 
   @Email
   private String email;
 
-  @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*[0-9]).{8,25}$", message = "영문자와 숫자를 포함한 8자 이상 25자 이하로 구성해야합니다.")
+  @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[!@#$%^&*]).{8,}$", message = "영문자와 숫자, 특수문자(!@#$%^&*)를 포함한 8자 이상으로 구성.")
   private String password;
 
-  private String contactPerson;
+  @NotBlank
+  private String companyName;
 
-  @Pattern(regexp = "^\\d{3}-\\d{4}-\\d{4}$")
-  private String contactPhone;
+  @NotBlank
+  private String repName; // 대표자명
 
-  private String registrationNumber;
+  @NotBlank
+  @Pattern(regexp = "^[0-9]{3}-[0-9]{2}-[0-9]{5}?")
+  private String brn; // business registration number;
 
+  @NotBlank
+  private String zipCode;
+
+  @NotBlank
   private String address;
+
+  @NotBlank
+  private String detailedAddress;
 }

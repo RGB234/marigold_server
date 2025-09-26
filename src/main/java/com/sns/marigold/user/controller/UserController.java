@@ -2,16 +2,21 @@ package com.sns.marigold.user.controller;
 
 import com.sns.marigold.user.dto.InstitutionUserCreateDto;
 import com.sns.marigold.user.dto.InstitutionUserResponseDto;
+import com.sns.marigold.user.dto.InstitutionUserSecurityUpdateDto;
 import com.sns.marigold.user.dto.InstitutionUserUpdateDto;
 import com.sns.marigold.user.dto.PersonalUserCreateDto;
 import com.sns.marigold.user.dto.PersonalUserResponseDto;
 import com.sns.marigold.user.dto.PersonalUserUpdateDto;
 import com.sns.marigold.user.service.InstitutionUserService;
 import com.sns.marigold.user.service.PersonalUserService;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -20,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.SessionAttribute;
 
 @RestController
 @RequestMapping("/user")
@@ -33,53 +39,70 @@ public class UserController {
   // ** create **
 
   @PostMapping("/create/institution")
-  public InstitutionUserResponseDto create(@RequestBody @Valid InstitutionUserCreateDto dto) {
-    return institutionUserService.create(dto);
+  public ResponseEntity<?> create(@RequestBody @Valid InstitutionUserCreateDto dto,
+    BindingResult bindingResult) {
+    if (bindingResult.hasErrors()) {
+      return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
+    }
+    UUID id = institutionUserService.create(dto);
+    return ResponseEntity.ok(institutionUserService.getById(id));
   }
 
   @PostMapping("/create/person")
   public PersonalUserResponseDto create(@RequestBody @Valid PersonalUserCreateDto dto) {
-    return personalUserService.create(dto);
+    UUID id = personalUserService.create(dto);
+    return personalUserService.getById(id);
   }
 
   // ** update **
-
-  @PatchMapping("settings/institution/{id}")
+  @RolesAllowed({"ROLE_INSTITUTION"})
+  @PatchMapping("settings/institution")
   public InstitutionUserResponseDto update(
-    @PathVariable Long id, @RequestBody @Valid InstitutionUserUpdateDto dto) {
-    return institutionUserService.update(id, dto);
+    @SessionAttribute("uid") UUID uid, @RequestBody @Valid InstitutionUserUpdateDto dto) {
+    return institutionUserService.update(uid, dto);
   }
 
-  @PatchMapping("settings/person/{id}")
-  public PersonalUserResponseDto updateUsername(
-    @PathVariable Long id, @RequestBody @Valid PersonalUserUpdateDto dto
+  @RolesAllowed({"ROLE_INSTITUTION"})
+  @PatchMapping("settings/institution/security")
+  public InstitutionUserResponseDto updateSecurityInfo(
+    @SessionAttribute("uid") UUID uid, @RequestBody @Valid InstitutionUserSecurityUpdateDto dto) {
+    return institutionUserService.updateSecurityInfo(uid, dto);
+  }
+
+  @RolesAllowed({"ROLE_PERSON"})
+  @PatchMapping("settings/person")
+  public PersonalUserResponseDto update(
+    @SessionAttribute("uid") UUID uid, @RequestBody @Valid PersonalUserUpdateDto dto
   ) {
-    return personalUserService.update(id, dto);
+    return personalUserService.update(uid, dto);
   }
 
   // ** get **
 
-  @GetMapping("/institution/{username}")
-  public InstitutionUserResponseDto getInstitution(@PathVariable("username") String username) {
-    return institutionUserService.getByUsername(username);
+  @GetMapping("/institution/{companyName}")
+  public List<InstitutionUserResponseDto> getInstitutionByCompanyName(
+    @PathVariable("companyName") String companyName) {
+    return institutionUserService.getByCompanyName(companyName);
   }
 
   @GetMapping("/person/{username}")
-  public PersonalUserResponseDto getPerson(@PathVariable("username") String username) {
+  public PersonalUserResponseDto getPersonByUsername(@PathVariable("username") String username) {
     return personalUserService.getByUsername(username);
   }
 
   // ** delete **
 
-  @DeleteMapping("/delete/institution/{id}")
-  public ResponseEntity<String> deleteInstitution(@PathVariable("id") Long id) {
-    institutionUserService.delete(id);
+  @RolesAllowed({"ROLE_INSTITUTION"})
+  @DeleteMapping("/delete/institution")
+  public ResponseEntity<String> deleteInstitution(@SessionAttribute("uid") UUID uid) {
+    institutionUserService.delete(uid);
     return ResponseEntity.ok().body("User deleted successfully");
   }
 
-  @DeleteMapping("/delete/person/{id}")
-  public ResponseEntity<String> deletePerson(@PathVariable("id") Long id) {
-    personalUserService.delete(id);
+  @RolesAllowed({"ROLE_PERSON"})
+  @DeleteMapping("/delete/person")
+  public ResponseEntity<String> deletePerson(@SessionAttribute("uid") UUID uid) {
+    personalUserService.delete(uid);
     return ResponseEntity.ok().body("User deleted successfully");
   }
 }

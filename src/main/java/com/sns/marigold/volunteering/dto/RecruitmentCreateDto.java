@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.Getter;
 
 @Getter
@@ -21,7 +22,6 @@ public class RecruitmentCreateDto {
   @Size(min = 10, max = 500, message = "10자 이상 500자 이하로 입력해주세요")
   private String text;
 
-  // 삭제 예정
   @NotBlank
-  private Long writerId;
+  private UUID writerId;
 }

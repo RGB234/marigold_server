@@ -1,10 +1,11 @@
-package com.sns.marigold.auth;
+package com.sns.marigold.auth.oauth2;
 
 import java.util.Random;
 import org.springframework.stereotype.Component;
 
 @Component
 public class RandomUsernameGenerator {
+
   private final int rand_length;
 
   private static final String[] adjectives = {
