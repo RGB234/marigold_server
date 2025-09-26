@@ -15,13 +15,13 @@ import lombok.NoArgsConstructor;
 public class PersonalUserResponseDto {
 
   private Role role;
-  private String username;
+  private String nickname;
 
   public static PersonalUserResponseDto fromUser(PersonalUser user) {
     return PersonalUserResponseDto
       .builder()
       .role(user.getRole())
-      .username(user.getUsername())
+      .nickname(user.getNickname())
       .build();
   }
 }
