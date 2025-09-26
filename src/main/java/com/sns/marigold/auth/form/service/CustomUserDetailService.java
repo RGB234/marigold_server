@@ -17,12 +17,12 @@ public class CustomUserDetailService implements UserDetailsService {
   private final InstitutionUserService institutionUserService;
 
   @Override
-  public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+  public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
     InstitutionUser user;
     try {
-      user = institutionUserService.findByEmail(email);
+      user = institutionUserService.findByUsername(username);
     } catch (EntityNotFoundException e) {
-      throw new UsernameNotFoundException("Email not found: " + email);
+      throw new UsernameNotFoundException("해당 유저를 찾을 수 없습니다");
     }
     return User.builder()
       .username(user.getEmail())

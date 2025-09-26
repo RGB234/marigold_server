@@ -26,23 +26,31 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @AllArgsConstructor
 public class InstitutionUser extends User {
 
-  @Email
-  @Column(unique = true)
-  private String email;
-
+  @Column(unique = true, nullable = false)
+  private String username;
+  @Column(nullable = false)
   private String password;
 
+  @Email
+  @Column(unique = true, nullable = false)
+  private String email;
+
+  @Column(nullable = false)
   private String companyName; // 회사명
 
+  @Column(nullable = false)
   private String repName; // 대표자명
 
-  @Column(unique = true)
+  @Column(unique = true, nullable = false, length = 12) // 000-00-000000
   private String brn; // 사업자등록번호 business registration number
 
+  @Column(nullable = false, length = 5)
   private String zipCode; // 우편번호
 
+  @Column(nullable = false)
   private String address;
 
+  @Column(nullable = false)
   private String detailedAddress;
 
   public void update(InstitutionUserUpdateDto dto) {
@@ -73,8 +81,8 @@ public class InstitutionUser extends User {
 
   public void updateSecurityInfo(InstitutionUserSecurityUpdateDto dto,
     PasswordEncoder passwordEncoder) {
-    if (dto.getEmail() != null) {
-      this.email = dto.getEmail();
+    if (dto.getUsername() != null) {
+      this.username = dto.getUsername();
     }
     if (dto.getPassword() != null) {
       this.password = passwordEncoder.encode(dto.getPassword());

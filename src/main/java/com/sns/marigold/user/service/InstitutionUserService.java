@@ -28,9 +28,13 @@ public class InstitutionUserService {
       .orElseThrow(() -> new EntityNotFoundException("해당 사용자를 찾을 수 없습니다"));
   }
 
-  public InstitutionUser findByEmail(String email) {
-    return institutionUserRepository.findByEmail(email)
+  public InstitutionUser findByUsername(String username) {
+    return institutionUserRepository.findByUsername(username)
       .orElseThrow(() -> new EntityNotFoundException("해당 사용자를 찾을 수 없습니다"));
+  }
+
+  public List<InstitutionUser> findByCompanyName(String companyName) {
+    return institutionUserRepository.findByCompanyName(companyName);
   }
 
   // ** create **
@@ -39,8 +43,9 @@ public class InstitutionUserService {
   public UUID create(InstitutionUserCreateDto dto) {
     String encodedPassword = passwordEncoder.encode(dto.getPassword());
     InstitutionUser user = InstitutionUser.builder()
-      .email(dto.getEmail())
+      .username(dto.getUsername())
       .password(encodedPassword)
+      .email(dto.getEmail())
       .companyName(dto.getCompanyName())
       .repName(dto.getRepName())
       .brn(dto.getBrn())
