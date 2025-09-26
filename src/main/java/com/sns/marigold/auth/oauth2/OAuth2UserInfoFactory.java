@@ -1,4 +1,4 @@
-package com.sns.marigold.auth;
+package com.sns.marigold.auth.oauth2;
 
 import com.sns.marigold.global.enums.ProviderInfo;
 import java.util.Map;

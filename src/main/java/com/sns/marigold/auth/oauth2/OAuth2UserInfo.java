@@ -1,8 +1,9 @@
-package com.sns.marigold.auth;
+package com.sns.marigold.auth.oauth2;
 
 import java.util.Map;
 
 public abstract class OAuth2UserInfo {
+
   private final Map<String, Object> attributes;
 
   public OAuth2UserInfo(Map<String, Object> attributes) {

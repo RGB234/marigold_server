@@ -9,7 +9,9 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum Sex {
   MALE("수컷", "MALE"),
-  FEMALE("암컷", "FEMALE");
+  FEMALE("암컷", "FEMALE"),
+  UNKNOWN("모름", "UNKNOWN"),
+  OTHER("기타", "OTHER");
 
   private final String name;
   @JsonValue

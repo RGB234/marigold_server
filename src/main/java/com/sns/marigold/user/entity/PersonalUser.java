@@ -1,8 +1,8 @@
 package com.sns.marigold.user.entity;
 
-import com.sns.marigold.global.annotation.Enum;
 import com.sns.marigold.global.enums.ProviderInfo;
 import com.sns.marigold.global.enums.Role;
+import com.sns.marigold.user.dto.PersonalUserUpdateDto;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
@@ -11,6 +11,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.PrimaryKeyJoinColumn;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,6 +22,8 @@ import lombok.NoArgsConstructor;
 @PrimaryKeyJoinColumn(name = "user_id")
 @DiscriminatorValue("ROLE_PERSON")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
+@AllArgsConstructor
 public class PersonalUser extends User {
 
   @Column(length = 20, unique = true, nullable = false)
@@ -31,16 +34,14 @@ public class PersonalUser extends User {
 
   private String providerId; // 소셜로그인 계정 id
 
-  @Builder
-  PersonalUser(String username, ProviderInfo providerInfo,
-    String providerId) {
-    super(Role.ROLE_PERSON);
-    this.username = username;
-    this.providerInfo = providerInfo;
-    this.providerId = providerId;
+  @Override
+  public Role getRole() {
+    return Role.ROLE_PERSON;
   }
 
-  public void updateUsername(String username) {
-    this.username = username;
+  public void update(PersonalUserUpdateDto dto) {
+    if (dto.getUsername() != null) {
+      this.username = dto.getUsername();
+    }
   }
 }

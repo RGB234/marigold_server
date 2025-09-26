@@ -1,34 +1,36 @@
 package com.sns.marigold.user.dto;
 
-import com.sns.marigold.global.enums.Role;
 import com.sns.marigold.user.entity.InstitutionUser;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.NoArgsConstructor;
 
 @Getter
-@Setter
 @Builder
-@ToString
+@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InstitutionUserResponseDto {
 
-  private Long id;
-  private Role role;
-  private String username;
   private String email;
-  private String contactPhone;
+  private String companyName;
+  private String repName;
+  private String brn;
+  private String zipCode;
   private String address;
+  private String detailedAddress;
 
   public static InstitutionUserResponseDto fromUser(InstitutionUser user) {
     return InstitutionUserResponseDto
       .builder()
-      .id(user.getId())
-      .role(user.getRole())
-      .username(user.getUsername())
       .email(user.getEmail())
-      .contactPhone(user.getContactPhone())
+      .companyName(user.getCompanyName())
+      .repName(user.getRepName())
+      .brn(user.getBrn())
+      .zipCode(user.getZipCode())
       .address(user.getAddress())
+      .detailedAddress(user.getDetailedAddress())
       .build();
   }
 }
