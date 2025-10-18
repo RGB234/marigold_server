@@ -2,14 +2,11 @@ package com.sns.marigold.auth.common;
 
 import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
 import com.sns.marigold.auth.form.CustomUsernamePasswordAuthenticationFilter;
-import com.sns.marigold.auth.form.handler.CustomFailureHandler;
-import com.sns.marigold.auth.form.handler.CustomSuccessHandler;
 import com.sns.marigold.auth.form.service.CustomUserDetailsService;
 import com.sns.marigold.auth.oauth2.handler.OAuth2FailureHandler;
 import com.sns.marigold.auth.oauth2.handler.OAuth2SuccessHandler;
 import com.sns.marigold.auth.oauth2.service.CustomOAuth2UserService;
 import com.sns.marigold.global.config.CustomCorsConfigurationSource;
-import com.sns.marigold.user.service.InstitutionUserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -21,7 +18,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer.SessionFixationConfigurer;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
@@ -47,8 +43,6 @@ public class SecurityConfig {
   private final OAuth2FailureHandler oAuth2FailureHandler;
 
   private final CustomUserDetailsService customUserDetailsService;
-  private final CustomSuccessHandler customSuccessHandler;
-  private final CustomFailureHandler customFailureHandler;
 
   private final CustomAccessDeniedHandler customAccessDeniedHandler;
 
@@ -62,8 +56,6 @@ public class SecurityConfig {
       OAuth2FailureHandler oAuth2FailureHandler,
 
       CustomUserDetailsService customUserDetailsService,
-      CustomSuccessHandler customSuccessHandler,
-      CustomFailureHandler customFailureHandler,
 
       CustomAccessDeniedHandler customAccessDeniedHandler
   ) {
@@ -76,8 +68,6 @@ public class SecurityConfig {
     this.oAuth2FailureHandler = oAuth2FailureHandler;
 
     this.customUserDetailsService = customUserDetailsService;
-    this.customSuccessHandler = customSuccessHandler;
-    this.customFailureHandler = customFailureHandler;
 
     this.customAccessDeniedHandler = customAccessDeniedHandler;
   }
