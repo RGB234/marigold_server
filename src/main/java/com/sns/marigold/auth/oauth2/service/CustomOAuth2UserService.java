@@ -2,16 +2,18 @@ package com.sns.marigold.auth.oauth2.service;
 
 import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
-import com.sns.marigold.auth.oauth2.PersonalUserPrincipal;
+import com.sns.marigold.auth.oauth2.PersonalUserOAuth2Principal;
 import com.sns.marigold.global.enums.ProviderInfo;
 import com.sns.marigold.user.dto.PersonalUserCreateDto;
 import com.sns.marigold.user.entity.PersonalUser;
 import com.sns.marigold.user.repository.PersonalUserRepository;
 import com.sns.marigold.user.service.PersonalUserService;
 import jakarta.transaction.Transactional;
+
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -43,34 +45,34 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     //        }
 
     String userNameAttributeName =
-      userRequest
-        .getClientRegistration()
-        .getProviderDetails()
-        .getUserInfoEndpoint()
-        .getUserNameAttributeName();
+        userRequest
+            .getClientRegistration()
+            .getProviderDetails()
+            .getUserInfoEndpoint()
+            .getUserNameAttributeName();
 
     String providerCode = userRequest.getClientRegistration().getRegistrationId(); // "google", ...
     ProviderInfo providerInfo = ProviderInfo.fromString(providerCode);
 
     OAuth2UserInfo oAuth2UserInfo =
-      OAuth2UserInfoFactory.getOAuth2UserInfo(providerInfo, attributes);
+        OAuth2UserInfoFactory.getOAuth2UserInfo(providerInfo, attributes);
 
     String providerId = oAuth2UserInfo.getName();
 
     PersonalUser user = getUser(providerInfo, providerId);
 
-    return new PersonalUserPrincipal(user, attributes, userNameAttributeName);
+    return new PersonalUserOAuth2Principal(user, attributes, userNameAttributeName);
   }
 
   private PersonalUser getUser(ProviderInfo providerInfo, String providerId) {
     Optional<PersonalUser> optionalUser = personalUserRepository.findByProviderInfoAndProviderId(
-      providerInfo, providerId);
+        providerInfo, providerId);
     if (optionalUser.isEmpty()) {
       // 자동 계정 생성
       PersonalUserCreateDto dto = PersonalUserCreateDto.builder()
-        .providerInfo(providerInfo)
-        .providerId(providerId)
-        .build();
+          .providerInfo(providerInfo)
+          .providerId(providerId)
+          .build();
 //      PersonalUserResponseDto responseDto = userService.create(dto);
       UUID uid = personalUserService.create(dto);
 

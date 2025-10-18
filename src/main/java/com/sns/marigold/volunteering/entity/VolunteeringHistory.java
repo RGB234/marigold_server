@@ -1,7 +1,6 @@
 package com.sns.marigold.volunteering.entity;
 
 import com.sns.marigold.user.entity.PersonalUser;
-import com.sns.marigold.user.entity.User;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;

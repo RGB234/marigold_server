@@ -3,11 +3,7 @@ package com.sns.marigold.user.entity;
 import com.sns.marigold.global.enums.Role;
 import com.sns.marigold.user.dto.InstitutionUserSecurityUpdateDto;
 import com.sns.marigold.user.dto.InstitutionUserUpdateDto;
-import jakarta.persistence.Column;
-import jakarta.persistence.DiscriminatorValue;
-import jakarta.persistence.Entity;
-import jakarta.persistence.PrimaryKeyJoinColumn;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -16,15 +12,21 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.UUID;
+
 @Entity
 @Getter
-@Table(name = "institution_users")
 @PrimaryKeyJoinColumn(name = "user_id")
 @DiscriminatorValue("ROLE_INSTITUTION")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
+@Table(name = "institution_users")
 public class InstitutionUser extends User {
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID) // Hibernate 6.x에서 UUID 생성 전략 지정
+  @Column(name = "id", updatable = false, nullable = false)
+  private UUID id; // 👈 타입은 UUID로 변경
 
   @Column(unique = true, nullable = false)
   private String username;
@@ -74,18 +76,18 @@ public class InstitutionUser extends User {
     }
   }
 
-  @Override
-  public Role getRole() {
-    return Role.ROLE_INSTITUTION;
-  }
-
   public void updateSecurityInfo(InstitutionUserSecurityUpdateDto dto,
-    PasswordEncoder passwordEncoder) {
+                                 PasswordEncoder passwordEncoder) {
     if (dto.getUsername() != null) {
       this.username = dto.getUsername();
     }
     if (dto.getPassword() != null) {
       this.password = passwordEncoder.encode(dto.getPassword());
     }
+  }
+
+  @Override
+  public Role getRole() {
+    return Role.ROLE_INSTITUTION;
   }
 }
