@@ -5,17 +5,21 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 
 import java.io.IOException;
 import java.util.Map;
 
 public class CustomUsernamePasswordAuthenticationFilter extends
-  UsernamePasswordAuthenticationFilter {
+    UsernamePasswordAuthenticationFilter {
 
   private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -25,7 +29,7 @@ public class CustomUsernamePasswordAuthenticationFilter extends
 
   @Override
   public Authentication attemptAuthentication(HttpServletRequest request,
-    HttpServletResponse response) throws AuthenticationException {
+                                              HttpServletResponse response) throws AuthenticationException {
     try {
       // JSON 요청 처리
       Map<String, String> requestMap = objectMapper.readValue(request.getInputStream(), Map.class);
@@ -33,7 +37,8 @@ public class CustomUsernamePasswordAuthenticationFilter extends
       String password = requestMap.get("password");
 
       UsernamePasswordAuthenticationToken authRequest = new UsernamePasswordAuthenticationToken(
-        username, password);
+          username, password);
+
       setDetails(request, authRequest);
 
       return this.getAuthenticationManager().authenticate(authRequest);
@@ -44,18 +49,29 @@ public class CustomUsernamePasswordAuthenticationFilter extends
 
   @Override
   protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response,
-    FilterChain chain, Authentication authResult) throws IOException, ServletException {
+                                          FilterChain chain, Authentication authResult) throws IOException, ServletException {
     // 로그인 성공 시 처리
+    SecurityContext context = SecurityContextHolder.createEmptyContext();
+
+    context.setAuthentication(authResult);
+    // 현재 스레드에 적용
+    SecurityContextHolder.setContext(context);
+
+    // 영속성 확보
+    HttpSession session = request.getSession(); // 세션 생성 (Tomcat)
+    session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+
     response.setStatus(HttpServletResponse.SC_OK);
-    response.getWriter().write("{\"message\": \"로그인 성공\"}");
+    response.getWriter().write("{\"message\": \"login success\"}");
+    
   }
 
   @Override
   protected void unsuccessfulAuthentication(HttpServletRequest request,
-    HttpServletResponse response, AuthenticationException failed)
-    throws IOException, ServletException {
+                                            HttpServletResponse response, AuthenticationException failed)
+      throws IOException, ServletException {
     // 로그인 실패 시 처리
     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-    response.getWriter().write("{\"message\": \"로그인 실패\"}");
+    response.getWriter().write("{\"message\": \"login failed\"}");
   }
 }

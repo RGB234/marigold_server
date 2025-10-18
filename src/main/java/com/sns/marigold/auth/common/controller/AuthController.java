@@ -1,13 +1,17 @@
 package com.sns.marigold.auth.common.controller;
 
-import com.sns.marigold.auth.form.dto.EmailLoginDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.service.AuthService;
+import com.sns.marigold.auth.form.dto.FormLoginDto;
+import jakarta.persistence.GeneratedValue;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+
 import java.util.Map;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,11 +33,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
   private final AuthService authService;
+  private Environment env;
 
-  @PostMapping("/login/institution/v1")
+  @PostMapping("/login/institution")
   public ResponseEntity<Map<String, Object>> login(HttpServletRequest request,
-    @RequestBody @Valid EmailLoginDto dto) {
-    if (authService.institutionUserLogin(request, dto.getEmail(), dto.getPassword())) {
+                                                   @RequestBody @Valid FormLoginDto dto) {
+
+    if (authService.institutionUserLogin(request, dto.getUsername(), dto.getPassword())) {
       return ResponseEntity.ok().body(Map.of("message", "로그인 성공"));
     } else {
       return ResponseEntity.badRequest().body(Map.of("message", "잘못된 이메일 혹은 비밀번호"));
@@ -42,13 +48,13 @@ public class AuthController {
 
   @PostMapping("/logout")
   public ResponseEntity<Map<String, Object>> logout(HttpServletRequest request,
-    Authentication authentication) {
+                                                    Authentication authentication) {
     authService.logout(request, authentication);
-    return ResponseEntity.ok().body(Map.of("message", "로그아웃 성공"));
+    return ResponseEntity.ok().body(Map.of("message", "logout success"));
   }
 
   @GetMapping("/status")
-  public ResponseEntity<UserAuthStatusDto> getAuthStatus() {
-    return ResponseEntity.ok().body(authService.getAuthStatus());
+  public ResponseEntity<UserAuthStatusDto> getAuthStatus(HttpServletRequest request) {
+    return ResponseEntity.ok().body(authService.getAuthStatus(request));
   }
 }

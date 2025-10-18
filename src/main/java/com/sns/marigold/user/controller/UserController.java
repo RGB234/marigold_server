@@ -1,21 +1,25 @@
 package com.sns.marigold.user.controller;
 
-import com.sns.marigold.user.dto.InstitutionUserCreateDto;
-import com.sns.marigold.user.dto.InstitutionUserResponseDto;
-import com.sns.marigold.user.dto.InstitutionUserSecurityUpdateDto;
-import com.sns.marigold.user.dto.InstitutionUserUpdateDto;
-import com.sns.marigold.user.dto.PersonalUserCreateDto;
-import com.sns.marigold.user.dto.PersonalUserResponseDto;
-import com.sns.marigold.user.dto.PersonalUserUpdateDto;
+import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.form.CustomUserDetails;
+import com.sns.marigold.user.dto.*;
+import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.InstitutionUserService;
 import com.sns.marigold.user.service.PersonalUserService;
+import com.sns.marigold.user.service.UserFacadeService;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+
 import java.util.List;
 import java.util.UUID;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,12 +39,13 @@ public class UserController {
 
   private final InstitutionUserService institutionUserService;
   private final PersonalUserService personalUserService;
+  private final UserFacadeService userFacadeService;
 
   // ** create **
 
   @PostMapping("/create/institution")
   public ResponseEntity<?> create(@RequestBody @Valid InstitutionUserCreateDto dto,
-    BindingResult bindingResult) {
+                                  BindingResult bindingResult) {
     if (bindingResult.hasErrors()) {
       return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
     }
@@ -58,21 +63,21 @@ public class UserController {
   @RolesAllowed({"ROLE_INSTITUTION"})
   @PatchMapping("settings/institution")
   public InstitutionUserResponseDto update(
-    @SessionAttribute("uid") UUID uid, @RequestBody @Valid InstitutionUserUpdateDto dto) {
+      @SessionAttribute("uid") UUID uid, @RequestBody @Valid InstitutionUserUpdateDto dto) {
     return institutionUserService.update(uid, dto);
   }
 
   @RolesAllowed({"ROLE_INSTITUTION"})
   @PatchMapping("settings/institution/security")
   public InstitutionUserResponseDto updateSecurityInfo(
-    @SessionAttribute("uid") UUID uid, @RequestBody @Valid InstitutionUserSecurityUpdateDto dto) {
+      @SessionAttribute("uid") UUID uid, @RequestBody @Valid InstitutionUserSecurityUpdateDto dto) {
     return institutionUserService.updateSecurityInfo(uid, dto);
   }
 
   @RolesAllowed({"ROLE_PERSON"})
   @PatchMapping("settings/person")
   public PersonalUserResponseDto update(
-    @SessionAttribute("uid") UUID uid, @RequestBody @Valid PersonalUserUpdateDto dto
+      @SessionAttribute("uid") UUID uid, @RequestBody @Valid PersonalUserUpdateDto dto
   ) {
     return personalUserService.update(uid, dto);
   }
@@ -81,13 +86,27 @@ public class UserController {
 
   @GetMapping("/institution/{companyName}")
   public List<InstitutionUserResponseDto> getInstitutionByCompanyName(
-    @PathVariable("companyName") String companyName) {
+      @PathVariable("companyName") String companyName) {
     return institutionUserService.getByCompanyName(companyName);
   }
 
-  @GetMapping("/person/{username}")
-  public PersonalUserResponseDto getPersonByUsername(@PathVariable("username") String username) {
-    return personalUserService.getByUsername(username);
+  @GetMapping("/person/{nickname}")
+  public List<PersonalUserResponseDto> getPersonByNickname(@PathVariable("nickname") String nickname) {
+    return personalUserService.getByNickname(nickname);
+  }
+
+  // 프로필 조회
+  @GetMapping("/profile")
+  public ResponseEntity<UserResponseDto> getCurrentProfile(HttpServletRequest request) {
+    HttpSession session = request.getSession();
+    SecurityContext context = (SecurityContext) session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+    CustomPrincipal userDetails = (CustomPrincipal) context.getAuthentication().getPrincipal();
+    return ResponseEntity.ok(userFacadeService.loadUserById(userDetails.getUid()));
+  }
+
+  @GetMapping("/profile/{uid}")
+  public ResponseEntity<UserResponseDto> getProfile(@PathVariable("uid") UUID uid) {
+    return ResponseEntity.ok(userFacadeService.loadUserById(uid));
   }
 
   // ** delete **

@@ -35,7 +35,9 @@ dependencies {
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8") // Swagger
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("com.jcraft:jsch:0.1.55") // SSH tunneling
+//    implementation("com.jcraft:jsch:0.1.55") // SSH tunneling
+    // ED25519 support
+    implementation("com.github.mwiede:jsch:2.27.2")
     implementation("mysql:mysql-connector-java:8.0.32") // DB driver
     // Auth
     implementation("org.springframework.boot:spring-boot-starter-security")
