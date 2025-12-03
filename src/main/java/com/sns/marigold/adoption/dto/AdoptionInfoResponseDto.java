@@ -1,5 +1,7 @@
 package com.sns.marigold.adoption.dto;
 
+import java.util.UUID;
+
 import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.global.enums.Species;
 import com.sns.marigold.global.enums.Sex;
@@ -15,7 +17,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AdoptionInfoResponseDto {
 
-  private Long id;
+  private UUID id;
 
   private Species species;
 

@@ -1,16 +1,14 @@
 package com.sns.marigold.auth.oauth2.handler;
 
-import com.sns.marigold.auth.oauth2.PersonalUserOAuth2Principal;
-import com.sns.marigold.user.entity.PersonalUser;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -20,7 +18,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-//  private final Environment env;
+  private final Environment env;
 
   @Override
   public void onAuthenticationSuccess(
@@ -37,11 +35,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     response.setStatus(HttpServletResponse.SC_OK);
 
-    String jsonResponse = "{\"message\" : \"login success\"}";
-    response.getWriter().write(jsonResponse);
-    response.getWriter().flush();
+//    String jsonResponse = "{\"message\" : \"login success\"}";
+//    response.getWriter().write(jsonResponse);
+//    response.getWriter().flush();
 
     // redirect
-//    response.sendRedirect(env.getProperty("app.url.frontend.main"));
+    response.sendRedirect(env.getProperty("app.url.frontend.home"));
   }
 }

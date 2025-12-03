@@ -5,7 +5,7 @@ import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
 // Defines the logic to validate a given constraint A for a given object type T.
-public class EnumValidator implements ConstraintValidator<Enum, java.lang.Enum> {
+public class EnumValidator implements ConstraintValidator<Enum, java.lang.Enum<?>> {
 
   private Enum annotation;
 
@@ -15,7 +15,7 @@ public class EnumValidator implements ConstraintValidator<Enum, java.lang.Enum> 
   }
 
   @Override
-  public boolean isValid(java.lang.Enum value, ConstraintValidatorContext context) {
+  public boolean isValid(java.lang.Enum<?> value, ConstraintValidatorContext context) {
     Object[] enumConstants = this.annotation.target().getEnumConstants();
     if (enumConstants != null
         // null if this Enum annotation does not represent java.lang.Enum object
@@ -29,11 +29,4 @@ public class EnumValidator implements ConstraintValidator<Enum, java.lang.Enum> 
     }
     return false;
   }
-
-  // when input data is ensured to be valid
-  // E.X. GenderType enum class ensures validation by JSON deserialization method
-  //    @Override
-  //    public boolean isValid(java.lang.Enum value, ConstraintValidatorContext context){
-  //        return value != null;
-  //    }
 }

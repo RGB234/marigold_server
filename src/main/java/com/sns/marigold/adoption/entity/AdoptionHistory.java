@@ -1,6 +1,6 @@
 package com.sns.marigold.adoption.entity;
+import com.sns.marigold.user.entity.User;
 
-import com.sns.marigold.user.entity.PersonalUser;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -29,7 +29,7 @@ public class AdoptionHistory {
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "adopter_id", nullable = false)
-  private PersonalUser adopter;
+  private User adopter;
 
   private LocalDateTime date;
 }
