@@ -1,13 +1,15 @@
 package com.sns.marigold.auth.oauth2;
 
-import com.sns.marigold.global.enums.ProviderInfo;
+import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+
 import java.util.Map;
+
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 
 public class OAuth2UserInfoFactory {
 
   public static OAuth2UserInfo getOAuth2UserInfo(
-    ProviderInfo providerInfo, Map<String, Object> attributes) {
+      ProviderInfo providerInfo, Map<String, Object> attributes) {
     switch (providerInfo) {
       case GOOGLE -> {
         return new GoogleOAuth2UserInfo(attributes);

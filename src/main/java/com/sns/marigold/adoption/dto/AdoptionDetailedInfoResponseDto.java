@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AdoptionDetailedInfoResponseDto {
 
-  private Long id;
+  private UUID id;
 
   private UUID writerId;
 
@@ -45,7 +45,7 @@ public class AdoptionDetailedInfoResponseDto {
   public static AdoptionDetailedInfoResponseDto from(AdoptionInfo adoptionInfo) {
     return AdoptionDetailedInfoResponseDto.builder()
       .id(adoptionInfo.getId())
-      .writerId(adoptionInfo.getWriter().getId())
+      .writerId(adoptionInfo.getWriterId())
       .createdAt(adoptionInfo.getCreatedAt())
       .modifiedAt(adoptionInfo.getModifiedAt())
       .species(adoptionInfo.getSpecies())

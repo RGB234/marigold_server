@@ -9,9 +9,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum Role {
-  ROLE_ADMIN("관리자", "ROLE_ADMIN"),
-  ROLE_PERSON("개인", "ROLE_PERSON"),
-  ROLE_INSTITUTION("조직", "ROLE_INSTITUTION");
+  ROLE_PERSON("개인", "ROLE_INDIVIDUAL");
 
   private final String name;
   @JsonValue // Role 직렬화시 value 값 사용

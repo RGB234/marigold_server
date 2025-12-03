@@ -1,73 +1,53 @@
 package com.sns.marigold.auth.common;
 
 import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
-import com.sns.marigold.auth.form.CustomUsernamePasswordAuthenticationFilter;
-import com.sns.marigold.auth.form.service.CustomUserDetailsService;
 import com.sns.marigold.auth.oauth2.handler.OAuth2FailureHandler;
 import com.sns.marigold.auth.oauth2.handler.OAuth2SuccessHandler;
 import com.sns.marigold.auth.oauth2.service.CustomOAuth2UserService;
-import com.sns.marigold.global.config.CustomCorsConfigurationSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.SessionManagementConfigurer.SessionFixationConfigurer;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.cors.CorsUtils;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
-
-//  private static final String[] PERMITTED_ROLES =
-//    Arrays.stream(Role.values()).map(Role::name).toArray(String[]::new);
-
-  private static final String[] PERMITTED_ROLES = {"ROLE_ADMIN", "ROLE_PERSON", "ROLE_INSTITUTION"};
-
   private final Environment env;
-  private final PasswordEncoder passwordEncoder;
   private final CustomCorsConfigurationSource customCorsConfigurationSource;
 
   private final CustomOAuth2UserService customOAuth2UserService;
   private final OAuth2SuccessHandler oAuth2SuccessHandler;
   private final OAuth2FailureHandler oAuth2FailureHandler;
 
-  private final CustomUserDetailsService customUserDetailsService;
-
   private final CustomAccessDeniedHandler customAccessDeniedHandler;
 
   public SecurityConfig(
       Environment env,
-      PasswordEncoder passwordEncoder,
       CustomCorsConfigurationSource customCorsConfigurationSource,
 
       CustomOAuth2UserService customOAuth2UserService,
       OAuth2SuccessHandler oAuth2SuccessHandler,
       OAuth2FailureHandler oAuth2FailureHandler,
 
-      CustomUserDetailsService customUserDetailsService,
-
       CustomAccessDeniedHandler customAccessDeniedHandler
   ) {
     this.env = env;
-    this.passwordEncoder = passwordEncoder;
     this.customCorsConfigurationSource = customCorsConfigurationSource;
 
     this.customOAuth2UserService = customOAuth2UserService;
     this.oAuth2SuccessHandler = oAuth2SuccessHandler;
     this.oAuth2FailureHandler = oAuth2FailureHandler;
-
-    this.customUserDetailsService = customUserDetailsService;
 
     this.customAccessDeniedHandler = customAccessDeniedHandler;
   }
@@ -75,8 +55,7 @@ public class SecurityConfig {
 
   @Bean
   public SecurityFilterChain securityFilterChain(
-      HttpSecurity http,
-      CustomUsernamePasswordAuthenticationFilter customAuthenticationFilter
+      HttpSecurity http
   ) throws Exception {
     http
         // 세선 고정 공격 보호 전략
@@ -86,17 +65,14 @@ public class SecurityConfig {
         .cors(corsCustomizer -> corsCustomizer.configurationSource(customCorsConfigurationSource))
         .csrf(AbstractHttpConfigurer::disable) // 쿠키 사용하지 않으면 꺼도 된다
         .httpBasic(AbstractHttpConfigurer::disable)
+        .securityContext((securityContext) -> securityContext.requireExplicitSave(true))
         .authorizeHttpRequests(
             auth ->
                 auth.requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
 //            .requestMatchers("/", "/css/**", "/images/**", "/js/**", "/profile").permitAll()
-                    // 임시
-//            .requestMatchers("/login").permitAll()
                     // 인증 인가
                     .requestMatchers("/auth/status", "/auth/login/**", "/auth/logout")
                     .permitAll()
-                    // 게정 생성
-                    .requestMatchers("/user/create/institution").permitAll()
                     // read-only
                     .requestMatchers("/adoption/").permitAll()
                     // swagger
@@ -107,9 +83,6 @@ public class SecurityConfig {
         )
         // 폼 로그인 비활성
         .formLogin(AbstractHttpConfigurer::disable)
-        // 로그인
-        // username/pw 인증
-        .addFilterAt(customAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
         // oAuth2 인증 (소셜로그인)
         .oauth2Login(
             oauth2 ->
@@ -131,7 +104,7 @@ public class SecurityConfig {
         // 예외처리
         .exceptionHandling(
             ex -> ex
-//          .accessDeniedHandler(customAccessDeniedHandler)
+                .accessDeniedHandler(customAccessDeniedHandler)
                 // 인증 실패시 401 코드 반환 (기본값 : 인증화면으로 리다이렉션)
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
         );
@@ -140,27 +113,10 @@ public class SecurityConfig {
   }
 
   @Bean
-  public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
-    // http.getSharedObject()를 통해 빌더 객체를 가져옵니다.
-    AuthenticationManagerBuilder authManagerBuilder =
-        http.getSharedObject(AuthenticationManagerBuilder.class);
-
-    // UserDetailsService와 PasswordEncoder를 수동으로 연결합니다.
-    authManagerBuilder
-        .userDetailsService(customUserDetailsService)
-        .passwordEncoder(passwordEncoder);
-
-    // 최종적으로 AuthenticationManager를 빌드하여 반환합니다.
-    return authManagerBuilder.build();
+  public SecurityContextRepository securityContextRepository() {
+    // **주의**: 이 Bean을 정의하지 않고 Spring Security의 기본 설정을 따르게 할 수도 있지만,
+    // CustomSuccessHandler에 명시적으로 주입하려면 이렇게 정의해야 합니다.
+    return new HttpSessionSecurityContextRepository();
   }
 
-  @Bean
-  public CustomUsernamePasswordAuthenticationFilter customAuthenticationFilter(AuthenticationManager authManager) {
-    CustomUsernamePasswordAuthenticationFilter customFilter = new CustomUsernamePasswordAuthenticationFilter(
-        authManager);
-
-    customFilter.setFilterProcessesUrl("/api/login");
-
-    return customFilter;
-  }
 }

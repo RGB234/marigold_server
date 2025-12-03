@@ -1,5 +1,8 @@
 package com.sns.marigold.adoption.dto;
 
+import java.util.UUID;
+
+import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.global.annotation.Enum;
 import com.sns.marigold.global.enums.Neutering;
 import com.sns.marigold.global.enums.Sex;
@@ -26,6 +29,7 @@ public class AdoptionInfoCreateDto {
 
   @NotNull
   @Min(0)
+  @Builder.Default
   private Integer age = 0;
 
   @Enum(target = Sex.class)
@@ -39,10 +43,25 @@ public class AdoptionInfoCreateDto {
   private String name;
 
   @Min(0)
+  @Builder.Default
   private Double weight = 0.0;
 
   @Enum(target = Neutering.class)
   private Neutering neutering;
 
   private String features;
+
+  public AdoptionInfo toEntity(UUID writerId) {
+    return AdoptionInfo.builder()
+            .writerId(writerId)
+            .species(this.species) // getSpecies() 대신 필드 직접 접근 가능 (같은 클래스 내라면) 또는 getter 사용
+            .name(this.name)
+            .age(this.age)
+            .sex(this.sex)
+            .area(this.area)
+            .weight(this.weight)
+            .neutering(this.neutering)
+            .features(this.features)
+            .build();
+}
 }
