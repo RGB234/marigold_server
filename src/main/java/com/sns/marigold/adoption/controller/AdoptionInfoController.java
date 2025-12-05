@@ -12,12 +12,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.data.domain.Page;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,9 +31,9 @@ public class AdoptionInfoController {
 
   private final AdoptionInfoService adoptionInfoService;
 
-  @PostMapping("/create")
+  @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<?> create(
-      @RequestBody @Valid AdoptionInfoCreateDto dto,
+      @ModelAttribute @Valid AdoptionInfoCreateDto dto,
       BindingResult bindingResult,
       @AuthenticationPrincipal CustomPrincipal principal
   ) {
@@ -40,12 +41,12 @@ public class AdoptionInfoController {
       return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
     }
     
-    UUID userId = UUID.fromString(principal.getName());
+    UUID userId = principal.getUserId();
     if (userId == null) {
       return ResponseEntity.badRequest().body("사용자 정보를 찾을 수 없습니다.");
     }
     
-    adoptionInfoService.createInfo(dto, userId);
+    adoptionInfoService.create(dto, userId);
     return ResponseEntity.ok().body("Adoption info created successfully");
   }
 

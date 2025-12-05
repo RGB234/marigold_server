@@ -7,7 +7,6 @@ import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.enums.Role;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
-import com.sns.marigold.user.service.UserService;
 import jakarta.transaction.Transactional;
 
 import java.util.*;

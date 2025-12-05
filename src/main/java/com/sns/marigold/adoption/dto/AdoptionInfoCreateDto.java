@@ -1,12 +1,13 @@
 package com.sns.marigold.adoption.dto;
 
-import java.util.UUID;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.global.annotation.Enum;
 import com.sns.marigold.global.enums.Neutering;
 import com.sns.marigold.global.enums.Sex;
 import com.sns.marigold.global.enums.Species;
+import com.sns.marigold.user.entity.User;
+
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -16,8 +17,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.springframework.web.multipart.MultipartFile;
 
 @Getter
+@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
@@ -51,10 +55,13 @@ public class AdoptionInfoCreateDto {
 
   private String features;
 
-  public AdoptionInfo toEntity(UUID writerId) {
+  @JsonIgnore // 명시
+  private MultipartFile image;
+
+  public AdoptionInfo toEntity(User writer) {
     return AdoptionInfo.builder()
-            .writerId(writerId)
-            .species(this.species) // getSpecies() 대신 필드 직접 접근 가능 (같은 클래스 내라면) 또는 getter 사용
+            .writer(writer)
+            .species(this.species)
             .name(this.name)
             .age(this.age)
             .sex(this.sex)
@@ -63,5 +70,5 @@ public class AdoptionInfoCreateDto {
             .neutering(this.neutering)
             .features(this.features)
             .build();
-}
+  }
 }
