@@ -8,7 +8,9 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 @Getter
+@Builder
 @NoArgsConstructor // Jackson을 위한 public 기본 생성자
+@AllArgsConstructor // Builder를 위한 생성자
 public class UserCreateDto {
   @NotBlank
   private String nickname;
