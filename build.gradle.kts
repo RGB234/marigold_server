@@ -44,6 +44,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
     // session
     implementation("org.springframework.session:spring-session-core")
+
+    // AWS S3
+    implementation("io.awspring.cloud:spring-cloud-aws-starter-s3:3.1.1")
 }
 
 tasks.withType<Test> {

@@ -5,6 +5,15 @@ spring:
   profiles:
     #    active: dev
     include: oauth
+  cloud:
+    aws:
+      s3:
+        bucket: your-bucket-name
+      credentials:
+        access-key: your-access-key
+        secret-key: your-secret-key
+      region:
+        static: ap-northeast-2
 
 server:
   servlet:

@@ -4,6 +4,8 @@ import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.global.enums.Neutering;
 import com.sns.marigold.global.enums.Sex;
 import com.sns.marigold.global.enums.Species;
+import com.sns.marigold.user.entity.User;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.AccessLevel;
@@ -20,7 +22,7 @@ public class AdoptionDetailedInfoResponseDto {
 
   private UUID id;
 
-  private UUID writerId;
+  private User writer;
 
   private LocalDateTime createdAt;
 
@@ -45,7 +47,7 @@ public class AdoptionDetailedInfoResponseDto {
   public static AdoptionDetailedInfoResponseDto from(AdoptionInfo adoptionInfo) {
     return AdoptionDetailedInfoResponseDto.builder()
       .id(adoptionInfo.getId())
-      .writerId(adoptionInfo.getWriterId())
+      .writer(adoptionInfo.getWriter())
       .createdAt(adoptionInfo.getCreatedAt())
       .modifiedAt(adoptionInfo.getModifiedAt())
       .species(adoptionInfo.getSpecies())
