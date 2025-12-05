@@ -18,10 +18,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,37 +36,17 @@ public class AdoptionInfoService {
     adoptionInfoRepository.save(adoptionInfo);
   }
 
-  // 전체 조회
-  public Page<AdoptionInfoResponseDto> getAll(int page, int size) {
-    // 페이지 요청 객체 생성 (page는 0부터 시작, size는 가져올 개수)
-    // 최신순 정렬(Sort.Direction.DESC, "id")
-    Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-
-    Page<AdoptionInfo> resultPage = adoptionInfoRepository.findAll(pageable);
-
-    // Entity -> Dto 변환 (Page 인터페이스가 map 함수를 지원합니다)
-    return resultPage.map(AdoptionInfoResponseDto::from);
-  }
-
   // 검색
   public Page<AdoptionInfoResponseDto> search(AdoptionInfoSearchFilterDto dto, int page, int size) {
     Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
     Page<AdoptionInfo> resultPage = adoptionInfoRepository.findAll(
         Specification.allOf(
+            AdoptionInfoSpecification.hasWriterId(dto.getWriterId()),
             AdoptionInfoSpecification.hasSpecies(dto.getSpecies()),
             AdoptionInfoSpecification.hasSex(dto.getSex())),
         pageable);
 
-    return resultPage.map(AdoptionInfoResponseDto::from);
-  }
-
-  // 작성자 검색
-  public Page<AdoptionInfoResponseDto> searchByWriterId(UUID uid, int page, int size) {
-    Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-
-    Page<AdoptionInfo> resultPage = adoptionInfoRepository.findAllByWriterId(
-        uid, pageable);
     return resultPage.map(AdoptionInfoResponseDto::from);
   }
 

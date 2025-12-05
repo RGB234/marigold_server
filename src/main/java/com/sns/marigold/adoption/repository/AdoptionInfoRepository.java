@@ -1,7 +1,6 @@
 package com.sns.marigold.adoption.repository;
 
 import com.sns.marigold.adoption.entity.AdoptionInfo;
-import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
