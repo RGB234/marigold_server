@@ -12,25 +12,16 @@ import java.util.UUID;
 
 @Getter
 public class CustomPrincipal implements OAuth2User {
-  private final UUID id;
-  private final String username;
-  private final String password;
-
+  private final UUID userId;
   private final OAuth2UserInfo oAuth2UserInfo;
-
   private final Collection<SimpleGrantedAuthority> authorities;
-  // === 생성자 (OAuth2 로그인용) ===
-  public CustomPrincipal(OAuth2UserInfo oAuth2UserInfo, Collection<SimpleGrantedAuthority> authorities) {
-    this.id = null;
-    this.username = null;
-    this.password = null;
-
+  
+  public CustomPrincipal(UUID userId, OAuth2UserInfo oAuth2UserInfo, Collection<SimpleGrantedAuthority> authorities) {
+    this.userId = userId;
     this.oAuth2UserInfo = oAuth2UserInfo;
-
     this.authorities = authorities;
   }
-
-  // === OAuth2User 구현부 ===
+  
   @Override
   public Map<String, Object> getAttributes() {
     return Objects.requireNonNull(oAuth2UserInfo).getAttributes();
@@ -38,6 +29,6 @@ public class CustomPrincipal implements OAuth2User {
 
   @Override
   public String getName() {
-    return id != null ? id.toString() : Objects.requireNonNull(oAuth2UserInfo).getName();
+    return userId.toString();
   }
 }

@@ -62,7 +62,7 @@ public class UserController {
   public ResponseEntity<UserInfoDto> getCurrentProfile(
       @AuthenticationPrincipal CustomPrincipal principal
   ) {
-    UUID userId = principal.getId();
+    UUID userId = UUID.fromString(principal.getName());
     return ResponseEntity.ok(personalUserService.getUserById(userId));
   }
 

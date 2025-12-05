@@ -5,6 +5,9 @@ import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.enums.Role;
+import com.sns.marigold.user.entity.User;
+import com.sns.marigold.user.repository.UserRepository;
+import com.sns.marigold.user.service.UserService;
 import jakarta.transaction.Transactional;
 
 import java.util.*;
@@ -24,6 +27,8 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
+  private final UserRepository userRepository;
+
   @Override
   @Transactional
   public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -38,7 +43,12 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     OAuth2UserInfo oAuth2UserInfo =
         OAuth2UserInfoFactory.getOAuth2UserInfo(providerInfo, attributes);
 
+    String providerId = oAuth2UserInfo.getName();
+
+    User user = userRepository.findByProviderInfoAndProviderId(providerInfo, providerId)
+        .orElseThrow(() -> new OAuth2AuthenticationException("사용자를 찾을 수 없습니다."));
+
     Collection<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
-    return new CustomPrincipal(oAuth2UserInfo, authorities);
+    return new CustomPrincipal(user.getId(), oAuth2UserInfo, authorities);
   }
 }
