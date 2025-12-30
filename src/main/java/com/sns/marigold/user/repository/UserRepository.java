@@ -11,5 +11,7 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<User, UUID> {
     List<User> findPersonalUsersByNickname(String nickname);
 
-    Optional<User> findByProviderInfoAndProviderId(ProviderInfo providerInfo,String providerId);
+    Optional<User> findByProviderInfoAndProviderId(ProviderInfo providerInfo, String providerId);
+    
+    boolean existsByNickname(String nickname);
 }

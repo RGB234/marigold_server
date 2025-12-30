@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -39,20 +40,22 @@ public class AdoptionInfoService {
   public void create(AdoptionInfoCreateDto dto, UUID writerId) {
     Objects.requireNonNull(writerId, "writerId cannot be null");
 
-    ImageUploadDto imageDto = s3Service.uploadFile(dto.getImage());
     User writer = userService.findEntityById(writerId);
-    
+
     AdoptionInfo adoptionInfo = dto.toEntity(writer);
     Objects.requireNonNull(adoptionInfo, "AdoptionInfo cannot be null");
 
-    if (imageDto != null) {
+    // S3 image upload
+    for (MultipartFile image : dto.getImages()) {
+      ImageUploadDto imageDto = s3Service.uploadFile(image);
+      if (imageDto != null) {
         adoptionInfo.addImage(AdoptionImage.builder()
                 .imageUrl(imageDto.getImageUrl())
                 .storeFileName(imageDto.getStoreFileName())
                 .originalFileName(imageDto.getOriginalFileName())
                 .build());
+      }
     }
-
     adoptionInfoRepository.save(adoptionInfo);
   }
 

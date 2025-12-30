@@ -33,7 +33,7 @@ public class User {
   @Column(nullable = false)
   private String providerId; // 소셜로그인 계정 id
 
-  @Column(length = 12, nullable = false)
+  @Column(length = 12, nullable = false, unique = true)
   private String nickname;
 
   public void applyUpdate(UserUpdateDto dto) {

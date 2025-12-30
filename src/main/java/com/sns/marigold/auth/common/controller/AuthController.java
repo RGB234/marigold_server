@@ -2,7 +2,6 @@ package com.sns.marigold.auth.common.controller;
 
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.service.AuthService;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -29,12 +28,9 @@ public class AuthController {
   private final AuthService authService;
 
   @PostMapping("/logout")
-  public ResponseEntity<Map<String, Object>> logout(HttpSession session,
-      Authentication authentication) {
-    authService.logout(session,
-        authentication);
-    return ResponseEntity.ok().body(Map.of("message",
-        "logout success"));
+  public ResponseEntity<Map<String, Object>> logout(Authentication authentication) {
+    authService.logout(authentication);
+    return ResponseEntity.ok().body(Map.of("message", "logout success"));
   }
 
   @GetMapping("/status")

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 @Component("naverLogoutHandler")
 public class NaverLogoutHandler implements OAuth2LogoutHandler {
-  @Value("${naver.api.logout-url}")
+  @Value("${api.url.logout.naver}")
   private String logoutUrl;
 
   @Override
