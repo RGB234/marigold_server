@@ -8,6 +8,7 @@ import com.sns.marigold.user.service.UserServiceImpl;
 import jakarta.validation.Valid;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
@@ -22,7 +23,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.SessionAttribute;
 
 @RestController
 @RequestMapping("/user")
@@ -36,16 +36,18 @@ public class UserController {
 
   @PostMapping("/create")
   public ResponseEntity<?> create(@RequestBody @Valid UserCreateDto dto) {
-    personalUserService.createUser(dto);
-    return ResponseEntity.ok(null);
+    UUID userId = personalUserService.createUser(dto);
+    return ResponseEntity.ok(Map.of(
+        "userId", userId.toString(),
+        "message", "User created successfully"));
   }
 
   // ** update **
   @PatchMapping("settings")
   public ResponseEntity<?> update(
-      @SessionAttribute("uid") UUID uid, @RequestBody @Valid UserUpdateDto dto
-  ) {
-    personalUserService.updateUser(uid, dto);
+      @AuthenticationPrincipal CustomPrincipal principal, @RequestBody @Valid UserUpdateDto dto) {
+    UUID userId = UUID.fromString(principal.getName());
+    personalUserService.updateUser(userId, dto);
     return ResponseEntity.ok(null);
   }
 
@@ -60,8 +62,7 @@ public class UserController {
   // 본인(현재 세션) 프로필 조회
   @GetMapping("/profile")
   public ResponseEntity<UserInfoDto> getCurrentProfile(
-      @AuthenticationPrincipal CustomPrincipal principal
-  ) {
+      @AuthenticationPrincipal CustomPrincipal principal) {
     UUID userId = UUID.fromString(principal.getName());
     return ResponseEntity.ok(personalUserService.getUserById(userId));
   }
@@ -70,12 +71,13 @@ public class UserController {
   public ResponseEntity<UserInfoDto> getPersonProfile(@PathVariable("userId") UUID userId) {
     return ResponseEntity.ok(personalUserService.getUserById(userId));
   }
-  
+
   // ** delete **
 
   @DeleteMapping("/delete/person")
-  public ResponseEntity<String> deletePerson(@SessionAttribute("uid") UUID uid) {
-    personalUserService.deleteUser(uid);
+  public ResponseEntity<String> deletePerson(@AuthenticationPrincipal CustomPrincipal principal) {
+    UUID userId = UUID.fromString(principal.getName());
+    personalUserService.deleteUser(userId);
     return ResponseEntity.ok().body("User deleted successfully");
   }
 }

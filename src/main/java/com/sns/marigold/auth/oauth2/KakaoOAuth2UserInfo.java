@@ -12,10 +12,14 @@ public class KakaoOAuth2UserInfo extends OAuth2UserInfo {
 
   KakaoOAuth2UserInfo(Map<String, Object> attributes) {
     super(attributes, ProviderInfo.KAKAO);
+    // 카카오 계정 정보 사용 안함
+    // Object rawUserInfo = attributes.get(getProviderInfo().getAttributeKey());
+    // if (!(rawUserInfo instanceof Map<?, ?> userInfo)) {
+    //   throw new IllegalArgumentException("카카오 사용자 정보 형식이 올바르지 않습니다.");
+    // }
     // https://developers.kakao.com/docs/latest/ko/kakaologin/rest-api#user-info-list
-    this.id = attributes.get(getProviderInfo().getAttributeKey() + ".id").toString();
-    this.email = attributes.get(getProviderInfo().getAttributeKey() + ".email").toString();
-//    this.email = null;
+    this.id = String.valueOf(attributes.get("id")); // 회원번호
+    this.email = ""; // 카카오 소셜 로그인 이메일 정보 사용 안함
   }
 
   @Override

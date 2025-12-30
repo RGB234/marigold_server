@@ -15,7 +15,7 @@ public class KakaoLogoutHandler implements OAuth2LogoutHandler {
 
   private final RestTemplate restTemplate = new RestTemplate();
 
-  @Value("${kakao.api.logout-url}")
+  @Value("${api.url.logout.kakao}")
   private String logoutUrl;
 
   @Override

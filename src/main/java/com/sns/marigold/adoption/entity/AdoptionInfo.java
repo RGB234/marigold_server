@@ -1,14 +1,13 @@
 package com.sns.marigold.adoption.entity;
 
+import com.sns.marigold.user.entity.User;
 import com.sns.marigold.global.enums.Neutering;
 import com.sns.marigold.global.enums.Species;
-import com.sns.marigold.user.entity.User;
 import com.sns.marigold.global.enums.Sex;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;

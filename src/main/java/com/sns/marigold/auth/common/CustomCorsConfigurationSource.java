@@ -17,7 +17,7 @@ public class CustomCorsConfigurationSource implements CorsConfigurationSource {
   private final String ALLOWED_ORIGIN;
   private final List<String> ALLOWED_METHODS = List.of("GET", "POST", "PATCH", "OPTION", "DELETE");
 
-  public CustomCorsConfigurationSource(@Value("${app.url.frontend.base}") String baseUrl) {
+  public CustomCorsConfigurationSource(@Value("${url.frontend.domain}") String baseUrl) {
     ALLOWED_ORIGIN = baseUrl;
   }
 

@@ -9,7 +9,6 @@ import lombok.Getter;
 //@RequiredArgsConstructor
 @AllArgsConstructor
 public enum ProviderInfo {
-  GOOGLE("sub", "GOOGLE"),
   KAKAO("kakao_account", "KAKAO"),
   NAVER("response", "NAVER");
 
@@ -18,10 +17,13 @@ public enum ProviderInfo {
 //  private final String providerId; // 소셜 로그인 사용자 정보 ID
 
   public static ProviderInfo fromString(String providerCode) {
-    String upperCastedProvider = providerCode.toUpperCase();
+    // registrationId에서 suffix (-login, -signup) 제거
+    String cleanedProviderCode = providerCode
+        .replaceAll("-(login|signup)$", "")
+        .toUpperCase();
 
     return Arrays.stream(ProviderInfo.values())
-        .filter(p -> p.name().equals(upperCastedProvider))
+        .filter(p -> p.name().equals(cleanedProviderCode))
         .findFirst()
         .orElseThrow(); // NoSuchElementException
   }

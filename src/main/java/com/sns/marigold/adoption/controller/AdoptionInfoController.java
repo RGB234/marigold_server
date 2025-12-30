@@ -31,6 +31,7 @@ public class AdoptionInfoController {
 
   private final AdoptionInfoService adoptionInfoService;
 
+  
   @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<?> create(
       @ModelAttribute @Valid AdoptionInfoCreateDto dto,

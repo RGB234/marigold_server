@@ -29,6 +29,6 @@ public class CustomPrincipal implements OAuth2User {
 
   @Override
   public String getName() {
-    return userId.toString();
+    return userId != null ? userId.toString() : "";
   }
 }

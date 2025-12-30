@@ -17,7 +17,7 @@ public class NaverOAuth2UserInfo extends OAuth2UserInfo {
       throw new IllegalArgumentException("네이버 사용자 정보 형식이 올바르지 않습니다.");
     }
     this.id = String.valueOf(userInfo.get("id"));
-    this.email = String.valueOf(userInfo.get("email"));
+    this.email = ""; // 네이버 소셜 로그인 이메일 정보 사용 안함
   }
 
   @Override

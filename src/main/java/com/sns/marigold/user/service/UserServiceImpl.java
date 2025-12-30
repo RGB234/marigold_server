@@ -1,5 +1,6 @@
 package com.sns.marigold.user.service;
 
+import com.sns.marigold.auth.oauth2.RandomUsernameGenerator;
 import com.sns.marigold.user.dto.create.UserCreateDto;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 public class UserServiceImpl implements UserService {
 
   private final UserRepository userRepository;
+  private final RandomUsernameGenerator randomUsernameGenerator;
 
 //  public PersonalUser findByProviderInfoAndProviderId(ProviderInfo providerInfo,
 //                                                      String providerId) {
@@ -59,14 +61,47 @@ public class UserServiceImpl implements UserService {
   @Transactional
   @Override
   public UUID createUser(UserCreateDto dto) {
-    User user = Objects.requireNonNull(dto.toEntity(),
-        "개인 회원 생성에 실패했습니다.");
+    Objects.requireNonNull(dto, "UserCreateDto는 null일 수 없습니다.");
+    
+    // nickname 자동 생성
+    String generatedNickname = generateUniqueNickname();
+    
+    // User 엔티티 생성
+    User user = User.builder()
+        .providerInfo(dto.getProviderInfo())
+        .providerId(dto.getProviderId())
+        .nickname(generatedNickname)
+        .build();
+    // 저장
     User savedUser = userRepository.save(user);
     UUID savedId = savedUser.getId();
+    
     if (savedId == null) {
-      throw new IllegalStateException("저장된 개인 회원의 ID가 비어 있습니다.");
+      throw new IllegalStateException("저장된 사용자의 ID가 비어 있습니다.");
     }
     return savedId;
+  }
+
+  /**
+   * 고유한 nickname 생성 (중복 체크 포함)
+   */
+  private String generateUniqueNickname() {
+    int maxAttempts = 10; // 최대 시도 횟수
+    String nickname;
+    
+    for (int i = 0; i < maxAttempts; i++) {
+      nickname = randomUsernameGenerator.generate();
+      
+      // 중복 체크
+      if (!userRepository.existsByNickname(nickname)) {
+        return nickname;
+      }
+      
+      log.warn("Nickname 중복 발생, 재생성 시도: {}", nickname);
+    }
+    
+    // 최대 시도 횟수 초과 시 예외 발생
+    throw new IllegalStateException("고유한 nickname 생성에 실패했습니다. 최대 시도 횟수를 초과했습니다.");
   }
 
   @Transactional

@@ -3,7 +3,6 @@ package com.sns.marigold.auth.common.service;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.oauth2.handler.OAuth2LogoutHandler;
-import jakarta.servlet.http.HttpSession;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +21,6 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class AuthService {
-
   private final OAuth2AuthorizedClientService oAuth2AuthorizedClientService;
   private final Map<String, OAuth2LogoutHandler> handlers;
 
@@ -32,27 +30,23 @@ public class AuthService {
     this.oAuth2AuthorizedClientService = oAuth2AuthorizedClientService;
     this.handlers = handerList.stream().collect(Collectors.toMap(
         h -> h.getClass().getAnnotation(Component.class).value(),
-        h -> h
-    ));
+        h -> h));
   }
 
-  // OAuth2 로그인 -> Spring security 에서 처리 (SecurityConfig 및 관련코드 참조)
+  // OAuth2 로그인 -> Spring security 에서 처리 (SecurityConfig & CustomOAuth2UserService
+  // 참조)
 
-  public void logout(HttpSession session,
-                     Authentication authentication) {
-    if (session != null) {
-      // 세션 삭제
-      session.invalidate();
-    }
+  public void logout(Authentication authentication) {
+    // JWT는 stateless이므로 서버에서 세션 삭제 불필요
+    // 클라이언트에서 토큰 삭제 처리
 
     // 소셜로그인 Provider(Naver, Kakao 등)로부터 발급받은 accessToken & refreshToken 폐기 요청 전송
     CustomPrincipal userPrincipal = (CustomPrincipal) authentication.getPrincipal();
     String registrationId = userPrincipal.getOAuth2UserInfo().getProviderInfo().name();
 
     OAuth2AuthorizedClient client = oAuth2AuthorizedClientService.loadAuthorizedClient(
-        registrationId, // application-oauth.yml 에 등록한 이름
-        authentication.getName()
-    );
+        registrationId, // application-oauth.yml 에 등록한 이름. kakao, naver 등
+        authentication.getName());
     if (client != null) {
       OAuth2LogoutHandler handler = handlers.get(
           registrationId + "LogoutHandler");
@@ -68,8 +62,7 @@ public class AuthService {
   }
 
   public UserAuthStatusDto getAuthStatus(
-      Authentication authentication
-  ) {
+      Authentication authentication) {
     List<? extends GrantedAuthority> authorities = new ArrayList<>();
     boolean isAuthenticated = false;
 

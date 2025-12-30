@@ -1,6 +1,5 @@
 package com.sns.marigold.adoption.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.global.annotation.Enum;
 import com.sns.marigold.global.enums.Neutering;
@@ -8,6 +7,7 @@ import com.sns.marigold.global.enums.Sex;
 import com.sns.marigold.global.enums.Species;
 import com.sns.marigold.user.entity.User;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -54,9 +54,9 @@ public class AdoptionInfoCreateDto {
   private Neutering neutering;
 
   private String features;
-
-  @JsonIgnore // 명시
-  private MultipartFile image;
+  
+  @Schema(description = "업로드할 이미지 파일들", type = "string", format = "binary")
+  private MultipartFile[] images;
 
   public AdoptionInfo toEntity(User writer) {
     return AdoptionInfo.builder()
