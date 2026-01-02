@@ -8,6 +8,7 @@ import com.sns.marigold.global.enums.Sex;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -31,8 +32,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
@@ -87,7 +90,7 @@ public class AdoptionInfo {
   // cascade = CascadeType.ALL: 게시글 저장/삭제 시 이미지도 같이 저장/삭제
   // orphanRemoval = true: 리스트에서 이미지를 제거하면 DB에서도 삭제됨
   @OneToMany(mappedBy = "adoptionInfo", cascade = CascadeType.ALL, orphanRemoval = true)
-  @Builder.Default // 빌더 패턴 사용 시 초기화 유지
+  @Builder.Default // 빌더 패턴 사용 시에도 초기화 값 new ArrayList<> 유지
   private List<AdoptionImage> images = new ArrayList<>();
 
   // --- [연관 관계 편의 메서드] ---

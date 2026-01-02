@@ -25,6 +25,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -35,28 +38,68 @@ public class AdoptionInfoService {
   private final UserServiceImpl userService;
   private final AdoptionInfoRepository adoptionInfoRepository;
   private final S3Service s3Service;
-  
-  @Transactional
+
   public void create(AdoptionInfoCreateDto dto, UUID writerId) {
+    // 1. 유효성 검사 (Transaction 불필요)
     Objects.requireNonNull(writerId, "writerId cannot be null");
+    List<MultipartFile> images = dto.getImages() != null ? dto.getImages() : Collections.emptyList();
 
-    User writer = userService.findEntityById(writerId);
+    // 2. S3 이미지 업로드 (Transaction 밖에서 수행!)
+    // 실패 시 예외가 발생하며 create 메서드 종료 -> DB 트랜잭션 시작조차 안 함
+    List<ImageUploadDto> uploadedImages = uploadImagesToS3(images);
 
-    AdoptionInfo adoptionInfo = dto.toEntity(writer);
-    Objects.requireNonNull(adoptionInfo, "AdoptionInfo cannot be null");
-
-    // S3 image upload
-    for (MultipartFile image : dto.getImages()) {
-      ImageUploadDto imageDto = s3Service.uploadFile(image);
-      if (imageDto != null) {
-        adoptionInfo.addImage(AdoptionImage.builder()
-                .imageUrl(imageDto.getImageUrl())
-                .storeFileName(imageDto.getStoreFileName())
-                .originalFileName(imageDto.getOriginalFileName())
-                .build());
-      }
+    try {
+      // 3. DB 저장 (트랜잭션 진입)
+      saveAdoptionInfoInTransaction(dto, writerId, uploadedImages);
+    } catch (Exception e) {
+      // 4. DB 저장 실패 시 S3 파일 삭제 (보상 트랜잭션)
+      // 로깅 필수
+      log.error("DB Save failed. Deleting S3 files...", e);
+      deleteUploadedImagesFromS3(uploadedImages);
+      throw e; // 예외 다시 던짐
     }
+  }
+
+  // 별도의 헬퍼 메서드로 분리 (혹은 S3Service 내부 로직)
+  private List<ImageUploadDto> uploadImagesToS3(List<MultipartFile> images) {
+    List<ImageUploadDto> result = new ArrayList<>();
+    try {
+      for (MultipartFile image : images) {
+        // uploadFile 내부에서 실패 시 예외를 던지도록 설계 권장
+        result.add(s3Service.uploadFile(image));
+      }
+    } catch (Exception e) {
+      // 업로드 중간에 실패하면, 이미 올라간 파일들 삭제 후 예외 발생
+      deleteUploadedImagesFromS3(result);
+      throw e;
+    }
+    return result;
+  }
+
+  // 실제 DB 저장은 별도 메서드로 분리하여 트랜잭션 최소화
+  @Transactional
+  protected void saveAdoptionInfoInTransaction(AdoptionInfoCreateDto dto, UUID writerId,
+      List<ImageUploadDto> uploadedImages) {
+    User writer = userService.findEntityById(writerId);
+    AdoptionInfo adoptionInfo = dto.toEntity(writer);
+
+    // 업로드된 정보 매핑
+    for (ImageUploadDto imageDto : uploadedImages) {
+      adoptionInfo.addImage(AdoptionImage.builder()
+          .imageUrl(imageDto.getImageUrl())
+          .storeFileName(imageDto.getStoreFileName())
+          .originalFileName(imageDto.getOriginalFileName())
+          .build());
+    }
+
     adoptionInfoRepository.save(adoptionInfo);
+  }
+
+  private void deleteUploadedImagesFromS3(List<ImageUploadDto> images) {
+    // S3Service에 delete 기능 구현 필요
+    for (ImageUploadDto dto : images) {
+      s3Service.deleteFile(dto.getStoreFileName());
+    }
   }
 
   // 검색
