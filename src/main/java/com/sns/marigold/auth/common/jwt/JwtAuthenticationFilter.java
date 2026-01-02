@@ -5,15 +5,17 @@ import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.lang.NonNull;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -21,16 +23,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.WebUtils;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
-  private static final String AUTHORIZATION_HEADER = "Authorization";
-  private static final String BEARER_PREFIX = "Bearer ";
-
-  private final JwtTokenProvider jwtTokenProvider;
+  private final JwtManager jwtTokenProvider;
 
   @Override
   protected void doFilterInternal(
@@ -41,8 +40,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     String token = resolveToken(request);
 
+    // 토큰 유효성 검사
     if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
       try {
+        // Authentication 객체 생성 후 SecurityContext에 저장
         Authentication authentication = getAuthentication(token);
         SecurityContextHolder.getContext().setAuthentication(authentication);
       } catch (Exception e) {
@@ -55,12 +56,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   }
 
   /**
-   * 요청 헤더에서 JWT 토큰 추출
+   * 요청 쿠키에서 JWT 토큰 추출
    */
-  private String resolveToken(HttpServletRequest request) {
-    String bearerToken = request.getHeader(AUTHORIZATION_HEADER);
-    if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(BEARER_PREFIX)) {
-      return bearerToken.substring(BEARER_PREFIX.length());
+  private String resolveToken(@NonNull HttpServletRequest request) {
+    Cookie cookie = WebUtils.getCookie(request, "accessToken");
+    if (cookie != null) {
+        return cookie.getValue();
     }
     return null;
   }
