@@ -19,17 +19,17 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class JwtTokenProvider {
+public class JwtManager {
 
   private static final String AUTHORITIES_KEY = "auth";
-  private static final String USER_ID_KEY = "userId";
+  private static final String USER_ID_KEY = "sub"; // subject
   private static final String PROVIDER_INFO_KEY = "providerInfo";
 
   private final SecretKey secretKey;
   private final long accessTokenValidityInMilliseconds;
   private final long refreshTokenValidityInMilliseconds;
 
-  public JwtTokenProvider(
+  public JwtManager(
       @Value("${jwt.secret.defaultSecretKeyForDevelopmentOnlyChangeInProduction}") String secret,
       @Value("${jwt.access-token-validity-in-seconds}") long accessTokenValidityInSeconds,
       @Value("${jwt.refresh-token-validity-in-seconds}") long refreshTokenValidityInSeconds) {

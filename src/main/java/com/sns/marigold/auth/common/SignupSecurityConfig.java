@@ -41,7 +41,7 @@ public class SignupSecurityConfig {
   @Bean
   public SecurityFilterChain signupSecurityFilterChain(HttpSecurity http) throws Exception {
     http
-        // 회원가입 경로에만 적용 (authorization + callback 모두 포함)
+        // 회원가입 경로에만 적용
         .securityMatcher(env.getProperty("url.backend.auth.signup.base") + "/**")
         // 세션 비활성화 (JWT 사용)
         .sessionManagement(

@@ -42,7 +42,7 @@ public class LoginSecurityConfig {
   @Bean
   public SecurityFilterChain loginSecurityFilterChain(HttpSecurity http) throws Exception {
     http
-        // 로그인 경로에만 적용 (authorization + callback 모두 포함)
+        // 로그인 경로에만 적용
         .securityMatcher(env.getProperty("url.backend.auth.login.base") + "/**") 
         // 세션 비활성화 (JWT 사용)
         .sessionManagement(

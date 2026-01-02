@@ -7,11 +7,11 @@ import org.springframework.security.core.GrantedAuthority;
 @Getter
 public class UserAuthStatusDto {
 
-  private final boolean isAuthenticated;
+  private final boolean authenticated;
   private final List<String> authorities;
 
-  public UserAuthStatusDto(boolean isAuthenticated, List<? extends GrantedAuthority> authorities) {
-    this.isAuthenticated = isAuthenticated;
+  public UserAuthStatusDto(boolean authenticated, List<? extends GrantedAuthority> authorities) {
+    this.authenticated = authenticated;
     this.authorities = authorities.stream().map(GrantedAuthority::getAuthority).toList();
 
   }
