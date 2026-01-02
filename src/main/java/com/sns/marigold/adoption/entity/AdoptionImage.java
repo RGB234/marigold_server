@@ -30,7 +30,7 @@ public class AdoptionImage {
     private UUID id;
 
     // S3에 저장된 전체 접근 URL (프론트엔드 이미지 렌더링용)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 2048)
     private String imageUrl;
 
     // S3에 저장된 실제 파일명 (삭제 시 필요)

@@ -10,7 +10,7 @@ public enum Species {
   DOG("개", "DOG"),
 
   CAT("고양이", "CAT"),
-  Rodents("설치류", "RODENTS"),
+  RODENTS("설치류", "RODENTS"),
   BIRDS("조류", "BIRDS"),
   REPTILES("파충류", "REPTILES"),
   FISH("어류", "FISH"),

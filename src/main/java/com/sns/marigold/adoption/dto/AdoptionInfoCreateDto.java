@@ -18,6 +18,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.List;
+
 import org.springframework.web.multipart.MultipartFile;
 
 @Getter
@@ -56,7 +59,7 @@ public class AdoptionInfoCreateDto {
   private String features;
   
   @Schema(description = "업로드할 이미지 파일들", type = "string", format = "binary")
-  private MultipartFile[] images;
+  private List<MultipartFile> images;
 
   public AdoptionInfo toEntity(User writer) {
     return AdoptionInfo.builder()
