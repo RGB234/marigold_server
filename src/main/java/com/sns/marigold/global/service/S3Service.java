@@ -5,8 +5,6 @@ import io.awspring.cloud.s3.ObjectMetadata;
 import io.awspring.cloud.s3.S3Template;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
-import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -28,13 +26,16 @@ public class S3Service {
   @Value("${spring.cloud.aws.s3.bucket}")
   private String bucketName;
 
+  @Value("${spring.cloud.aws.region.static}")
+  private String region;
+
   public ImageUploadDto uploadFile(MultipartFile file) {
     if (file == null || file.isEmpty()) {
       return null;
     }
 
     String originalFilename = file.getOriginalFilename();
-    String key = createFileName(originalFilename);
+    String key = createFileName(originalFilename); // Random UUID + 파일 확장자
     Objects.requireNonNull(key, "key must not be null");
 
     String safeBucketName = Objects.requireNonNull(bucketName, "bucketName must not be null");
@@ -47,21 +48,15 @@ public class S3Service {
       throw new RuntimeException("File upload failed", e);
     }
 
-    // 업로드된 URL 반환
-    try {
-        // 실제 다운로드가 아니라, 접근 가능한 "링크"만 생성합니다. (가볍고 빠름)
-        // Duration.ofMinutes(10): 10분 동안만 유효한 링크
-        URL url = s3Template.createSignedGetURL(safeBucketName, key, Duration.ofMinutes(10));
-        
-        return ImageUploadDto.builder()
-            .imageUrl(url.toString())
-            .storeFileName(key)
-            .originalFileName(originalFilename)
-            .build();
-    } catch (Exception e) {
-        log.error("S3 URL 생성 실패: {}", e.getMessage());
-        throw new RuntimeException("파일 URL을 가져오는데 실패했습니다.", e);
-    }
+    // 업로드된 URL 반환 (상시 접근 가능한 공개 URL)
+    // S3 버킷이 공개 읽기 권한을 가져야 합니다.
+    String publicUrl = buildPublicUrl(safeBucketName, key);
+    
+    return ImageUploadDto.builder()
+        .imageUrl(publicUrl)
+        .storeFileName(key)
+        .originalFileName(originalFilename)
+        .build();
   }
 
   public void deleteFile(String storeFileName){
@@ -70,7 +65,16 @@ public class S3Service {
     s3Template.deleteObject(safeBucketName, storeFileName);
   }
 
-
+  /**
+   * S3 공개 URL 생성
+   * @param bucketName S3 버킷 이름
+   * @param key 파일 키 (경로)
+   * @return 상시 접근 가능한 공개 URL
+   */
+  private String buildPublicUrl(String bucketName, String key) {
+    // S3 공개 URL 형식: https://{bucket}.s3.{region}.amazonaws.com/{key}
+    return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, key);
+  }
 
   public String createFileName(String fileName){
     return UUID.randomUUID().toString().concat(getFileExtension(fileName));

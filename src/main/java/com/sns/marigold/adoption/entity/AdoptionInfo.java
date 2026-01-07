@@ -1,9 +1,10 @@
 package com.sns.marigold.adoption.entity;
 
+import com.sns.marigold.adoption.enums.AdoptionStatus;
+import com.sns.marigold.adoption.enums.Neutering;
+import com.sns.marigold.adoption.enums.Sex;
+import com.sns.marigold.adoption.enums.Species;
 import com.sns.marigold.user.entity.User;
-import com.sns.marigold.global.enums.Neutering;
-import com.sns.marigold.global.enums.Species;
-import com.sns.marigold.global.enums.Sex;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -23,7 +24,6 @@ import jakarta.persistence.OneToMany;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.UUID;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -43,9 +43,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 public class AdoptionInfo {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
+  @GeneratedValue(strategy = GenerationType.IDENTITY) // Auto increment
   @Column(name = "id", updatable = false, nullable = false)
-  private UUID id;
+  private Long id;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "writer_id", nullable = false)
@@ -82,9 +82,21 @@ public class AdoptionInfo {
   @Column(nullable = false)
   private String features;
 
-  // --- [변경 사항] ---
-    
-  // 기존 imageUrl 삭제함 -> private String imageUrl; (삭제)
+  // 입양 상태
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  @Builder.Default
+  private AdoptionStatus status = AdoptionStatus.RECRUITING; // 기본값: 분양중
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "adopter_id") // nullable = true (기본값). 입양 전엔 null이어야 하므로 nullable = true
+  private User adopter;
+
+  @Column(nullable = true)
+  private LocalDateTime adoptedAt;
+
+  // 이미지
 
   // 1:N 관계 설정
   // cascade = CascadeType.ALL: 게시글 저장/삭제 시 이미지도 같이 저장/삭제
@@ -98,5 +110,19 @@ public class AdoptionInfo {
   public void addImage(AdoptionImage image) {
       this.images.add(image);
       image.setAdoptionInfo(this);
+  }
+
+  // 입양 완료 처리
+  public void completeAdoption(User adopter) {
+    this.status = AdoptionStatus.COMPLETED;
+    this.adopter = adopter;
+    this.adoptedAt = LocalDateTime.now();
+}
+
+  // 입양 취소 처리 (필요시)
+  public void cancelAdoption() {
+      this.status = AdoptionStatus.RECRUITING;
+      this.adopter = null;
+      this.adoptedAt = null;
   }
 }

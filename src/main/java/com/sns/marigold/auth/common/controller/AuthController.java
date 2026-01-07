@@ -45,4 +45,11 @@ public class AuthController {
   public ResponseEntity<UserAuthStatusDto> getAuthStatus(Authentication authentication) {
     return ResponseEntity.ok().body(authService.getAuthStatus(authentication));
   }
+
+
+  // @GetMapping("/reissue")
+  // public ResponseEntity<Map<String, Object>> reissue(HttpServletRequest request, HttpServletResponse response) {
+  //   authService.reissue(request, response);
+  //   return ResponseEntity.ok().body(Map.of("message", "reissue success"));
+  // }
 }

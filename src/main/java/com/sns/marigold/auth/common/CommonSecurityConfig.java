@@ -2,13 +2,11 @@ package com.sns.marigold.auth.common;
 
 import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
 import com.sns.marigold.auth.common.jwt.JwtAuthenticationFilter;
-import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -40,6 +38,7 @@ public class CommonSecurityConfig {
     private final String signupBaseUrl;
     private final String logoutUrl;
     private final String statusUrl;
+    private final String adoptionInfoSearchUrl;
 
     public CommonSecurityConfig(CustomCorsConfigurationSource customCorsConfigurationSource,
             CustomAccessDeniedHandler customAccessDeniedHandler,
@@ -47,7 +46,9 @@ public class CommonSecurityConfig {
             @Value("${url.backend.auth.login.base}") String loginBaseUrl,
             @Value("${url.backend.auth.signup.base}") String signupBaseUrl,
             @Value("${url.backend.auth.logout}") String logoutUrl,
-            @Value("${url.backend.auth.status}") String statusUrl) {
+            @Value("${url.backend.auth.status}") String statusUrl,
+            @Value("${url.backend.adoption.search}") String adoptionInfoSearchUrl
+     ) {
 
         this.customCorsConfigurationSource = customCorsConfigurationSource;
         this.customAccessDeniedHandler = customAccessDeniedHandler;
@@ -57,6 +58,7 @@ public class CommonSecurityConfig {
         this.signupBaseUrl = signupBaseUrl;
         this.logoutUrl = logoutUrl;
         this.statusUrl = statusUrl;
+        this.adoptionInfoSearchUrl = adoptionInfoSearchUrl;
     }
 
     @Bean
@@ -79,11 +81,11 @@ public class CommonSecurityConfig {
                 .authorizeHttpRequests(
                         auth -> auth
                                 .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
-                                // 로그아웃
-                                // 인증 상태 반환
                                 .requestMatchers(
                                         logoutUrl,
-                                        statusUrl)
+                                        statusUrl,
+                                        adoptionInfoSearchUrl
+                                )
                                 .permitAll()
                                 // Swagger
                                 .requestMatchers(

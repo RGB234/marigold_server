@@ -2,10 +2,10 @@ package com.sns.marigold.auth.oauth2.service;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.AuthResponseCode;
+import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.global.enums.Role;
 import com.sns.marigold.user.dto.create.UserCreateDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
@@ -77,7 +77,7 @@ public class OAuth2UserServiceForSignup implements OAuth2UserService<OAuth2UserR
             .providerId(providerId)
             .build());
 
-      return new CustomPrincipal(userId, oAuth2UserInfo, authorities);
+      return new CustomPrincipal(userId, authorities);
     }
   }
 }
