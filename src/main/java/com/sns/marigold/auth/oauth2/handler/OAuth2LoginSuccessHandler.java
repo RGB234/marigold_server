@@ -19,17 +19,11 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    private final JwtManager jwtTokenProvider;
+    private final JwtManager jwtManager;
     private final CookieManager cookieManager;
     
     @Value("${url.frontend.home}")
     private String frontendHomeUrl;
-
-    @Value("${jwt.access-token-validity-in-seconds:3600}")
-    private long accessTokenValidity;
-
-    @Value("${jwt.refresh-token-validity-in-seconds:86400}")
-    private long refreshTokenValidity;
 
     @Override
     public void onAuthenticationSuccess(
@@ -40,12 +34,12 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         log.info("로그인 성공 - UserId: {}", principal.getUserId());
 
         // 1. JWT 토큰 생성
-        String accessToken = jwtTokenProvider.createAccessToken(principal);
-        String refreshToken = jwtTokenProvider.createRefreshToken(principal);
+        String accessToken = jwtManager.createAccessToken(principal);
+        String refreshToken = jwtManager.createRefreshToken(principal);
 
         // 2. 쿠키 설정 및 추가
-        cookieManager.addCookie(response, "accessToken", accessToken, accessTokenValidity);
-        cookieManager.addCookie(response, "refreshToken", refreshToken, refreshTokenValidity);
+        cookieManager.addCookie(response, cookieManager.ACCESS_TOKEN_NAME, accessToken, jwtManager.getAccessTokenValidityInMilliseconds());
+        cookieManager.addCookie(response, cookieManager.REFRESH_TOKEN_NAME, refreshToken, jwtManager.getRefreshTokenValidityInMilliseconds());
 
         // 3. 리다이렉트 처리
         if (response.isCommitted()) {

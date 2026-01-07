@@ -1,13 +1,16 @@
 package com.sns.marigold.adoption.dto;
 
+import com.sns.marigold.adoption.entity.AdoptionImage;
 import com.sns.marigold.adoption.entity.AdoptionInfo;
-import com.sns.marigold.global.enums.Neutering;
-import com.sns.marigold.global.enums.Sex;
-import com.sns.marigold.global.enums.Species;
-import com.sns.marigold.user.entity.User;
+import com.sns.marigold.adoption.enums.Neutering;
+import com.sns.marigold.adoption.enums.Sex;
+import com.sns.marigold.adoption.enums.Species;
+import com.sns.marigold.user.dto.response.UserInfoDto;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,11 +21,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class AdoptionDetailedInfoResponseDto {
+public class AdoptionDetailResponseDto {
 
-  private UUID id;
+  private Long id;
 
-  private User writer;
+  private UserInfoDto writer;
 
   private LocalDateTime createdAt;
 
@@ -44,10 +47,19 @@ public class AdoptionDetailedInfoResponseDto {
 
   private String features;
 
-  public static AdoptionDetailedInfoResponseDto from(AdoptionInfo adoptionInfo) {
-    return AdoptionDetailedInfoResponseDto.builder()
+  private List<String> imageUrls;
+
+  public static AdoptionDetailResponseDto from(AdoptionInfo adoptionInfo) {
+
+    List<String> imageUrls = adoptionInfo.getImages().stream()
+      .map(AdoptionImage::getImageUrl)
+      .collect(Collectors.toList());
+
+    UserInfoDto writer = UserInfoDto.from(adoptionInfo.getWriter());
+
+    return AdoptionDetailResponseDto.builder()
       .id(adoptionInfo.getId())
-      .writer(adoptionInfo.getWriter())
+      .writer(writer)
       .createdAt(adoptionInfo.getCreatedAt())
       .modifiedAt(adoptionInfo.getModifiedAt())
       .species(adoptionInfo.getSpecies())
@@ -58,6 +70,7 @@ public class AdoptionDetailedInfoResponseDto {
       .weight(adoptionInfo.getWeight())
       .neutering(adoptionInfo.getNeutering())
       .features(adoptionInfo.getFeatures())
+      .imageUrls(imageUrls)
       .build();
   }
 }

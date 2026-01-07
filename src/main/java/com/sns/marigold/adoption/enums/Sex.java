@@ -1,4 +1,4 @@
-package com.sns.marigold.global.enums;
+package com.sns.marigold.adoption.enums;
 
 
 import com.fasterxml.jackson.annotation.JsonValue;

@@ -3,8 +3,9 @@ package com.sns.marigold.adoption.dto;
 import java.util.UUID;
 
 import com.sns.marigold.adoption.entity.AdoptionInfo;
-import com.sns.marigold.global.enums.Species;
-import com.sns.marigold.global.enums.Sex;
+import com.sns.marigold.adoption.enums.Sex;
+import com.sns.marigold.adoption.enums.Species;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,7 +18,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AdoptionInfoResponseDto {
 
-  private UUID id;
+  private Long id;
 
   private Species species;
 
@@ -27,15 +28,17 @@ public class AdoptionInfoResponseDto {
 
   private String area;
 
-  public static AdoptionInfoResponseDto from(AdoptionInfo adoptionInfo) {
+  private String imageUrl;
 
+  public static AdoptionInfoResponseDto from(AdoptionInfo adoptionInfo) {
     return AdoptionInfoResponseDto
-      .builder()
-      .id(adoptionInfo.getId())
-      .species(adoptionInfo.getSpecies())
-      .age(adoptionInfo.getAge())
-      .sex(adoptionInfo.getSex())
-      .area(adoptionInfo.getArea())
-      .build();
+        .builder()
+        .id(adoptionInfo.getId())
+        .species(adoptionInfo.getSpecies())
+        .age(adoptionInfo.getAge())
+        .sex(adoptionInfo.getSex())
+        .area(adoptionInfo.getArea())
+        .imageUrl(adoptionInfo.getImages().get(0).getImageUrl())
+        .build();
   }
 }

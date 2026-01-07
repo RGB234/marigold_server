@@ -1,4 +1,4 @@
-package com.sns.marigold.global.enums;
+package com.sns.marigold.auth.common.enums;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;

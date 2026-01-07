@@ -2,7 +2,6 @@ package com.sns.marigold.auth.oauth2.handler;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.AuthResponseCode;
-import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,11 +33,7 @@ public class OAuth2SignupSuccessHandler extends SimpleUrlAuthenticationSuccessHa
       throws IOException, ServletException {
     CustomPrincipal principal = (CustomPrincipal) authentication.getPrincipal();
 
-    ProviderInfo providerInfo = principal.getOAuth2UserInfo().getProviderInfo();
-    String providerId = principal.getOAuth2UserInfo().getName();
-
-
-    log.info("회원가입 성공 - UserId: {}, Provider: {}, ProviderId: {}", principal.getUserId(), providerInfo, providerId);
+    log.info("회원가입 성공 - UserId: {}", principal.getUserId());
 
     String redirectUrl = env.getProperty("url.frontend.auth.login");
     Objects.requireNonNull(redirectUrl, "url.frontend.auth.login is not configured");
