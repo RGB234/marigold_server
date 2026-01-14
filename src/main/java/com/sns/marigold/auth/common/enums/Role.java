@@ -1,7 +1,6 @@
 package com.sns.marigold.auth.common.enums;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Arrays;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,16 +8,15 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum Role {
-  ROLE_PERSON("개인", "ROLE_INDIVIDUAL");
+  ROLE_PERSON("일반 사용자 계정"),
+  ROLE_ADMIN("관리자 계정");
 
-  private final String name;
-  @JsonValue // Role 직렬화시 value 값 사용
-  private final String value;
+  private final String description;
 
-  @JsonCreator // 역직렬화
-  public static Role fromRole(String val) {
+  @JsonCreator // 역직렬화. String -> Enum
+  public static Role fromRole(String name) {
     return Arrays.stream(values())
-      .filter(role -> role.getValue().equals(val))
+      .filter(role -> role.name().equals(name))
       .findAny()
       .orElse(null);
   }

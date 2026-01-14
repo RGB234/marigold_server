@@ -6,16 +6,13 @@ import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+import com.sns.marigold.global.error.exception.UserAlreadyExistsException;
 import com.sns.marigold.user.dto.create.UserCreateDto;
-import com.sns.marigold.user.entity.User;
-import com.sns.marigold.user.repository.UserRepository;
 import com.sns.marigold.user.service.UserService;
 
-import jakarta.transaction.Transactional;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
@@ -38,12 +35,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Slf4j
 public class OAuth2UserServiceForSignup implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
-
-  private final UserRepository userRepository;
   private final UserService userService;
 
   @Override
-  @Transactional
   public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
     OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate = new DefaultOAuth2UserService();
     OAuth2User oAuth2User = delegate.loadUser(userRequest);
@@ -53,32 +47,26 @@ public class OAuth2UserServiceForSignup implements OAuth2UserService<OAuth2UserR
     String providerCode = userRequest.getClientRegistration().getRegistrationId();
     ProviderInfo providerInfo = ProviderInfo.fromString(providerCode);
 
-    OAuth2UserInfo oAuth2UserInfo =
-        OAuth2UserInfoFactory.getOAuth2UserInfo(providerInfo, attributes);
+    OAuth2UserInfo oAuth2UserInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(providerInfo, attributes);
 
     String providerId = oAuth2UserInfo.getName();
 
-    // 계정 조회 (없어도 예외 발생하지 않음)
-    Optional<User> userOptional = userRepository.findByProviderInfoAndProviderId(providerInfo, providerId);
+    try {
+      UserCreateDto userCreateDto = UserCreateDto.builder()
+          .providerInfo(providerInfo)
+          .providerId(providerId)
+          .role(Role.ROLE_PERSON) // 기본 권한은 일반 사용자로 설정
+          .build();
+      UUID userId = userService.createUser(userCreateDto);
+      Collection<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
+      return new CustomPrincipal(userId, authorities, attributes);
 
-    Collection<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
-
-    if (userOptional.isPresent()) {
-      // 계정이 이미 존재하는 경우 (Handler에서 에러 처리)
+    } catch (UserAlreadyExistsException e) {
       throw new OAuth2AuthenticationException(
-        new OAuth2Error(
-            AuthResponseCode.USER_ALREADY_REGISTERED.getCode(),
-            AuthResponseCode.USER_ALREADY_REGISTERED.getDescription(),
-            null));
-    } else {
-      UUID userId = userService.createUser(
-        UserCreateDto.builder()
-            .providerInfo(providerInfo)
-            .providerId(providerId)
-            .build());
-
-      return new CustomPrincipal(userId, authorities);
+          new OAuth2Error(
+              AuthResponseCode.USER_ALREADY_REGISTERED.getCode(),
+              AuthResponseCode.USER_ALREADY_REGISTERED.getDescription(),
+              null));
     }
   }
 }
-

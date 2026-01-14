@@ -11,7 +11,6 @@ import com.sns.marigold.adoption.entity.AdoptionInfoEditor;
 import com.sns.marigold.adoption.enums.AdoptionStatus;
 import com.sns.marigold.adoption.repository.AdoptionInfoRepository;
 import com.sns.marigold.adoption.specification.AdoptionInfoSpecification;
-import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.global.dto.ImageUploadDto;
 import com.sns.marigold.global.service.S3Service;
 import com.sns.marigold.user.entity.User;
@@ -29,7 +28,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.NonNull;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -115,7 +113,10 @@ public class AdoptionInfoService {
   @Transactional
   public void update(User user, AdoptionInfoUpdateDto dto, @NonNull Long id) {
     AdoptionInfo info = findEntityById(id);
+
     validateWriter(info, user);
+    validateStatus(info);
+
     AdoptionInfoEditor editor = AdoptionInfoEditor.builder()
         .name(dto.getName())
         .age(dto.getAge())
@@ -130,8 +131,14 @@ public class AdoptionInfoService {
     info.updateInfo(editor);
   }
 
-  public void changeImages(List<MultipartFile> images, @NonNull Long id) {
+  public void changeImages(User user, List<MultipartFile> images, @NonNull Long id) {
     AdoptionInfo info = findEntityById(id);
+
+    validateWriter(info, user);
+    validateStatus(info);
+
+    List<ImageUploadDto> oldImages = info.getImages().stream().map(ImageUploadDto::from).collect(Collectors.toList());
+
     List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(images);
     List<AdoptionImage> newImages = uploadedImages.stream().map(image -> AdoptionImage.builder()
         .imageUrl(image.getImageUrl())
@@ -144,6 +151,7 @@ public class AdoptionInfoService {
       transactionTemplate.executeWithoutResult(status -> {
         info.changeImages(newImages);
       });
+      s3Service.deleteUploadedImagesFromS3(oldImages);
     } catch (Exception e) {
       s3Service.deleteUploadedImagesFromS3(uploadedImages);
       throw e;
@@ -153,30 +161,34 @@ public class AdoptionInfoService {
   @Transactional
   public void updateStatus(User adopter, @NonNull Long id, @NonNull AdoptionStatus status) {
     AdoptionInfo info = findEntityById(id);
+
     validateWriter(info, adopter);
+    validateStatus(info);
+
     if (status == AdoptionStatus.COMPLETED) {
-      info.completeAdoption(adopter);
+      // Do nothing
     } else if (status == AdoptionStatus.RECRUITING) {
-      info.cancelAdoption();
+      info.completeAdoption(adopter);
     } else {
       throw new IllegalArgumentException("Invalid status");
     }
   }
 
   public void delete(User user, @NonNull Long id) {
-    AdoptionInfo info = findEntityById(id);
-    validateWriter(info, user);
+    List<ImageUploadDto> images = null;
+    images = transactionTemplate.execute(status -> {
+      AdoptionInfo info = findEntityById(id);
+      validateWriter(info, user);
+      validateStatus(info);
 
-    AdoptionStatus status = info.getStatus();
-    if (status == AdoptionStatus.COMPLETED) {
-      // 삭제 불가
-      throw new IllegalArgumentException("Completed adoption cannot be deleted");
-    } else if (status == AdoptionStatus.RECRUITING) {
-      // 삭제 가능
-      adoptionInfoRepository.delete(info);
-    } else {
-      throw new IllegalArgumentException("Invalid status");
-    }
+      // 삭제 전 이미지 리스트 추출 (영속성 컨텍스트가 살아있을 때 수행)
+      List<ImageUploadDto> dtoList = info.getImages() != null
+          ? info.getImages().stream().map(ImageUploadDto::from).collect(Collectors.toList())
+          : Collections.emptyList();
+
+      return dtoList;
+    });
+    s3Service.deleteUploadedImagesFromS3(images);
   }
 
   private void validateWriter(AdoptionInfo info, User user) {
@@ -184,5 +196,12 @@ public class AdoptionInfoService {
       throw new AccessDeniedException("수정 권한이 없습니다.");
     }
     ;
+  }
+
+  // 입양 완료된 게시글은 수정 불가
+  private void validateStatus(AdoptionInfo info) {
+    if (info.getStatus() == AdoptionStatus.COMPLETED) {
+      throw new IllegalArgumentException("Completed adoption cannot be modified");
+    }
   }
 }

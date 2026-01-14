@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
+import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 
 @Entity
@@ -31,7 +32,12 @@ public class User {
   private ProviderInfo providerInfo; // 소셜로그인 제공 서비스 종류 (Google, Kakao, ...)
 
   @Column(nullable = false)
-  private String providerId; // 소셜로그인 계정 id\
+  private String providerId; // 소셜로그인 계정 id
+
+  @Enumerated(EnumType.STRING) // DB에 숫자가 아닌 문자열(ROLE_PERSON)로 저장
+  @Column(nullable = false)
+  @Builder.Default // 빌더로 생성 시 값을 안 넣으면 기본값 적용
+  private Role role = Role.ROLE_PERSON;
 
   // 공개 정보
 
