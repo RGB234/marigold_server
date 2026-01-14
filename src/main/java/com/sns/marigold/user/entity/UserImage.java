@@ -1,15 +1,12 @@
-package com.sns.marigold.adoption.entity;
+package com.sns.marigold.user.entity;
 
 import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -22,9 +19,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@Table(name = "adoption_image")
-public class AdoptionImage {
-
+@Table(name = "user_image")
+public class UserImage {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", updatable = false, nullable = false)
@@ -41,14 +37,4 @@ public class AdoptionImage {
     // 사용자가 올린 원본 파일명 (다운로드용)
     @Column(nullable = false)
     private String originalFileName;
-
-    // FK
-    // AdoptionInfo의 mappedBy="adoptionInfo"와 이름이 일치해야 함
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "adoption_info_id") 
-    private AdoptionInfo adoptionInfo;
-
-    public void setAdoptionInfo(AdoptionInfo adoptionInfo) {
-        this.adoptionInfo = adoptionInfo;
-    }
 }

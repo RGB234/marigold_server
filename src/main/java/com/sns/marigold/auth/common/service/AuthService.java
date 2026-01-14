@@ -31,12 +31,12 @@ public class AuthService {
 
   public UserAuthStatusDto getAuthStatus(
       Authentication authentication) {
-    // 1. Authentication 객체 자체가 없거나, 인증되지 않은 상태(Anonymous)인 경우
+    // JwtAuthenticationFilter에서 Authentication 객체 생성 후 SecurityContext에 저장함
     // Spring Security에서 'anonymousUser'는 String 타입이므로 instanceof 체크 필수
     if (authentication == null ||
         !(authentication.getPrincipal() instanceof CustomPrincipal)) {
 
-      return new UserAuthStatusDto(false, Collections.emptyList());
+      return new UserAuthStatusDto(null, Collections.emptyList());
     }
 
     // 2. 안전하게 캐스팅
@@ -44,8 +44,9 @@ public class AuthService {
 
     // 3. DB 조회 없이 토큰(Principal)에 있는 정보로만 응답 (성능 최적화)
     // JWT 필터를 통과했다면 이미 검증된 사용자라고 신뢰함.
+    // 보안상 민감한 부분에서는 DB에서 사용자 정보를 조회하여 검증하도록 함.
     return new UserAuthStatusDto(
-        authentication.isAuthenticated(),
+        userPrincipal.getUserId(),
         userPrincipal.getAuthorities().stream().toList());
   }
 

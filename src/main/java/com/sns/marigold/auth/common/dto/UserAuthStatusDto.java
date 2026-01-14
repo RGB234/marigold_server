@@ -1,17 +1,19 @@
 package com.sns.marigold.auth.common.dto;
 
 import java.util.List;
+import java.util.UUID;
+
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 
 @Getter
 public class UserAuthStatusDto {
 
-  private final boolean authenticated;
+  private final UUID userId;
   private final List<String> authorities;
 
-  public UserAuthStatusDto(boolean authenticated, List<? extends GrantedAuthority> authorities) {
-    this.authenticated = authenticated;
+  public UserAuthStatusDto(UUID userId, List<? extends GrantedAuthority> authorities) {
+    this.userId = userId;
     this.authorities = authorities.stream().map(GrantedAuthority::getAuthority).toList();
 
   }

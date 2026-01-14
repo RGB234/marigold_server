@@ -1,7 +1,5 @@
 package com.sns.marigold.adoption.dto;
 
-import java.util.UUID;
-
 import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;

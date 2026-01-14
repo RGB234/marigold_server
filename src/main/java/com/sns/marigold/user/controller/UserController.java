@@ -13,15 +13,19 @@ import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -30,46 +34,46 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 public class UserController {
 
-  private final UserServiceImpl personalUserService;
+  private final UserServiceImpl userService;
 
   // ** create **
 
   @PostMapping("/create")
   public ResponseEntity<?> create(@RequestBody @Valid UserCreateDto dto) {
-    UUID userId = personalUserService.createUser(dto);
+    UUID userId = userService.createUser(dto);
     return ResponseEntity.ok(Map.of(
         "userId", userId.toString(),
         "message", "User created successfully"));
   }
 
   // ** update **
-  @PatchMapping("settings")
+  @PatchMapping(value="/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<?> update(
-      @AuthenticationPrincipal CustomPrincipal principal, @RequestBody @Valid UserUpdateDto dto) {
+      @AuthenticationPrincipal CustomPrincipal principal, @ModelAttribute @Valid UserUpdateDto dto) {
     UUID userId = UUID.fromString(principal.getName());
-    personalUserService.updateUser(userId, dto);
+    userService.updateUser(userId, dto);
     return ResponseEntity.ok(null);
   }
 
   // ** get **
 
   // 검색
-  @GetMapping("/search/{nickname}")
-  public List<UserInfoDto> getPersonByNickname(@PathVariable("nickname") String nickname) {
-    return personalUserService.getUserByNickname(nickname);
+  @GetMapping("/search")
+  public List<UserInfoDto> getPersonByNickname(@RequestParam("query") String nickname) {
+    return userService.getUserByNickname(nickname);
   }
 
   // 본인(현재 세션) 프로필 조회
-  @GetMapping("/profile")
-  public ResponseEntity<UserInfoDto> getCurrentProfile(
-      @AuthenticationPrincipal CustomPrincipal principal) {
-    UUID userId = UUID.fromString(principal.getName());
-    return ResponseEntity.ok(personalUserService.getUserById(userId));
-  }
+  // @GetMapping("/profile")
+  // public ResponseEntity<UserInfoDto> getCurrentProfile(
+  //     @AuthenticationPrincipal CustomPrincipal principal) {
+  //   UUID userId = UUID.fromString(principal.getName());
+  //   return ResponseEntity.ok(userService.getUserById(userId));
+  // }
 
   @GetMapping("/profile/{userId}")
   public ResponseEntity<UserInfoDto> getPersonProfile(@PathVariable("userId") UUID userId) {
-    return ResponseEntity.ok(personalUserService.getUserById(userId));
+    return ResponseEntity.ok(userService.getUserById(userId));
   }
 
   // ** delete **
@@ -77,7 +81,7 @@ public class UserController {
   @DeleteMapping("/delete/person")
   public ResponseEntity<String> deletePerson(@AuthenticationPrincipal CustomPrincipal principal) {
     UUID userId = UUID.fromString(principal.getName());
-    personalUserService.deleteUser(userId);
+    userService.deleteUser(userId);
     return ResponseEntity.ok().body("User deleted successfully");
   }
 }

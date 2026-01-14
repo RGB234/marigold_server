@@ -5,6 +5,9 @@ import io.awspring.cloud.s3.ObjectMetadata;
 import io.awspring.cloud.s3.S3Template;
 import java.io.IOException;
 import java.io.InputStream;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +34,7 @@ public class S3Service {
 
   public ImageUploadDto uploadFile(MultipartFile file) {
     if (file == null || file.isEmpty()) {
-      return null;
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "파일이 없습니다.");
     }
 
     String originalFilename = file.getOriginalFilename();
@@ -65,6 +68,27 @@ public class S3Service {
     s3Template.deleteObject(safeBucketName, storeFileName);
   }
 
+  public List<ImageUploadDto> uploadImagesToS3(List<MultipartFile> images) {
+    List<ImageUploadDto> result = new ArrayList<>();
+    try {
+      for (MultipartFile image : images) {
+        // uploadFile 내부에서 실패 시 예외를 던지도록 설계 권장
+        result.add(this.uploadFile(image));
+      }
+    } catch (Exception e) {
+      // 업로드 중간에 실패하면, 이미 올라간 파일들 삭제 후 예외 발생
+      this.deleteUploadedImagesFromS3(result);
+      throw e;
+    }
+    return result;
+  }
+
+  public void deleteUploadedImagesFromS3(List<ImageUploadDto> images) {
+    for (ImageUploadDto dto : images) {
+      this.deleteFile(dto.getStoreFileName());
+    }
+  }
+
   /**
    * S3 공개 URL 생성
    * @param bucketName S3 버킷 이름
@@ -76,11 +100,11 @@ public class S3Service {
     return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, key);
   }
 
-  public String createFileName(String fileName){
+  private String createFileName(String fileName){
     return UUID.randomUUID().toString().concat(getFileExtension(fileName));
   }
 
-  public String getFileExtension(String fileName){
+  private String getFileExtension(String fileName){
     if(fileName.lastIndexOf(".") == -1){
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "잘못된 형식의 파일" + fileName + ") 입니다.");
     }
