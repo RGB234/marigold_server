@@ -2,20 +2,29 @@ package com.sns.marigold.user.dto.response;
 
 import com.sns.marigold.user.entity.User;
 
+import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @Getter
+@Builder
 @RequiredArgsConstructor
 public class UserInfoDto {
   private final String nickname;
+  private final String imageUrl;
 
   public static UserInfoDto from(User user) {
     if (user == null) return emptyDto();
-    return new UserInfoDto(user.getNickname());
+    return UserInfoDto.builder()
+        .nickname(user.getNickname())
+        .imageUrl(user.getImage() != null ? user.getImage().getImageUrl() : null)
+        .build();
   }
 
   public static UserInfoDto emptyDto() {
-    return new UserInfoDto(null);
+    return UserInfoDto.builder()
+        .nickname(null)
+        .imageUrl(null)
+        .build();
   }
 }
