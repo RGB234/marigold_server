@@ -12,15 +12,17 @@ import java.util.UUID;
 public class CustomPrincipal implements OAuth2User {
   private final UUID userId;
   private final Collection<SimpleGrantedAuthority> authorities;
+  private final Map<String, Object> attributes;
   
-  public CustomPrincipal(UUID userId, Collection<SimpleGrantedAuthority> authorities) {
+  public CustomPrincipal(UUID userId, Collection<SimpleGrantedAuthority> authorities, Map<String, Object> attributes) {
     this.userId = userId;
     this.authorities = authorities;
+    this.attributes = attributes;
   }
   
   @Override
   public Map<String, Object> getAttributes() {
-    return this.getAttributes();
+    return attributes;
   }
 
   @Override

@@ -2,13 +2,12 @@ package com.sns.marigold.auth.oauth2.service;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.AuthResponseCode;
-import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.user.entity.User;
-import com.sns.marigold.user.repository.UserRepository;
-import jakarta.transaction.Transactional;
+import com.sns.marigold.user.service.UserService;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -33,11 +32,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Slf4j
 public class OAuth2UserServiceForLogin implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
-
-  private final UserRepository userRepository;
+  private final UserService userService;
 
   @Override
-  @Transactional
   public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
     OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate = new DefaultOAuth2UserService();
     OAuth2User oAuth2User = delegate.loadUser(userRequest);
@@ -51,11 +48,11 @@ public class OAuth2UserServiceForLogin implements OAuth2UserService<OAuth2UserRe
 
     String providerId = oAuth2UserInfo.getName();
 
-    Optional<User> userOptional = userRepository.findByProviderInfoAndProviderId(providerInfo, providerId);
-    Collection<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
+    Optional<User> userOptional = userService.findEntityByProviderInfoAndProviderId(providerInfo, providerId);
     if (userOptional.isPresent()) {
       User user = userOptional.get();
-      return new CustomPrincipal(user.getId(), authorities);
+      Collection<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(user.getRole().name()));
+      return new CustomPrincipal(user.getId(), authorities, attributes);
     } else {
       // 우리 서비스에 없는 사용자는 예외를 발생시킴
       throw new OAuth2AuthenticationException(

@@ -1,5 +1,6 @@
 package com.sns.marigold.user.dto.create;
 
+import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.annotation.Enum;
 
@@ -21,4 +22,8 @@ public class UserCreateDto {
 
   @NotBlank(message = "소셜 로그인 계정 ID는 필수입니다.")
   private String providerId; // 소셜로그인 계정 id
+
+  @Enum(target = Role.class)
+  @NotNull(message = "사용자 권한은 필수입니다.")
+  private Role role; // 사용자 권한
 }

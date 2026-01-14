@@ -4,7 +4,7 @@ import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.user.dto.create.UserCreateDto;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
-import com.sns.marigold.user.service.UserServiceImpl;
+import com.sns.marigold.user.service.UserService;
 import jakarta.validation.Valid;
 
 import java.util.List;
@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 public class UserController {
 
-  private final UserServiceImpl userService;
+  private final UserService userService;
 
   // ** create **
 

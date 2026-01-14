@@ -51,7 +51,7 @@ public class JwtManager {
     Claims claims = getClaims(token);
     UUID userId = getUserId(claims);
     List<SimpleGrantedAuthority> authorities = getAuthorities(claims);
-    return new UsernamePasswordAuthenticationToken(new CustomPrincipal(userId, authorities), "", authorities);
+    return new UsernamePasswordAuthenticationToken(new CustomPrincipal(userId, authorities, null), "", authorities);
   }
 
   /**
