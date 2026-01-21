@@ -32,7 +32,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Slf4j
 @RequiredArgsConstructor
 
-public class UserService{
+public class UserService {
 
   private final UserRepository userRepository;
   private final RandomUsernameGenerator randomUsernameGenerator;
@@ -45,7 +45,8 @@ public class UserService{
   }
 
   @Transactional(readOnly = true)
-  public Optional<User> findEntityByProviderInfoAndProviderId(@NonNull ProviderInfo providerInfo, @NonNull String providerId) {
+  public Optional<User> findEntityByProviderInfoAndProviderId(@NonNull ProviderInfo providerInfo,
+      @NonNull String providerId) {
     return userRepository.findByProviderInfoAndProviderId(providerInfo, providerId);
   }
 
@@ -62,7 +63,6 @@ public class UserService{
     return UserInfoDto.from(user);
   }
 
-
   @Transactional(readOnly = true)
   public List<UserInfoDto> getUserByNickname(String nickname) {
     List<User> users = userRepository.findPersonalUsersByNickname(nickname);
@@ -71,7 +71,6 @@ public class UserService{
         .toList();
   }
 
-  
   @Transactional
   public UUID createUser(UserCreateDto dto) {
     Objects.requireNonNull(dto, "UserCreateDto는 null일 수 없습니다.");
@@ -121,7 +120,7 @@ public class UserService{
   }
 
   // 새 이미지 업로드 -> DB 저장 -> (성공시) 이전 이미지 삭제 / (실패시) 롤백 - 새 이미지 삭제
-  
+
   public void updateUser(UUID uid,
       UserUpdateDto dto) {
     // 새 이미지 업로드
@@ -135,13 +134,12 @@ public class UserService{
       // DB 저장
       transactionTemplate.executeWithoutResult(status -> {
         User user = findEntityById(uid);
-        // 기존 이미지가 있었다면
-        if (user.getImage() != null) {
-          previousImage.set(user.getImage());
-        }
-
         // 업로드 이미지가 있다면
         if (finalNewImageUploadDto != null) {
+          // 기존 이미지가 있었다면 저장
+          if (user.getImage() != null) {
+            previousImage.set(user.getImage());
+          }
 
           UserImage newImage = UserImage.builder().imageUrl(finalNewImageUploadDto.getImageUrl())
               .storeFileName(finalNewImageUploadDto.getStoreFileName())
@@ -157,6 +155,10 @@ public class UserService{
           }
         }
       });
+      if (previousImage.get() != null) {
+        // 이전 이미지 삭제
+        s3Service.deleteFile(previousImage.get().getStoreFileName());
+      }
     } catch (Exception e) {
       // 새 이미지 저장 취소
       if (newImageUploadDto != null) {
@@ -165,13 +167,7 @@ public class UserService{
       }
       throw e;
     }
-
-    if (previousImage.get() != null) {
-      // 이전 이미지 삭제
-      s3Service.deleteFile(previousImage.get().getStoreFileName());
-    }
   }
-
 
   @Transactional
   public void deleteUser(UUID uid) {

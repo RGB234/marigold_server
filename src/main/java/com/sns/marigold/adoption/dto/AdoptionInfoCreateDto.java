@@ -46,8 +46,8 @@ public class AdoptionInfoCreateDto {
   private String area;
 
   @NotBlank(message = "값이 비어있습니다.")
-  @Size(min = 2, max = 12, message = "2자 이상 12자 이하여야 합니다.")
-  private String name;
+  @Size(max = 16, message = "16자 이하여야 합니다.")
+  private String title;
 
   @Min(0)
   @Builder.Default
@@ -57,21 +57,27 @@ public class AdoptionInfoCreateDto {
   private Neutering neutering;
 
   private String features;
-  
+
   @Schema(description = "업로드할 이미지 파일들", type = "string", format = "binary")
   private List<MultipartFile> images;
 
+  /*
+  이미지는 Entity에서 setter 메서드로 설정
+   */
   public AdoptionInfo toEntity(User writer) {
     return AdoptionInfo.builder()
-            .writer(writer)
-            .species(this.species)
-            .name(this.name)
-            .age(this.age)
-            .sex(this.sex)
-            .area(this.area)
-            .weight(this.weight)
-            .neutering(this.neutering)
-            .features(this.features)
-            .build();
+        .writer(writer)
+        .species(this.species)
+        .title(this.title)
+        .age(this.age)
+        .sex(this.sex)
+        .area(this.area)
+        .weight(this.weight)
+        .neutering(this.neutering)
+        .features(this.features)
+        .build();
   }
 }
+
+// .images(images)
+// .status(this.status)

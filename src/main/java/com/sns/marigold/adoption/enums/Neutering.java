@@ -9,7 +9,7 @@ import lombok.Getter;
 public enum Neutering {
   YES("예", "YES"),
   NO("아니오", "NO"),
-  UNKNOWN("모름", "UNKNOWN");
+  UNKNOWN("불명", "UNKNOWN");
 
   private String name;
   @JsonValue

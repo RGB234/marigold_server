@@ -10,7 +10,7 @@ import lombok.Getter;
 @Getter
 @Builder
 public class AdoptionInfoEditor {
-    private final String name;
+    private final String title;
     private final Integer age;
     private final Double weight;
     private final String features;

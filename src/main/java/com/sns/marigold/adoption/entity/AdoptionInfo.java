@@ -30,6 +30,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import org.hibernate.annotations.DynamicUpdate;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -39,6 +41,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
+@DynamicUpdate // 변경된 필드만 UPDATE 쿼리 생성
 public class AdoptionInfo {
 
   @Id
@@ -69,7 +72,7 @@ public class AdoptionInfo {
   private String area;
 
   @Column(nullable = false)
-  private String name;
+  private String title;
 
   @Lob
   @Column(nullable = false)
@@ -102,29 +105,30 @@ public class AdoptionInfo {
   // cascade = CascadeType.ALL: 게시글 저장/삭제 시 이미지도 같이 저장/삭제
   // orphanRemoval = true: 리스트에서 이미지를 제거하면 DB에서도 삭제됨
   @OneToMany(mappedBy = "adoptionInfo", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-  private List<AdoptionImage> images; // 생성자에서 초기화
+  private List<AdoptionImage> images;
+
 
   @Builder
-  public AdoptionInfo(User writer, Species species, String name, Integer age,
-      Sex sex, String area, Double weight, Neutering neutering,
+  public AdoptionInfo(User writer, Species species, String title, Integer age,
+      Sex sex, String area, Double weight, Neutering neutering, AdoptionStatus status, List<AdoptionImage> images,
       String features) {
     this.writer = writer;
     this.species = species;
-    this.name = name;
+    this.title = title;
     this.age = age;
     this.sex = sex;
     this.area = area;
     this.weight = weight;
     this.neutering = neutering;
     this.features = features;
-    // 기본값 초기화
-    this.status = AdoptionStatus.RECRUITING;
-    this.images = new ArrayList<>();
+    //
+    this.images = (images != null) ? images : new ArrayList<>();
+    this.status = (status != null) ? status :AdoptionStatus.RECRUITING;
   }
 
   // Null로 수정 가능
   public void updateInfo(AdoptionInfoEditor editor) {
-    this.name = editor.getName();
+    this.title = editor.getTitle();
     this.age = editor.getAge();
     this.weight = editor.getWeight();
     this.features = editor.getFeatures();
