@@ -36,6 +36,14 @@ public class AdoptionInfoSpecification {
     };
   }
 
+  public static Specification<AdoptionInfo> hasNickname(String nickname) {
+    return (root, query, builder) -> {
+      if (nickname == null) {
+        return null; // 조건 없음 = 전체 검색
+      }
+      return builder.equal(root.get("nickname"), nickname);
+    };
+  }
   // public static Specification<AdoptionInfo> hasWriterId(UUID writerId){
   //   return (root, query, builder) -> writerId == null ? null : builder.equal(root.get("writerId"), writerId);
   // }

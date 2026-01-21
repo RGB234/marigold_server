@@ -1,5 +1,9 @@
 package com.sns.marigold.adoption.dto;
 
+import java.util.List;
+
+import org.springframework.web.multipart.MultipartFile;
+
 import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
@@ -7,6 +11,7 @@ import com.sns.marigold.adoption.enums.Species;
 import com.sns.marigold.global.annotation.Enum;
 import com.sns.marigold.user.entity.User;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -31,8 +36,7 @@ public class AdoptionInfoUpdateDto {
 
   @NotNull
   @Min(0)
-  @Builder.Default
-  private Integer age = 0;
+  private Integer age;
 
   @Enum(target = Sex.class)
   private Sex sex;
@@ -41,29 +45,35 @@ public class AdoptionInfoUpdateDto {
   private String area;
 
   @NotBlank(message = "값이 비어있습니다.")
-  @Size(min = 2, max = 12, message = "2자 이상 12자 이하여야 합니다.")
-  private String name;
+  @Size(max = 16, message = "16자 이하여야 합니다.")
+  private String title;
 
   @Min(0)
-  @Builder.Default
-  private Double weight = 0.0;
+  private Double weight;
 
   @Enum(target = Neutering.class)
   private Neutering neutering;
 
   private String features;
 
+  // @Enum(target = AdoptionStatus.class)
+  // @Builder.Default
+  // private AdoptionStatus status = AdoptionStatus.RECRUITING;
+
+  @Schema(description = "업로드할 이미지 파일들", type = "string", format = "binary")
+  private List<MultipartFile> images;
+
   public AdoptionInfo toEntity(User writer) {
     return AdoptionInfo.builder()
-            .writer(writer)
-            .species(this.species)
-            .name(this.name)
-            .age(this.age)
-            .sex(this.sex)
-            .area(this.area)
-            .weight(this.weight)
-            .neutering(this.neutering)
-            .features(this.features)
-            .build();
+        .writer(writer)
+        .species(this.species)
+        .title(this.title)
+        .age(this.age)
+        .sex(this.sex)
+        .area(this.area)
+        .weight(this.weight)
+        .neutering(this.neutering)
+        .features(this.features)
+        .build();
   }
 }
