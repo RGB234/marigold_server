@@ -8,7 +8,6 @@ import com.sns.marigold.adoption.dto.AdoptionInfoUpdateDto;
 import com.sns.marigold.adoption.entity.AdoptionImage;
 import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.adoption.entity.AdoptionInfoEditor;
-import com.sns.marigold.adoption.enums.AdoptionStatus;
 import com.sns.marigold.adoption.repository.AdoptionInfoRepository;
 import com.sns.marigold.adoption.specification.AdoptionInfoSpecification;
 import com.sns.marigold.global.dto.ImageUploadDto;
@@ -175,19 +174,13 @@ public class AdoptionInfoService {
   }
 
   @Transactional
-  public void updateStatus(User adopter, @NonNull Long id, @NonNull AdoptionStatus status) {
+  public void completeAdoption(User adopter, @NonNull Long id) {
     AdoptionInfo info = findEntityById(id);
 
     validateWriter(info, adopter.getId());
     validateStatus(info);
 
-    if (status == AdoptionStatus.COMPLETED) {
-      // Do nothing
-    } else if (status == AdoptionStatus.RECRUITING) {
-      info.completeAdoption(adopter);
-    } else {
-      throw new IllegalArgumentException("Invalid status");
-    }
+    info.completeAdoption(adopter);
   }
 
   public void delete(@NonNull Long id, @NonNull UUID userId) {
@@ -212,6 +205,15 @@ public class AdoptionInfoService {
     s3Service.deleteUploadedImagesFromS3(images);
   }
 
+  // public void deleteByWriter(UUID writerId) {
+  //   Page<AdoptionInfo> adoptionInfoPage = adoptionInfoRepository.findByWriter_Id(writerId, Pageable.unpaged());
+  //   adoptionInfoPage.forEach(adoptionInfo -> {
+  //     if (!adoptionInfo.isCompleted()) {
+  //       delete(adoptionInfo.getId(), writerId);
+  //     }
+  //   });
+  // }
+
   public void validateWriter(AdoptionInfo info, UUID userId) {
     if (!info.getWriter().getId().equals(userId)) {
       throw new AccessDeniedException("수정 권한이 없습니다.");
@@ -221,7 +223,7 @@ public class AdoptionInfoService {
 
   // 입양 완료된 게시글은 수정 불가
   public void validateStatus(AdoptionInfo info) {
-    if (info.getStatus() == AdoptionStatus.COMPLETED) {
+    if (info.isCompleted()) {
       throw new IllegalArgumentException("Completed adoption cannot be modified");
     }
   }

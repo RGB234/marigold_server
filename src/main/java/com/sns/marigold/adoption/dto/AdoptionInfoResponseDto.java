@@ -1,7 +1,8 @@
 package com.sns.marigold.adoption.dto;
 
+import java.time.LocalDateTime;
+
 import com.sns.marigold.adoption.entity.AdoptionInfo;
-import com.sns.marigold.adoption.enums.AdoptionStatus;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
 
@@ -31,7 +32,9 @@ public class AdoptionInfoResponseDto {
 
   private String imageUrl;
 
-  private AdoptionStatus status;
+  private boolean completed;
+
+  private LocalDateTime createdAt;
 
   public static AdoptionInfoResponseDto from(AdoptionInfo adoptionInfo) {
     return AdoptionInfoResponseDto
@@ -42,8 +45,9 @@ public class AdoptionInfoResponseDto {
         .age(adoptionInfo.getAge())
         .sex(adoptionInfo.getSex())
         .area(adoptionInfo.getArea())
-        .imageUrl(adoptionInfo.getImages().get(0).getImageUrl())
-        .status(adoptionInfo.getStatus())
+        .imageUrl(adoptionInfo.getImages().isEmpty() ? null : adoptionInfo.getImages().get(0).getImageUrl())
+        .completed(adoptionInfo.isCompleted())
+        .createdAt(adoptionInfo.getCreatedAt())
         .build();
   }
 }

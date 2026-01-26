@@ -1,6 +1,5 @@
 package com.sns.marigold.adoption.entity;
 
-import com.sns.marigold.adoption.enums.AdoptionStatus;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
@@ -88,9 +87,8 @@ public class AdoptionInfo {
 
   // 입양 상태
 
-  @Enumerated(EnumType.STRING)
   @Column(nullable = false)
-  private AdoptionStatus status; // 기본값: RECRUITING (생성자에서 초기화)
+  private boolean completed ;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "adopter_id") // nullable = true (기본값). 입양 전엔 null이어야 하므로 nullable = true
@@ -110,7 +108,7 @@ public class AdoptionInfo {
 
   @Builder
   public AdoptionInfo(User writer, Species species, String title, Integer age,
-      Sex sex, String area, Double weight, Neutering neutering, AdoptionStatus status, List<AdoptionImage> images,
+      Sex sex, String area, Double weight, Neutering neutering, List<AdoptionImage> images,
       String features) {
     this.writer = writer;
     this.species = species;
@@ -123,7 +121,7 @@ public class AdoptionInfo {
     this.features = features;
     //
     this.images = (images != null) ? images : new ArrayList<>();
-    this.status = (status != null) ? status :AdoptionStatus.RECRUITING;
+    this.completed = false;
   }
 
   // Null로 수정 가능
@@ -140,14 +138,14 @@ public class AdoptionInfo {
 
   // 입양 완료 처리
   public void completeAdoption(User adopter) {
-    this.status = AdoptionStatus.COMPLETED;
+    this.completed = true;
     this.adopter = adopter;
     this.adoptedAt = LocalDateTime.now();
   }
 
   // 입양 취소 처리 (필요시)
   public void cancelAdoption() {
-    this.status = AdoptionStatus.RECRUITING;
+    this.completed = false;
     this.adopter = null;
     this.adoptedAt = null;
   }

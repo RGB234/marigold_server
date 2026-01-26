@@ -7,10 +7,12 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
+import java.time.LocalDateTime;
 
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+
+import io.hypersistence.utils.hibernate.id.Tsid;
 
 @Entity
 @Getter
@@ -22,9 +24,10 @@ import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 @AllArgsConstructor
 public class User {
   @Id
+  @Tsid // TSID는 toString()을 하면 "0C7X..." 같은 짧은 문자열(Crockford Base32)로 변환됨
   @GeneratedValue(strategy = GenerationType.UUID) // Hibernate 6.x에서 UUID 생성 전략 지정
   @Column(name = "id", updatable = false, nullable = false)
-  private UUID id; // 👈 타입은 UUID로 변경
+  private Long id; // DB에서는 BIGINT로 저장
 
   // 비공개 정보
 
@@ -41,7 +44,7 @@ public class User {
 
   // 공개 정보
 
-  @Column(length = 12, nullable = false, unique = true)
+  @Column(length = 12, nullable = false, unique = false)
   private String nickname;
 
   /**
@@ -52,6 +55,9 @@ public class User {
   @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
   @JoinColumn(name = "image_id", nullable = true)
   private UserImage image;
+
+  @Column(nullable = true)
+  private LocalDateTime deletedAt; // soft delete timestamp
 
   public void saveImage(UserImage image) {
     this.image = image; // nullable
@@ -71,5 +77,14 @@ public class User {
     }else{
       deleteImage();
     }
+  }
+
+  public void softDelete(){
+    this.nickname = "deleted_" + this.id;
+    this.image = null;
+    this.providerInfo = null;
+    this.providerId = null;
+    this.role = null;
+    this.deletedAt = LocalDateTime.now();
   }
 }
