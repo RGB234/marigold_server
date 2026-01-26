@@ -13,7 +13,6 @@ import jakarta.validation.Valid;
 
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -56,7 +55,7 @@ public class AdoptionInfoController {
     if (principal == null || principal.getUserId() == null) {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("사용자 정보를 찾을 수 없습니다.");
     }
-    UUID userId = principal.getUserId();
+    Long userId = principal.getUserId();
     Long adoptionInfoId = adoptionInfoService.create(dto, userId);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(Map.of("id", adoptionInfoId, "message", "Adoption info created successfully"));
@@ -74,7 +73,7 @@ public class AdoptionInfoController {
   }
 
   @GetMapping("/writer/{userId}")
-  public ResponseEntity<Page<AdoptionInfoResponseDto>> searchByWriter(@PathVariable UUID userId,
+  public ResponseEntity<Page<AdoptionInfoResponseDto>> searchByWriter(@PathVariable Long userId,
       @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull Pageable pageable) {
     Page<AdoptionInfoResponseDto> result = adoptionInfoService.searchByWriter(userId, pageable);
     return ResponseEntity.ok().body(result);
@@ -99,7 +98,7 @@ public class AdoptionInfoController {
       return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
     }
 
-    UUID userId = principal.getUserId();
+    Long userId = principal.getUserId();
     if (userId == null) {
       return ResponseEntity.badRequest().body("사용자 정보를 찾을 수 없습니다.");
     }
@@ -113,7 +112,7 @@ public class AdoptionInfoController {
   @DeleteMapping("/{id}")
   public ResponseEntity<?> delete(@NonNull @AuthenticationPrincipal CustomPrincipal principal,
       @NonNull @PathVariable Long id) {
-    UUID userId = principal.getUserId();
+    Long userId = principal.getUserId();
     if (userId == null) {
       return ResponseEntity.badRequest().body("사용자 정보를 찾을 수 없습니다.");
     }

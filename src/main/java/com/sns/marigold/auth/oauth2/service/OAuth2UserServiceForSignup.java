@@ -13,7 +13,6 @@ import com.sns.marigold.user.service.UserService;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,7 +56,7 @@ public class OAuth2UserServiceForSignup implements OAuth2UserService<OAuth2UserR
           .providerId(providerId)
           .role(Role.ROLE_PERSON) // 기본 권한은 일반 사용자로 설정
           .build();
-      UUID userId = userService.createUser(userCreateDto);
+      Long userId = userService.createUser(userCreateDto);
       Collection<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
       return new CustomPrincipal(userId, authorities, attributes);
 

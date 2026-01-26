@@ -9,7 +9,6 @@ import jakarta.validation.Valid;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +39,7 @@ public class UserController {
 
   @PostMapping("/create")
   public ResponseEntity<?> create(@RequestBody @Valid UserCreateDto dto) {
-    UUID userId = userService.createUser(dto);
+    Long userId = userService.createUser(dto);
     return ResponseEntity.ok(Map.of(
         "userId", userId.toString(),
         "message", "User created successfully"));
@@ -50,7 +49,7 @@ public class UserController {
   @PatchMapping(value="/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<?> update(
       @AuthenticationPrincipal CustomPrincipal principal, @ModelAttribute @Valid UserUpdateDto dto) {
-    UUID userId = UUID.fromString(principal.getName());
+    Long userId = principal.getUserId();
     userService.updateUser(userId, dto);
     return ResponseEntity.ok(null);
   }
@@ -72,7 +71,7 @@ public class UserController {
   // }
 
   @GetMapping("/profile/{userId}")
-  public ResponseEntity<UserInfoDto> getPersonProfile(@PathVariable("userId") UUID userId) {
+  public ResponseEntity<UserInfoDto> getPersonProfile(@PathVariable("userId") Long userId) {
     return ResponseEntity.ok(userService.getUserById(userId));
   }
 
@@ -80,7 +79,7 @@ public class UserController {
 
   @DeleteMapping("/delete")
   public ResponseEntity<String> deletePerson(@AuthenticationPrincipal CustomPrincipal principal) {
-    UUID userId = UUID.fromString(principal.getName());
+    Long userId = principal.getUserId();
     userService.deleteUser(userId);
     return ResponseEntity.ok().body("User deleted successfully");
   }

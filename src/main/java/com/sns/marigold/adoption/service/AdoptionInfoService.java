@@ -34,7 +34,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -52,7 +51,7 @@ public class AdoptionInfoService {
         .orElseThrow(() -> new EntityNotFoundException("AdoptionInfo not found"));
   }
 
-  public Long create(AdoptionInfoCreateDto dto, @NonNull UUID writerId) {
+  public Long create(AdoptionInfoCreateDto dto, @NonNull Long writerId) {
     List<MultipartFile> images = dto.getImages() != null ? dto.getImages() : Collections.emptyList();
     User writer = userService.findEntityById(writerId);
     AdoptionInfo adoptionInfo = dto.toEntity(writer);
@@ -91,7 +90,7 @@ public class AdoptionInfoService {
   /*
    * 이미지와 status 값을 제외한 필드들을 업데이트
    */
-  public void update(@NonNull Long postId, @NonNull UUID userId, @NonNull AdoptionInfoUpdateDto dto) {
+  public void update(@NonNull Long postId, @NonNull Long userId, @NonNull AdoptionInfoUpdateDto dto) {
     AdoptionInfo infoForValidation = findEntityById(postId);
 
     validateWriter(infoForValidation, userId);
@@ -161,7 +160,7 @@ public class AdoptionInfoService {
   }
 
   @Transactional(readOnly = true)
-  public Page<AdoptionInfoResponseDto> searchByWriter(UUID writerId, @NonNull Pageable pageable) {
+  public Page<AdoptionInfoResponseDto> searchByWriter(Long writerId, @NonNull Pageable pageable) {
     Page<AdoptionInfo> resultPage = adoptionInfoRepository.findByWriter_Id(writerId, pageable);
     return resultPage.map(AdoptionInfoResponseDto::from);
   }
@@ -183,7 +182,7 @@ public class AdoptionInfoService {
     info.completeAdoption(adopter);
   }
 
-  public void delete(@NonNull Long id, @NonNull UUID userId) {
+  public void delete(@NonNull Long id, @NonNull Long userId) {
     // User user = userService.findEntityById(userId);
     List<ImageUploadDto> images = null;
 
@@ -214,7 +213,7 @@ public class AdoptionInfoService {
   //   });
   // }
 
-  public void validateWriter(AdoptionInfo info, UUID userId) {
+  public void validateWriter(AdoptionInfo info, Long userId) {
     if (!info.getWriter().getId().equals(userId)) {
       throw new AccessDeniedException("수정 권한이 없습니다.");
     }

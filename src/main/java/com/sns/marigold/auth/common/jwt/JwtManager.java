@@ -9,7 +9,6 @@ import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.crypto.SecretKey;
 
@@ -49,7 +48,7 @@ public class JwtManager {
    */
   public Authentication getAuthentication(String token) {
     Claims claims = getClaims(token);
-    UUID userId = getUserId(claims);
+    Long userId = getUserId(claims);
     List<SimpleGrantedAuthority> authorities = getAuthorities(claims);
     return new UsernamePasswordAuthenticationToken(new CustomPrincipal(userId, authorities, null), "", authorities);
   }
@@ -113,8 +112,8 @@ public class JwtManager {
   /**
    * Token에서 User ID 추출
    */
-  public UUID getUserId(Claims claims) {
-    return UUID.fromString(claims.get(USER_ID_KEY, String.class));
+  public Long getUserId(Claims claims) {
+    return Long.parseLong(claims.get(USER_ID_KEY, String.class));
   }
 
   /**

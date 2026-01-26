@@ -3,7 +3,6 @@ package com.sns.marigold.adoption.repository;
 import com.sns.marigold.adoption.entity.AdoptionInfo;
 
 import java.util.List;
-import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,12 +16,12 @@ public interface AdoptionInfoRepository extends JpaRepository<AdoptionInfo, Long
     JpaSpecificationExecutor<AdoptionInfo> {
 
   // @Query("SELECT a FROM AdoptionInfo a WHERE a.writer.id = :writerId")
-  Page<AdoptionInfo> findByWriter_Id(@Param("writerId") UUID writerId, Pageable pageable);
+  Page<AdoptionInfo> findByWriter_Id(@Param("writerId") Long writerId, Pageable pageable);
 
   // clearAutomatically = true : 벌크 연산 후 영속성 컨텍스트 초기화 (권장)
   @Modifying(clearAutomatically = true)
   @Query("DELETE FROM AdoptionInfo a WHERE a.writer.id = :writerId AND a.completed = false")
-  void deleteByWriterAndCompletedIsFalse(@Param("writerId") UUID writerId);
+  void deleteByWriterAndCompletedIsFalse(@Param("writerId") Long writerId);
 
   // @Modifying(clearAutomatically = true)
   // @Query("DELETE FROM AdoptionImage a WHERE a.adoptionInfo.writer.id =
@@ -36,12 +35,12 @@ public interface AdoptionInfoRepository extends JpaRepository<AdoptionInfo, Long
       "   SELECT i.id FROM AdoptionInfo i " +
       "   WHERE i.writer.id = :writerId AND i.completed = false" +
       ")")
-  void deleteImagesByWriterAndCompletedIsFalse(@Param("writerId") UUID writerId);
+  void deleteImagesByWriterAndCompletedIsFalse(@Param("writerId") Long writerId);
 
   @Query("SELECT a.storeFileName FROM AdoptionImage a " +
     "WHERE a.adoptionInfo.id IN (" + 
       "   SELECT i.id FROM AdoptionInfo i " +
       "   WHERE i.writer.id = :writerId AND i.completed = false" +
       ")")
-  List<String> findStoreFileNamesByWriterAndCompletedIsFalse(@Param("writerId") UUID writerId);
+  List<String> findStoreFileNamesByWriterAndCompletedIsFalse(@Param("writerId") Long writerId);
 }
