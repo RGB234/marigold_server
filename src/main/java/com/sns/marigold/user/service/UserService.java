@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.RequiredArgsConstructor;
@@ -58,14 +57,14 @@ public class UserService {
   }
 
   @Transactional(readOnly = true)
-  public User findEntityById(UUID uid) {
-    UUID userId = Objects.requireNonNull(uid, "사용자 ID가 비었습니다.");
+  public User findEntityById(Long uid) {
+    Long userId = Objects.requireNonNull(uid, "사용자 ID가 비었습니다.");
     return userRepository.findById(userId)
         .orElseThrow(() -> (new EntityNotFoundException("해당 사용자를 찾을 수 없습니다")));
   }
 
   @Transactional(readOnly = true)
-  public UserInfoDto getUserById(UUID uid) throws UsernameNotFoundException {
+  public UserInfoDto getUserById(Long uid) throws UsernameNotFoundException {
     User user = findEntityById(uid);
     return UserInfoDto.from(user);
   }
@@ -79,7 +78,7 @@ public class UserService {
   }
 
   @Transactional
-  public UUID createUser(UserCreateDto dto) {
+  public Long createUser(UserCreateDto dto) {
     Objects.requireNonNull(dto, "UserCreateDto는 null일 수 없습니다.");
 
     if (existsByProviderInfoAndProviderId(dto.getProviderInfo(), dto.getProviderId())) {
@@ -128,7 +127,7 @@ public class UserService {
 
   // 새 이미지 업로드 -> DB 저장 -> (성공시) 이전 이미지 삭제 / (실패시) 롤백 - 새 이미지 삭제
 
-  public void updateUser(UUID uid,
+  public void updateUser(Long uid,
       UserUpdateDto dto) {
     // 새 이미지 업로드
     ImageUploadDto newImageUploadDto = null;
@@ -178,7 +177,7 @@ public class UserService {
 
   // soft delete And PII scrubbing
   @Transactional
-  public void deleteUser(UUID uid) {
+  public void deleteUser(Long uid) {
     User user = findEntityById(uid);
     List<String> imageUrls = new ArrayList<>();
     // 사용자 프로필 이미지 url 주소 백업

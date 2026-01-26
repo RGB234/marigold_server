@@ -1,7 +1,5 @@
 package com.sns.marigold.user.dto.response;
 
-import java.util.UUID;
-
 import com.sns.marigold.user.entity.User;
 
 import lombok.Builder;
@@ -12,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 @Builder
 @RequiredArgsConstructor
 public class UserInfoDto {
-  private final UUID id;
+  private final Long id;
   private final String nickname;
   private final String imageUrl;
 

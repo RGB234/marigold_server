@@ -48,6 +48,8 @@ dependencies {
 
     // AWS S3
     implementation("io.awspring.cloud:spring-cloud-aws-starter-s3:3.1.1")
+    // TSID
+    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.7.0")
 }
 
 tasks.withType<Test> {
