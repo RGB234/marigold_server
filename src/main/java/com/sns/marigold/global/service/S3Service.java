@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -55,7 +56,7 @@ public class S3Service {
     // 업로드된 URL 반환 (상시 접근 가능한 공개 URL)
     // S3 버킷이 공개 읽기 권한을 가져야 합니다.
     String publicUrl = buildPublicUrl(safeBucketName, key);
-    
+
     return ImageUploadDto.builder()
         .imageUrl(publicUrl)
         .storeFileName(key)
@@ -63,7 +64,7 @@ public class S3Service {
         .build();
   }
 
-  public void deleteFile(String storeFileName){
+  public void deleteFile(String storeFileName) {
     Objects.requireNonNull(storeFileName, "storeFileName must not be null");
     String safeBucketName = Objects.requireNonNull(bucketName, "bucketName must not be null");
     s3Template.deleteObject(safeBucketName, storeFileName);
@@ -81,7 +82,8 @@ public class S3Service {
       }
     } catch (Exception e) {
       // 업로드 중간에 실패하면, 이미 올라간 파일들 삭제 후 예외 발생
-      this.deleteUploadedImagesFromS3(result);
+      this.deleteUploadedImagesFromS3(
+          result);
       throw e;
     }
     return result;
@@ -93,10 +95,17 @@ public class S3Service {
     }
   }
 
+  public void deleteUploadedImagesFromS3ByStoreFileNames(List<String> storeFileNames) {
+    for (String storeFileName : storeFileNames) {
+      this.deleteFile(storeFileName);
+    }
+  }
+
   /**
    * S3 공개 URL 생성
+   * 
    * @param bucketName S3 버킷 이름
-   * @param key 파일 키 (경로)
+   * @param key        파일 키 (경로)
    * @return 상시 접근 가능한 공개 URL
    */
   private String buildPublicUrl(String bucketName, String key) {
@@ -104,12 +113,12 @@ public class S3Service {
     return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, key);
   }
 
-  private String createFileName(String fileName){
+  private String createFileName(String fileName) {
     return UUID.randomUUID().toString().concat(getFileExtension(fileName));
   }
 
-  private String getFileExtension(String fileName){
-    if(fileName.lastIndexOf(".") == -1){
+  private String getFileExtension(String fileName) {
+    if (fileName.lastIndexOf(".") == -1) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "잘못된 형식의 파일" + fileName + ") 입니다.");
     }
     return fileName.substring(fileName.lastIndexOf("."));

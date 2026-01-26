@@ -2,7 +2,6 @@ package com.sns.marigold.adoption.dto;
 
 import com.sns.marigold.adoption.entity.AdoptionImage;
 import com.sns.marigold.adoption.entity.AdoptionInfo;
-import com.sns.marigold.adoption.enums.AdoptionStatus;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
@@ -50,7 +49,7 @@ public class AdoptionDetailResponseDto {
 
   private List<String> imageUrls;
 
-  private AdoptionStatus status;
+  private boolean completed;
 
   public static AdoptionDetailResponseDto from(AdoptionInfo adoptionInfo) {
 
@@ -74,7 +73,7 @@ public class AdoptionDetailResponseDto {
       .neutering(adoptionInfo.getNeutering())
       .features(adoptionInfo.getFeatures())
       .imageUrls(imageUrls)
-      .status(adoptionInfo.getStatus())
+      .completed(adoptionInfo.isCompleted())
       .build();
   }
 }

@@ -78,7 +78,7 @@ public class UserController {
 
   // ** delete **
 
-  @DeleteMapping("/delete/person")
+  @DeleteMapping("/delete")
   public ResponseEntity<String> deletePerson(@AuthenticationPrincipal CustomPrincipal principal) {
     UUID userId = UUID.fromString(principal.getName());
     userService.deleteUser(userId);
