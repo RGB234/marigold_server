@@ -45,7 +45,7 @@ public class AdoptionInfoResponseDto {
         .age(adoptionInfo.getAge())
         .sex(adoptionInfo.getSex())
         .area(adoptionInfo.getArea())
-        .imageUrl(adoptionInfo.getImages().isEmpty() ? null : adoptionInfo.getImages().get(0).getImageUrl())
+        .imageUrl(adoptionInfo.getImages().isEmpty() ? null : adoptionInfo.getImages().get(0).getStoreFileName())
         .completed(adoptionInfo.isCompleted())
         .createdAt(adoptionInfo.getCreatedAt())
         .build();

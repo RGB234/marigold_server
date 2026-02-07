@@ -1,6 +1,5 @@
 package com.sns.marigold.adoption.dto;
 
-import com.sns.marigold.adoption.entity.AdoptionImage;
 import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
@@ -54,7 +53,7 @@ public class AdoptionDetailResponseDto {
   public static AdoptionDetailResponseDto from(AdoptionInfo adoptionInfo) {
 
     List<String> imageUrls = adoptionInfo.getImages().stream()
-      .map(AdoptionImage::getImageUrl)
+      .map(image -> image.getStoreFileName())
       .collect(Collectors.toList());
 
     UserInfoDto writer = UserInfoDto.from(adoptionInfo.getWriter());
