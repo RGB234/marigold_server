@@ -34,7 +34,7 @@ public class User {
   @Enumerated(EnumType.STRING)
   private ProviderInfo providerInfo; // 소셜로그인 제공 서비스 종류 (Google, Kakao, ...)
 
-  @Column(nullable = false)
+  @Column(nullable = true)
   private String providerId; // 소셜로그인 계정 id
 
   @Enumerated(EnumType.STRING) // DB에 숫자가 아닌 문자열(ROLE_PERSON)로 저장
@@ -44,7 +44,7 @@ public class User {
 
   // 공개 정보
 
-  @Column(length = 12, nullable = false, unique = false)
+  @Column(length = 50, nullable = false, unique = false) // 12자 이하 + #DEL_TSID -> 12 + 5 + 18 = 35
   private String nickname;
 
   /**
@@ -80,11 +80,11 @@ public class User {
   }
 
   public void softDelete(){
-    this.nickname = "deleted_" + this.id;
+    this.nickname = this.nickname+"#deleted";
     this.image = null;
     this.providerInfo = null;
     this.providerId = null;
-    this.role = null;
+    // this.role = null;
     this.deletedAt = LocalDateTime.now();
   }
 }

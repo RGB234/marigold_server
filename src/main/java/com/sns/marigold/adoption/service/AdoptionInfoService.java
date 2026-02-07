@@ -11,7 +11,7 @@ import com.sns.marigold.adoption.entity.AdoptionInfoEditor;
 import com.sns.marigold.adoption.repository.AdoptionInfoRepository;
 import com.sns.marigold.adoption.specification.AdoptionInfoSpecification;
 import com.sns.marigold.global.dto.ImageUploadDto;
-import com.sns.marigold.global.service.S3Service;
+import com.sns.marigold.global.storage.service.S3Service;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
 
@@ -67,7 +67,7 @@ public class AdoptionInfoService {
         // 연관 관계 설정
         for (ImageUploadDto imageDto : uploadedImages) {
           adoptionInfo.addImage(AdoptionImage.builder()
-              .imageUrl(imageDto.getImageUrl())
+              // .imageUrl(imageDto.getImageUrl())
               .storeFileName(imageDto.getStoreFileName())
               .originalFileName(imageDto.getOriginalFileName())
               .build());
@@ -124,7 +124,7 @@ public class AdoptionInfoService {
           info.getImages().clear();
           for (ImageUploadDto image : uploadedImages) {
             info.addImage(AdoptionImage.builder()
-                .imageUrl(image.getImageUrl())
+                // .imageUrl(image.getImageUrl())
                 .storeFileName(image.getStoreFileName())
                 .originalFileName(image.getOriginalFileName())
                 .build());

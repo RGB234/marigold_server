@@ -1,25 +1,29 @@
-package com.sns.marigold.global.service;
+package com.sns.marigold.global.storage.service;
 
 import com.sns.marigold.global.dto.ImageUploadDto;
+
 import io.awspring.cloud.s3.ObjectMetadata;
 import io.awspring.cloud.s3.S3Template;
+
 import java.io.IOException;
 import java.io.InputStream;
-
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +31,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class S3Service {
 
   private final S3Template s3Template;
+  private final S3Presigner s3Presigner;
 
   @Value("${spring.cloud.aws.s3.bucket}")
   private String bucketName;
@@ -53,12 +58,7 @@ public class S3Service {
       throw new RuntimeException("File upload failed", e);
     }
 
-    // 업로드된 URL 반환 (상시 접근 가능한 공개 URL)
-    // S3 버킷이 공개 읽기 권한을 가져야 합니다.
-    String publicUrl = buildPublicUrl(safeBucketName, key);
-
     return ImageUploadDto.builder()
-        .imageUrl(publicUrl)
         .storeFileName(key)
         .originalFileName(originalFilename)
         .build();
@@ -102,15 +102,29 @@ public class S3Service {
   }
 
   /**
-   * S3 공개 URL 생성
-   * 
-   * @param bucketName S3 버킷 이름
-   * @param key        파일 키 (경로)
-   * @return 상시 접근 가능한 공개 URL
+   * S3 다운로드/조회용 Presigned URL 생성 (비공개 버킷 접근용)
+   *
+   * @param storeFileName 저장된 파일명 (Key)
+   * @return 접근 가능한 URL
    */
-  private String buildPublicUrl(String bucketName, String key) {
-    // S3 공개 URL 형식: https://{bucket}.s3.{region}.amazonaws.com/{key}
-    return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, key);
+  public String getPresignedGetUrl(String storeFileName) {
+    if (storeFileName == null || storeFileName.isEmpty()) {
+      return null;
+    }
+    String safeBucketName = Objects.requireNonNull(bucketName, "bucketName must not be null");
+
+    GetObjectRequest objectRequest = GetObjectRequest.builder()
+        .bucket(safeBucketName)
+        .key(storeFileName)
+        .build();
+
+    GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+        .signatureDuration(Duration.ofMinutes(60)) // 1시간 유효
+        .getObjectRequest(objectRequest)
+        .build();
+
+    PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
+    return presignedRequest.url().toString();
   }
 
   private String createFileName(String fileName) {

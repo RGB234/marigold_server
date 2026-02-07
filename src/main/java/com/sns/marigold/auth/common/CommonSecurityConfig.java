@@ -39,6 +39,7 @@ public class CommonSecurityConfig {
     private final String logoutUrl;
     private final String statusUrl;
     private final String adoptionInfoSearchUrl;
+    private final String storageGetUrl;
 
     public CommonSecurityConfig(CustomCorsConfigurationSource customCorsConfigurationSource,
             CustomAccessDeniedHandler customAccessDeniedHandler,
@@ -47,7 +48,8 @@ public class CommonSecurityConfig {
             @Value("${url.backend.auth.signup.base}") String signupBaseUrl,
             @Value("${url.backend.auth.logout}") String logoutUrl,
             @Value("${url.backend.auth.status}") String statusUrl,
-            @Value("${url.backend.adoption.search}") String adoptionInfoSearchUrl
+            @Value("${url.backend.adoption.search}") String adoptionInfoSearchUrl,
+            @Value("${url.backend.storage.get}") String storageGetUrl
      ) {
 
         this.customCorsConfigurationSource = customCorsConfigurationSource;
@@ -59,6 +61,7 @@ public class CommonSecurityConfig {
         this.logoutUrl = logoutUrl;
         this.statusUrl = statusUrl;
         this.adoptionInfoSearchUrl = adoptionInfoSearchUrl;
+        this.storageGetUrl = storageGetUrl;
     }
 
     @Bean
@@ -84,7 +87,9 @@ public class CommonSecurityConfig {
                                 .requestMatchers(
                                         logoutUrl,
                                         statusUrl,
-                                        adoptionInfoSearchUrl
+                                        adoptionInfoSearchUrl,
+                                        storageGetUrl
+
                                 )
                                 .permitAll()
                                 // Swagger

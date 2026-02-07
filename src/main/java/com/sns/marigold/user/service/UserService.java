@@ -5,7 +5,7 @@ import com.sns.marigold.auth.oauth2.RandomUsernameGenerator;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.dto.ImageUploadDto;
 import com.sns.marigold.global.error.exception.UserAlreadyExistsException;
-import com.sns.marigold.global.service.S3Service;
+import com.sns.marigold.global.storage.service.S3Service;
 import com.sns.marigold.user.dto.create.UserCreateDto;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
@@ -140,14 +140,14 @@ public class UserService {
       // DB 저장
       transactionTemplate.executeWithoutResult(status -> {
         User user = findEntityById(uid);
+        if (user.getImage() != null) {
+          previousImage.set(user.getImage());
+        }
+
         // 업로드 이미지가 있다면
         if (finalNewImageUploadDto != null) {
-          // 기존 이미지가 있었다면 저장
-          if (user.getImage() != null) {
-            previousImage.set(user.getImage());
-          }
-
-          UserImage newImage = UserImage.builder().imageUrl(finalNewImageUploadDto.getImageUrl())
+          UserImage newImage = UserImage.builder()
+              // .imageUrl(s3Service.getPresignedGetUrl(finalNewImageUploadDto.getStoreFileName()))
               .storeFileName(finalNewImageUploadDto.getStoreFileName())
               .originalFileName(finalNewImageUploadDto.getOriginalFileName()).build();
 
@@ -155,7 +155,6 @@ public class UserService {
         } else {
           if (dto.isRemoveImage()) { // 사용자가 기본 프로필 사진 사용을 선택
             user.update(dto.getNickname(), null); // DB에서 이미지 삭제. null일 경우 프론트에서 기본 프로필 사진 사용하도록 처리
-
           } else {
             user.update(dto.getNickname(), user.getImage());
           }
