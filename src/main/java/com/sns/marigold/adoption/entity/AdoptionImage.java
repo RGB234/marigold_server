@@ -1,9 +1,14 @@
 package com.sns.marigold.adoption.entity;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
+
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -18,6 +23,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -30,9 +36,8 @@ public class AdoptionImage {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
-    // // S3에 저장된 전체 접근 URL (프론트엔드 이미지 렌더링용)
-    // @Column(nullable = false, length = 2048)
-    // private String imageUrl;
+    @CreatedDate
+    private LocalDateTime createdAt;
 
     // S3에 저장된 실제 파일명 (삭제 시 필요)
     @Column(nullable = false)
