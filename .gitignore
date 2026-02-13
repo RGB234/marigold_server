@@ -38,3 +38,5 @@ out/
 
 ### ###
 /src/main/resources/*.yml
+
+/src/test/resources/*
