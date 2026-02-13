@@ -60,7 +60,7 @@ public class AdoptionInfoUpdateDto {
   // @Builder.Default
   // private AdoptionStatus status = AdoptionStatus.RECRUITING;
 
-  @Schema(description = "업로드할 이미지 파일들", type = "string", format = "binary")
+  @Schema(description = "업로드할 이미지 파일들", type = "string", format = "binary", nullable = true)
   private List<MultipartFile> images;
 
   public AdoptionInfo toEntity(User writer) {
