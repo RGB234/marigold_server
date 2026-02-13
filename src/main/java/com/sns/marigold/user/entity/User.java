@@ -18,7 +18,8 @@ import io.hypersistence.utils.hibernate.id.Tsid;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "users", uniqueConstraints = {
-    @UniqueConstraint(columnNames = { "providerInfo", "providerId" })
+    @UniqueConstraint(columnNames = { "providerInfo", "providerId" }),
+    @UniqueConstraint(columnNames = { "nickname" })
 })
 @Builder
 @AllArgsConstructor
@@ -43,12 +44,10 @@ public class User {
   private Role role = Role.ROLE_PERSON;
 
   // 공개 정보
-
-  @Column(length = 50, nullable = false, unique = false) // 12자 이하 + #DEL_TSID -> 12 + 5 + 18 = 35
+  @Column(length = 50, nullable = false, unique = true) // 12자 이하 + #DEL_TSID -> 12 + 5 + 18 = 35
   private String nickname;
 
   /**
-   * [변경점]
    * 1. orphanRemoval = true 추가: image를 null로 바꾸거나 다른 걸로 교체하면 기존 이미지는 DB에서 자동 삭제
    * 2. CascadeType.ALL: User 저장 시 Image도 자동 저장
    */
