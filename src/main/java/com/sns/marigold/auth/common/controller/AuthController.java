@@ -2,10 +2,13 @@ package com.sns.marigold.auth.common.controller;
 
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.service.AuthService;
+import com.sns.marigold.global.dto.ApiResponse;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,26 +33,28 @@ public class AuthController {
   private final AuthService authService;
 
   @PostMapping("/logout")
-  public ResponseEntity<Map<String, Object>> logout(HttpServletResponse response, Authentication authentication) {
+  public ResponseEntity<ApiResponse<Map<String, Object>>> logout(HttpServletResponse response,
+      Authentication authentication) {
     authService.logout(response, authentication);
-    return ResponseEntity.ok().body(Map.of("message", "logout success"));
+
+    return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(HttpStatus.OK, "logout success"));
   }
 
   /*
-    HttpOnly Cookie를 사용하여 인증 상태 관리
-    프론트엔드 UI 업데이트를 위한 최소한의 인증 정보 전달 > 로그인 유무 및 권한
-    헤더에 토큰이 있을 경우 JwtAuthenticationFilter에서 Authentication 객체 생성 후 SecurityContext에 저장
-    없을 경우 그냥 JwtAuthenticationFilter 통과함
+   * HttpOnly Cookie를 사용하여 인증 상태 관리
+   * 프론트엔드 UI 업데이트를 위한 최소한의 인증 정보 전달 > 로그인 유무 및 권한
+   * 헤더에 토큰이 있을 경우 JwtAuthenticationFilter에서 Authentication 객체를 생성하여 SecurityContext에 저장
    */
   @GetMapping("/status")
-  public ResponseEntity<UserAuthStatusDto> getAuthStatus(Authentication authentication) {
-    return ResponseEntity.ok().body(authService.getAuthStatus(authentication));
+  public ResponseEntity<ApiResponse<UserAuthStatusDto>> getAuthStatus(Authentication authentication) {
+    return ResponseEntity.status(HttpStatus.OK).body(
+        ApiResponse.success(HttpStatus.OK, "get auth status successfully", authService.getAuthStatus(authentication)));
   }
 
-
   // @GetMapping("/reissue")
-  // public ResponseEntity<Map<String, Object>> reissue(HttpServletRequest request, HttpServletResponse response) {
-  //   authService.reissue(request, response);
-  //   return ResponseEntity.ok().body(Map.of("message", "reissue success"));
+  // public ResponseEntity<Map<String, Object>> reissue(HttpServletRequest
+  // request, HttpServletResponse response) {
+  // authService.reissue(request, response);
+  // return ResponseEntity.ok().body(Map.of("message", "reissue success"));
   // }
 }

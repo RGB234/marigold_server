@@ -15,7 +15,7 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationFa
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import com.sns.marigold.auth.common.enums.AuthResponseCode;
+import com.sns.marigold.global.error.ErrorCode;
 
 /**
  * 로그인 전용 OAuth2 실패 Handler
@@ -35,7 +35,7 @@ public class OAuth2LoginFailureHandler extends SimpleUrlAuthenticationFailureHan
       AuthenticationException exception)
       throws IOException, ServletException {
 
-    String errorCode = AuthResponseCode.FAILURE.getCode();
+    String errorCode = ErrorCode.AUTH_OAUTH2_LOGIN_FAILURE.getCode();
     String errorMessage = exception.getMessage();
     // 로그인 콜백 URL로 에러 정보와 함께 리다이렉트
     String redirectUrl = env.getProperty("url.frontend.auth.login");

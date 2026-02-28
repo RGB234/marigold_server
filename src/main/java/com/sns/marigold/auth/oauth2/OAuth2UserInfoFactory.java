@@ -1,7 +1,7 @@
 package com.sns.marigold.auth.oauth2;
 
-import com.sns.marigold.auth.common.enums.AuthResponseCode;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+import com.sns.marigold.global.error.ErrorCode;
 
 import java.util.Map;
 
@@ -22,8 +22,8 @@ public class OAuth2UserInfoFactory {
     }
     throw new OAuth2AuthenticationException(
         new OAuth2Error(
-            AuthResponseCode.INVALID_PROVIDER.getCode(),
-            AuthResponseCode.INVALID_PROVIDER.getDescription(),
+            ErrorCode.AUTH_INVALID_PROVIDER.getCode(),
+            ErrorCode.AUTH_INVALID_PROVIDER.getMessage(),
             null));
   }
 }
