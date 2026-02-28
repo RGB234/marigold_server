@@ -14,7 +14,7 @@ import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
 @Component
-public class ImageFilesValidator
+public class ImageFilesValidatorForList
         implements ConstraintValidator<ValidImageFiles, List<MultipartFile>> {
 
     @Autowired
@@ -22,9 +22,6 @@ public class ImageFilesValidator
 
     @Override
     public boolean isValid(List<MultipartFile> files, ConstraintValidatorContext ctx) {
-
-        // null 또는 빈 리스트 통과
-
         if (files == null || files.isEmpty()) {
             return true;
         }
