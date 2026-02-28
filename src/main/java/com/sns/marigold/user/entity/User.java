@@ -66,7 +66,13 @@ public class User {
     this.image = null;
   }
 
-  // 비즈니스 로직
+  
+  public void update(String nickname) {
+    if (nickname != null) {
+      this.nickname = nickname;
+    }
+  }
+
   public void update(String nickname, UserImage newImage) {
     if (nickname != null) {
       this.nickname = nickname;

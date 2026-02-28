@@ -4,6 +4,7 @@ import com.sns.marigold.adoption.repository.AdoptionInfoRepository;
 import com.sns.marigold.auth.oauth2.RandomUsernameGenerator;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.event.StorageFileDeleteEvent;
 import com.sns.marigold.storage.service.S3Service;
 import com.sns.marigold.user.dto.create.UserCreateDto;
 import com.sns.marigold.user.dto.response.UserInfoDto;
@@ -20,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +29,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @Slf4j
@@ -41,7 +40,6 @@ public class UserService {
   private final AdoptionInfoRepository adoptionInfoRepository;
   private final RandomUsernameGenerator randomUsernameGenerator;
   private final S3Service s3Service;
-  private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
 
   @Transactional(readOnly = true)
@@ -123,51 +121,36 @@ public class UserService {
     throw UserException.forUserNicknameAlreadyExists();
   }
 
-  // 새 이미지 업로드 -> DB 저장 -> (성공시) 이전 이미지 삭제 / (실패시) 롤백 - 새 이미지 삭제
+  @Transactional
+  public void updateUser(Long uid, UserUpdateDto dto) {
+    User user = findEntityById(uid);
+    UserImage previousImage = user.getImage();
+    String storedFileName = previousImage != null ? previousImage.getStoredFileName() : null;
 
-  public void updateUser(Long uid,
-      UserUpdateDto dto) {
-    // 새 이미지 업로드
-    ImageUploadDto newImageUploadDto = null;
-    if (dto.getImage() != null && !dto.getImage().isEmpty()) {
-      newImageUploadDto = s3Service.uploadFile(dto.getImage());
+    // 사용자가 기본 프로필 사진 사용을 선택
+    if (dto.isRemoveImage()) { 
+      user.update(dto.getNickname(), null); // DB에서 이미지 삭제. null일 경우 프론트에서 기본 프로필 사진 사용하도록 처리
+
+      if (storedFileName != null) {
+        eventPublisher.publishEvent(new StorageFileDeleteEvent(storedFileName));
+      }
+      return;
     }
-    final AtomicReference<UserImage> previousImage = new AtomicReference<>();
-    final ImageUploadDto finalNewImageUploadDto = newImageUploadDto;
-    try {
-      // DB 저장
-      transactionTemplate.executeWithoutResult(status -> {
-        User user = findEntityById(uid);
-        if (user.getImage() != null) {
-          previousImage.set(user.getImage());
-        }
+    
+    ImageUploadDto newImageUploadDto = null;
+    if (dto.getImage() != null && !dto.getImage().isEmpty()) { // 이미지 업데이트
+      newImageUploadDto = s3Service.uploadFile(dto.getImage());
 
-        // 업로드 이미지가 있다면
-        if (finalNewImageUploadDto != null) {
-          UserImage newImage = UserImage.builder()
-              .storedFileName(finalNewImageUploadDto.getStoredFileName())
-              .originalFileName(finalNewImageUploadDto.getOriginalFileName()).build();
+      UserImage newImage = UserImage.builder()
+      .storedFileName(newImageUploadDto.getStoredFileName())
+      .originalFileName(newImageUploadDto.getOriginalFileName()).build();
 
-          user.update(dto.getNickname(), newImage);
-        } else {
-          if (dto.isRemoveImage()) { // 사용자가 기본 프로필 사진 사용을 선택
-            user.update(dto.getNickname(), null); // DB에서 이미지 삭제. null일 경우 프론트에서 기본 프로필 사진 사용하도록 처리
-          } else {
-            user.update(dto.getNickname(), user.getImage());
-          }
-        }
-      });
-      if (previousImage.get() != null) {
-        // 이전 이미지 삭제
-        s3Service.deleteFile(previousImage.get().getStoredFileName());
+      user.update(dto.getNickname(), newImage);
+      if (storedFileName != null) { 
+        eventPublisher.publishEvent(new StorageFileDeleteEvent(storedFileName));
       }
-    } catch (Exception e) {
-      // 새 이미지 저장 취소
-      if (newImageUploadDto != null) {
-        log.warn("DB update failed. Deleting new S3 file: {}", newImageUploadDto.getStoredFileName());
-        s3Service.deleteFile(newImageUploadDto.getStoredFileName());
-      }
-      throw e;
+    }else{
+      user.update(dto.getNickname());
     }
   }
 
