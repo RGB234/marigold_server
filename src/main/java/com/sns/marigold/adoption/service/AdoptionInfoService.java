@@ -8,14 +8,17 @@ import com.sns.marigold.adoption.dto.AdoptionInfoUpdateDto;
 import com.sns.marigold.adoption.entity.AdoptionImage;
 import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.adoption.entity.AdoptionInfoEditor;
+import com.sns.marigold.adoption.exception.AdoptionException;
 import com.sns.marigold.adoption.repository.AdoptionInfoRepository;
 import com.sns.marigold.adoption.specification.AdoptionInfoSpecification;
-import com.sns.marigold.global.dto.ImageUploadDto;
-import com.sns.marigold.global.storage.service.S3Service;
+import com.sns.marigold.auth.exception.AuthException;
+import com.sns.marigold.global.error.exception.BusinessException;
+import com.sns.marigold.global.error.exception.InternalServerException;
+import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.service.S3Service;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
 
-import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -26,14 +29,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.NonNull;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,42 +48,39 @@ public class AdoptionInfoService {
   @Transactional(readOnly = true)
   public AdoptionInfo findEntityById(@NonNull Long id) {
     return adoptionInfoRepository.findById(id)
-        .orElseThrow(() -> new EntityNotFoundException("AdoptionInfo not found"));
+        .orElseThrow(AdoptionException::forAdoptionInfoNotExists);
   }
 
   public Long create(AdoptionInfoCreateDto dto, @NonNull Long writerId) {
     List<MultipartFile> images = dto.getImages() != null ? dto.getImages() : Collections.emptyList();
+    List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(images);
+
     User writer = userService.findEntityById(writerId);
     AdoptionInfo adoptionInfo = dto.toEntity(writer);
 
-    // 실패 시 예외가 발생. 업로드 된 이미지는 자동으로 삭제됨.
-    List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(images);
-
     try {
-      // 트랜잭션
-      Long adoptionInfoId = transactionTemplate.execute(status -> {
-        Objects.requireNonNull(adoptionInfo, "adoptionInfo cannot be null");
+      return transactionTemplate.execute(status -> {
+        adoptionInfo.changeImages(uploadedImages.stream().map(image -> AdoptionImage.builder()
+            .storedFileName(image.getStoredFileName())
+            .originalFileName(image.getOriginalFileName())
+            .build()).collect(Collectors.toList()));
 
-        // 연관 관계 설정
-        for (ImageUploadDto imageDto : uploadedImages) {
-          adoptionInfo.addImage(AdoptionImage.builder()
-              // .imageUrl(imageDto.getImageUrl())
-              .storeFileName(imageDto.getStoreFileName())
-              .originalFileName(imageDto.getOriginalFileName())
-              .build());
-        }
-
-        adoptionInfoRepository.save(adoptionInfo);
-        return adoptionInfo.getId();
-
+        return adoptionInfoRepository.save(adoptionInfo).getId();
       });
-      return adoptionInfoId;
 
     } catch (Exception e) {
-      // DB 저장 실패 시 S3 파일 삭제 (보상 트랜잭션)
-      log.error("DB Save failed. Deleting S3 files..., error: {}", e.getMessage());
-      s3Service.deleteUploadedImagesFromS3(uploadedImages);
-      throw e;
+      log.error("Create failed. Deleting uploaded S3 files... error: {}", e.getMessage());
+
+      try {
+        s3Service.deleteUploadedImagesFromS3(uploadedImages);
+      } catch (Exception s3Ex) {
+        log.error("Failed to delete S3 images during rollback. Files: {}", uploadedImages, s3Ex);
+      }
+
+      if (e instanceof BusinessException) {
+        throw e;
+      }
+      throw InternalServerException.forInternalServerError(e);
     }
   }
 
@@ -91,14 +88,30 @@ public class AdoptionInfoService {
    * 이미지와 status 값을 제외한 필드들을 업데이트
    */
   public void update(@NonNull Long postId, @NonNull Long userId, @NonNull AdoptionInfoUpdateDto dto) {
-    AdoptionInfo infoForValidation = findEntityById(postId);
+    AdoptionInfo adoptionInfo = findEntityById(postId);
 
-    validateWriter(infoForValidation, userId);
-    validateStatus(infoForValidation);
-    // 업로드 중 실패시 예외처리하여 업르드 된 파일 삭제
-    // 이미지 없을 시 empty list 반환
+    validateWriter(adoptionInfo, userId);
+    validateStatus(adoptionInfo);
+
+    // 1. 새 이미지 S3 업로드 (실패 시 예외 발생, 파일 자동 삭제됨)
     final List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(dto.getImages());
-    List<ImageUploadDto> oldImages = new ArrayList<>();
+
+    // 2. 유지할 이미지 파일명 목록 (Null Safe)
+    List<String> imagesToKeep = dto.getImagesToKeep() != null ? dto.getImagesToKeep() : Collections.emptyList();
+
+    // 3. S3에서 삭제할 기존 이미지 식별
+    // (현재 DB 이미지 중, 유지할 목록에 없는 것들)
+    List<AdoptionImage> imagesToDeleteFromS3 = adoptionInfo.getImages().stream()
+        .filter(image -> !imagesToKeep.contains(image.getStoredFileName()))
+        .toList();
+
+    // 4. 새로 추가할 이미지 엔티티 생성
+    List<AdoptionImage> newImages = uploadedImages.stream()
+        .map(image -> AdoptionImage.builder()
+            .storedFileName(image.getStoredFileName())
+            .originalFileName(image.getOriginalFileName())
+            .build())
+        .toList();
 
     AdoptionInfoEditor editor = AdoptionInfoEditor.builder()
         .title(dto.getTitle())
@@ -112,37 +125,38 @@ public class AdoptionInfoService {
         .build();
 
     try {
+      // 5. DB 트랜잭션 (데이터 변경)
       transactionTemplate.executeWithoutResult(status -> {
-        // 영속성 컨텍스트
+        // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
         AdoptionInfo info = findEntityById(postId);
         info.updateInfo(editor);
-        // 새 이미지가 있을 경우에만
-        if (uploadedImages != null && !uploadedImages.isEmpty()) {
-          // 이전 이미지 저장
-          oldImages.addAll(info.getImages().stream().map(ImageUploadDto::from).collect(Collectors.toList()));
-          // 덮어쓰기
-          info.getImages().clear();
-          for (ImageUploadDto image : uploadedImages) {
-            info.addImage(AdoptionImage.builder()
-                // .imageUrl(image.getImageUrl())
-                .storeFileName(image.getStoreFileName())
-                .originalFileName(image.getOriginalFileName())
-                .build());
-          }
-        }
+
+        // 이미지 교체 (유지할 것은 두고, 삭제할 것은 지우고, 새것은 추가)
+        info.replaceImages(imagesToKeep, newImages);
       });
-      if (!oldImages.isEmpty()) {
-        // 스토리지 파일 삭제
-        s3Service.deleteUploadedImagesFromS3(oldImages);
+
+      // 6. 트랜잭션 성공 시: S3에서 기존 파일 삭제
+      if (!imagesToDeleteFromS3.isEmpty()) {
+        s3Service.deleteUploadedImagesFromS3ByStoredFileNames(
+            imagesToDeleteFromS3.stream()
+                .map(AdoptionImage::getStoredFileName)
+                .collect(Collectors.toList()));
       }
+
     } catch (Exception e) {
-      // DB 저장 실패 시 S3 파일 삭제 (보상 트랜잭션)
-      log.error("DB Save failed");
-      if (uploadedImages != null && !uploadedImages.isEmpty()) {
-        log.error("Deleting S3 files..., error: {}", e.getMessage());
+      // 7. 실패 시 보상 트랜잭션: 새로 업로드한 S3 파일 삭제
+      log.error("Update failed. Deleting uploaded S3 files... error: {}", e.getMessage());
+
+      try {
         s3Service.deleteUploadedImagesFromS3(uploadedImages);
+      } catch (Exception s3Ex) {
+        log.error("Failed to delete S3 images during rollback. Files: {}", uploadedImages, s3Ex);
       }
-      throw e;
+
+      if (e instanceof BusinessException) {
+        throw e;
+      }
+      throw InternalServerException.forInternalServerError(e);
     }
   }
 
@@ -169,7 +183,15 @@ public class AdoptionInfoService {
   @Transactional(readOnly = true)
   public AdoptionDetailResponseDto getDetail(@NonNull Long id) {
     AdoptionInfo info = findEntityById(id);
-    return AdoptionDetailResponseDto.from(info);
+    AdoptionDetailResponseDto detailResponseDto = AdoptionDetailResponseDto.from(info);
+
+    List<String> imageUrls = info.getImages().stream()
+        .map(image -> s3Service.getPresignedGetUrl(image.getStoredFileName()))
+        .collect(Collectors.toList());
+        
+    detailResponseDto.setImageUrls(imageUrls);
+
+    return detailResponseDto;
   }
 
   @Transactional
@@ -204,26 +226,16 @@ public class AdoptionInfoService {
     s3Service.deleteUploadedImagesFromS3(images);
   }
 
-  // public void deleteByWriter(UUID writerId) {
-  //   Page<AdoptionInfo> adoptionInfoPage = adoptionInfoRepository.findByWriter_Id(writerId, Pageable.unpaged());
-  //   adoptionInfoPage.forEach(adoptionInfo -> {
-  //     if (!adoptionInfo.isCompleted()) {
-  //       delete(adoptionInfo.getId(), writerId);
-  //     }
-  //   });
-  // }
-
   public void validateWriter(AdoptionInfo info, Long userId) {
     if (!info.getWriter().getId().equals(userId)) {
-      throw new AccessDeniedException("수정 권한이 없습니다.");
+      throw AuthException.forAuthorizationDenied();
     }
-    ;
   }
 
   // 입양 완료된 게시글은 수정 불가
   public void validateStatus(AdoptionInfo info) {
     if (info.isCompleted()) {
-      throw new IllegalArgumentException("Completed adoption cannot be modified");
+      throw AdoptionException.forAdoptionInfoCompleted();
     }
   }
 }

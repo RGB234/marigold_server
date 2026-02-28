@@ -8,5 +8,5 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class UserDeletedEvent {
-    private final List<String> storeFileNames;
+    private final List<String> imagesToKeep;
 }
