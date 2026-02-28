@@ -3,19 +3,18 @@ package com.sns.marigold.user.service;
 import com.sns.marigold.adoption.repository.AdoptionInfoRepository;
 import com.sns.marigold.auth.oauth2.RandomUsernameGenerator;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.global.dto.ImageUploadDto;
-import com.sns.marigold.global.error.exception.UserAlreadyExistsException;
-import com.sns.marigold.global.storage.service.S3Service;
+import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.service.S3Service;
 import com.sns.marigold.user.dto.create.UserCreateDto;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.entity.UserImage;
 import com.sns.marigold.user.event.UserDeletedEvent;
+import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
 
 import io.micrometer.common.lang.NonNull;
-import jakarta.persistence.EntityNotFoundException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -60,7 +59,7 @@ public class UserService {
   public User findEntityById(Long uid) {
     Long userId = Objects.requireNonNull(uid, "사용자 ID가 비었습니다.");
     return userRepository.findById(userId)
-        .orElseThrow(() -> (new EntityNotFoundException("해당 사용자를 찾을 수 없습니다")));
+        .orElseThrow(() -> UserException.forUserNotFound());
   }
 
   @Transactional(readOnly = true)
@@ -82,9 +81,8 @@ public class UserService {
     Objects.requireNonNull(dto, "UserCreateDto는 null일 수 없습니다.");
 
     if (existsByProviderInfoAndProviderId(dto.getProviderInfo(), dto.getProviderId())) {
-      throw new UserAlreadyExistsException();
+      throw UserException.forUserAlreadyExists();
     }
-    ;
 
     // nickname 자동 생성
     String generatedNickname = generateUniqueNickname();
@@ -122,7 +120,7 @@ public class UserService {
     }
 
     // 최대 시도 횟수 초과 시 예외 발생
-    throw new IllegalStateException("고유한 nickname 생성에 실패했습니다. 최대 시도 횟수를 초과했습니다.");
+    throw UserException.forUserNicknameAlreadyExists();
   }
 
   // 새 이미지 업로드 -> DB 저장 -> (성공시) 이전 이미지 삭제 / (실패시) 롤백 - 새 이미지 삭제
@@ -147,8 +145,7 @@ public class UserService {
         // 업로드 이미지가 있다면
         if (finalNewImageUploadDto != null) {
           UserImage newImage = UserImage.builder()
-              // .imageUrl(s3Service.getPresignedGetUrl(finalNewImageUploadDto.getStoreFileName()))
-              .storeFileName(finalNewImageUploadDto.getStoreFileName())
+              .storedFileName(finalNewImageUploadDto.getStoredFileName())
               .originalFileName(finalNewImageUploadDto.getOriginalFileName()).build();
 
           user.update(dto.getNickname(), newImage);
@@ -162,13 +159,13 @@ public class UserService {
       });
       if (previousImage.get() != null) {
         // 이전 이미지 삭제
-        s3Service.deleteFile(previousImage.get().getStoreFileName());
+        s3Service.deleteFile(previousImage.get().getStoredFileName());
       }
     } catch (Exception e) {
       // 새 이미지 저장 취소
       if (newImageUploadDto != null) {
-        log.warn("DB update failed. Deleting new S3 file: {}", newImageUploadDto.getStoreFileName());
-        s3Service.deleteFile(newImageUploadDto.getStoreFileName());
+        log.warn("DB update failed. Deleting new S3 file: {}", newImageUploadDto.getStoredFileName());
+        s3Service.deleteFile(newImageUploadDto.getStoredFileName());
       }
       throw e;
     }
@@ -181,17 +178,17 @@ public class UserService {
     List<String> imageUrls = new ArrayList<>();
     // 사용자 프로필 이미지 url 주소 백업
     if (user.getImage() != null) {
-      imageUrls.add(user.getImage().getStoreFileName());
+      imageUrls.add(user.getImage().getStoredFileName());
     }
 
     // 작성자 게시글 이미지 스토리지 저장 파일명 조회 및 백업
-    adoptionInfoRepository.findStoreFileNamesByWriterAndCompletedIsFalse(uid).forEach(imageUrls::add);
+    adoptionInfoRepository.findStoredFileNamesByWriter(uid).forEach(imageUrls::add);
     // 작성자 게시글의 이미지부터 삭제
     // 여기서 clearAutomatically=true 발동 -> 영속성 컨텍스트 초기화됨
-    adoptionInfoRepository.deleteImagesByWriterAndCompletedIsFalse(uid);
+    adoptionInfoRepository.deleteImagesByWriter(uid);
     // 작성자 게시글 삭제
     // 여기서 clearAutomatically=true 발동 -> 영속성 컨텍스트 초기화됨
-    adoptionInfoRepository.deleteByWriterAndCompletedIsFalse(uid);
+    adoptionInfoRepository.deleteByWriter(uid);
 
     // soft delete
     user.softDelete();

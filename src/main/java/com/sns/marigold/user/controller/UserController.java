@@ -1,6 +1,7 @@
 package com.sns.marigold.user.controller;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.global.dto.ApiResponse;
 import com.sns.marigold.user.dto.create.UserCreateDto;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
@@ -8,11 +9,11 @@ import com.sns.marigold.user.service.UserService;
 import jakarta.validation.Valid;
 
 import java.util.List;
-import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -38,49 +39,41 @@ public class UserController {
   // ** create **
 
   @PostMapping("/create")
-  public ResponseEntity<?> create(@RequestBody @Valid UserCreateDto dto) {
+  public ResponseEntity<ApiResponse<Long>> create(@RequestBody @Valid UserCreateDto dto) {
     Long userId = userService.createUser(dto);
-    return ResponseEntity.ok(Map.of(
-        "userId", userId.toString(),
-        "message", "User created successfully"));
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.CREATED, "User created successfully", userId));
   }
 
   // ** update **
-  @PatchMapping(value="/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public ResponseEntity<?> update(
+  @PatchMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<ApiResponse<Void>> update(
       @AuthenticationPrincipal CustomPrincipal principal, @ModelAttribute @Valid UserUpdateDto dto) {
     Long userId = principal.getUserId();
     userService.updateUser(userId, dto);
-    return ResponseEntity.ok(null);
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "User updated successfully"));
   }
 
   // ** get **
 
   // 검색
   @GetMapping("/search")
-  public List<UserInfoDto> getPersonByNickname(@RequestParam("query") String nickname) {
-    return userService.getUserByNickname(nickname);
+  public ApiResponse<List<UserInfoDto>> getPersonByNickname(@RequestParam("query") String nickname) {
+    return ApiResponse.success(HttpStatus.OK, "User search fetched successfully",
+        userService.getUserByNickname(nickname));
   }
 
-  // 본인(현재 세션) 프로필 조회
-  // @GetMapping("/profile")
-  // public ResponseEntity<UserInfoDto> getCurrentProfile(
-  //     @AuthenticationPrincipal CustomPrincipal principal) {
-  //   UUID userId = UUID.fromString(principal.getName());
-  //   return ResponseEntity.ok(userService.getUserById(userId));
-  // }
-
   @GetMapping("/profile/{userId}")
-  public ResponseEntity<UserInfoDto> getPersonProfile(@PathVariable("userId") Long userId) {
-    return ResponseEntity.ok(userService.getUserById(userId));
+  public ResponseEntity<ApiResponse<UserInfoDto>> getPersonProfile(@PathVariable("userId") Long userId) {
+    return ResponseEntity
+        .ok(ApiResponse.success(HttpStatus.OK, "User profile fetched successfully", userService.getUserById(userId)));
   }
 
   // ** delete **
 
   @DeleteMapping("/delete")
-  public ResponseEntity<String> deletePerson(@AuthenticationPrincipal CustomPrincipal principal) {
+  public ResponseEntity<ApiResponse<Void>> deletePerson(@AuthenticationPrincipal CustomPrincipal principal) {
     Long userId = principal.getUserId();
     userService.deleteUser(userId);
-    return ResponseEntity.ok().body("User deleted successfully");
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "User deleted successfully"));
   }
 }
