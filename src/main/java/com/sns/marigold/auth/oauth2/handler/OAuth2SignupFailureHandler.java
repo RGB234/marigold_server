@@ -15,7 +15,8 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationFa
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import com.sns.marigold.auth.common.enums.AuthResponseCode;
+import com.sns.marigold.global.error.ErrorCode;
+
 
 /**
  * 회원가입 전용 OAuth2 실패 Handler
@@ -35,7 +36,7 @@ public class OAuth2SignupFailureHandler extends SimpleUrlAuthenticationFailureHa
       AuthenticationException exception)
       throws IOException, ServletException {
 
-    String errorCode = AuthResponseCode.FAILURE.getCode();
+    String errorCode = ErrorCode.AUTH_OAUTH2_SIGNUP_FAILURE.getCode();
     String errorMessage = exception.getMessage();
 
     if (exception instanceof OAuth2AuthenticationException) {

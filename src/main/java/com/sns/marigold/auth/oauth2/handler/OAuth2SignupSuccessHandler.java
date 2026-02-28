@@ -1,7 +1,6 @@
 package com.sns.marigold.auth.oauth2.handler;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.enums.AuthResponseCode;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -39,7 +38,7 @@ public class OAuth2SignupSuccessHandler extends SimpleUrlAuthenticationSuccessHa
     Objects.requireNonNull(redirectUrl, "url.frontend.auth.login is not configured");
 
     String targetUrl = UriComponentsBuilder.fromUriString(redirectUrl)
-    .queryParam("code", AuthResponseCode.SUCCESS.getCode())
+    // .queryParam("code", AuthResponseCode.SUCCESS.getCode())
     .build().toUriString();
     
     if (response.isCommitted()) {

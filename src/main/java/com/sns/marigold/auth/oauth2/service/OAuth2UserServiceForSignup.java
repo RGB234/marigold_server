@@ -1,13 +1,13 @@
 package com.sns.marigold.auth.oauth2.service;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.enums.AuthResponseCode;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.global.error.exception.UserAlreadyExistsException;
+import com.sns.marigold.global.error.ErrorCode;
 import com.sns.marigold.user.dto.create.UserCreateDto;
+import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.service.UserService;
 
 import java.util.Collection;
@@ -60,11 +60,11 @@ public class OAuth2UserServiceForSignup implements OAuth2UserService<OAuth2UserR
       Collection<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
       return new CustomPrincipal(userId, authorities, attributes);
 
-    } catch (UserAlreadyExistsException e) {
+    } catch (UserException e) {
       throw new OAuth2AuthenticationException(
           new OAuth2Error(
-              AuthResponseCode.USER_ALREADY_REGISTERED.getCode(),
-              AuthResponseCode.USER_ALREADY_REGISTERED.getDescription(),
+              ErrorCode.USER_ALREADY_EXISTS.getCode(),
+              ErrorCode.USER_ALREADY_EXISTS.getMessage(),
               null));
     }
   }

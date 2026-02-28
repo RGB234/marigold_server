@@ -7,9 +7,11 @@ import com.sns.marigold.adoption.dto.AdoptionInfoSearchFilterDto;
 import com.sns.marigold.adoption.dto.AdoptionInfoUpdateDto;
 import com.sns.marigold.adoption.service.AdoptionInfoService;
 import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.exception.AuthException;
+import com.sns.marigold.global.dto.ApiResponse;
 
-import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.Valid;
+import jakarta.validation.groups.Default;
+import org.springframework.validation.annotation.Validated;
 
 import java.util.Map;
 import java.util.Objects;
@@ -25,7 +27,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -43,80 +44,72 @@ public class AdoptionInfoController {
 
   private final AdoptionInfoService adoptionInfoService;
 
-  @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public ResponseEntity<?> create(
-      @ModelAttribute @Valid AdoptionInfoCreateDto dto,
-      BindingResult bindingResult,
+  @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<ApiResponse<Map<String, Object>>> create(
+      @ModelAttribute @Validated({Default.class}) AdoptionInfoCreateDto dto,
       @AuthenticationPrincipal CustomPrincipal principal) {
-    if (bindingResult.hasErrors()) {
-      return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
+    // Defensive Coding
+    if (principal == null) {
+      throw AuthException.forAuthenticationFailed();
     }
-
-    if (principal == null || principal.getUserId() == null) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("사용자 정보를 찾을 수 없습니다.");
-    }
-    Long userId = principal.getUserId();
+    Long userId = Objects.requireNonNull(principal.getUserId());
     Long adoptionInfoId = adoptionInfoService.create(dto, userId);
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(Map.of("id", adoptionInfoId, "message", "Adoption info created successfully"));
+
+    return ResponseEntity.status(HttpStatus.CREATED).body(
+        ApiResponse.success(HttpStatus.CREATED, "Adoption info created successfully", Map.of("id", adoptionInfoId)));
   }
 
   @GetMapping("")
   // Pageable을 사용하면 ?page=0&size=10&sort=id,desc 처럼 정렬도 자동 지원됩니다.
   // @PageableDefault로 기본값 설정 가능
   // @ModelAttribute: 쿼리 파라미터가 없어도 빈 DTO 객체 생성
-  public ResponseEntity<Page<AdoptionInfoResponseDto>> search(
+  public ResponseEntity<ApiResponse<Page<AdoptionInfoResponseDto>>> search(
       @ModelAttribute AdoptionInfoSearchFilterDto dto,
       @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull Pageable pageable) {
     Page<AdoptionInfoResponseDto> result = adoptionInfoService.search(dto, pageable);
-    return ResponseEntity.ok().body(result);
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption info search successfully", result));
   }
 
   @GetMapping("/writer/{userId}")
-  public ResponseEntity<Page<AdoptionInfoResponseDto>> searchByWriter(@PathVariable Long userId,
+  public ResponseEntity<ApiResponse<Page<AdoptionInfoResponseDto>>> searchByWriter(@PathVariable Long userId,
       @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull Pageable pageable) {
     Page<AdoptionInfoResponseDto> result = adoptionInfoService.searchByWriter(userId, pageable);
-    return ResponseEntity.ok().body(result);
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption info search by writer successfully", result));
   }
 
   @GetMapping("/{id}")
-  public ResponseEntity<AdoptionDetailResponseDto> getDetail(@PathVariable String id) {
-    try {
-      AdoptionDetailResponseDto result = adoptionInfoService.getDetail(Long.parseLong(id));
-      return ResponseEntity.ok().body(result);
-    } catch (EntityNotFoundException e) {
-      return ResponseEntity.notFound().build();
-    }
-
+  public ResponseEntity<ApiResponse<AdoptionDetailResponseDto>> getDetail(@PathVariable @NonNull Long id) {
+    AdoptionDetailResponseDto result = adoptionInfoService.getDetail(id);
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption info detail successfully", result));
   }
 
   @PatchMapping("/{id}")
-  public ResponseEntity<?> update(@NonNull @AuthenticationPrincipal CustomPrincipal principal,
-      @NonNull @PathVariable Long id, @Valid @ModelAttribute AdoptionInfoUpdateDto dto,
-      BindingResult bindingResult) {
-    if (bindingResult.hasErrors()) {
-      return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
-    }
-
+  public ResponseEntity<ApiResponse<?>> update(@NonNull @AuthenticationPrincipal CustomPrincipal principal,
+      @NonNull @PathVariable Long id, @Validated({Default.class}) @ModelAttribute AdoptionInfoUpdateDto dto) {
     Long userId = principal.getUserId();
     if (userId == null) {
-      return ResponseEntity.badRequest().body("사용자 정보를 찾을 수 없습니다.");
+      throw AuthException.forAuthenticationFailed();
     }
 
     Objects.requireNonNull(dto, "dto cannot be null");
     adoptionInfoService.update(id, userId, dto);
 
-    return ResponseEntity.ok().body("Adoption info updated successfully");
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption info updated successfully"));
   }
 
   @DeleteMapping("/{id}")
-  public ResponseEntity<?> delete(@NonNull @AuthenticationPrincipal CustomPrincipal principal,
+  public ResponseEntity<ApiResponse<?>> delete(@NonNull @AuthenticationPrincipal CustomPrincipal principal,
       @NonNull @PathVariable Long id) {
     Long userId = principal.getUserId();
     if (userId == null) {
-      return ResponseEntity.badRequest().body("사용자 정보를 찾을 수 없습니다.");
+      throw AuthException.forAuthenticationFailed();
     }
     adoptionInfoService.delete(id, userId);
-    return ResponseEntity.ok().body("Adoption info deleted successfully");
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption info deleted successfully"));
   }
 }

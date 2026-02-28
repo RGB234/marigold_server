@@ -1,10 +1,10 @@
 package com.sns.marigold.auth.oauth2.service;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.enums.AuthResponseCode;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+import com.sns.marigold.global.error.ErrorCode;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
 
@@ -54,11 +54,10 @@ public class OAuth2UserServiceForLogin implements OAuth2UserService<OAuth2UserRe
       Collection<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(user.getRole().name()));
       return new CustomPrincipal(user.getId(), authorities, attributes);
     } else {
-      // 우리 서비스에 없는 사용자는 예외를 발생시킴
       throw new OAuth2AuthenticationException(
           new OAuth2Error(
-              AuthResponseCode.USER_NOT_REGISTERED.getCode(),
-              AuthResponseCode.USER_NOT_REGISTERED.getDescription(),
+              ErrorCode.USER_NOT_FOUND.getCode(),
+              ErrorCode.USER_NOT_FOUND.getMessage(),
               null));
     }
   }
