@@ -20,8 +20,8 @@ public interface AdoptionInfoRepository extends JpaRepository<AdoptionInfo, Long
 
   // clearAutomatically = true : 벌크 연산 후 영속성 컨텍스트 초기화 (권장)
   @Modifying(clearAutomatically = true)
-  @Query("DELETE FROM AdoptionInfo a WHERE a.writer.id = :writerId AND a.completed = false")
-  void deleteByWriterAndCompletedIsFalse(@Param("writerId") Long writerId);
+  @Query("DELETE FROM AdoptionInfo a WHERE a.writer.id = :writerId")
+  void deleteByWriter(@Param("writerId") Long writerId);
 
   // @Modifying(clearAutomatically = true)
   // @Query("DELETE FROM AdoptionImage a WHERE a.adoptionInfo.writer.id =
@@ -33,14 +33,14 @@ public interface AdoptionInfoRepository extends JpaRepository<AdoptionInfo, Long
   @Query("DELETE FROM AdoptionImage a " +
       "WHERE a.adoptionInfo.id IN (" +
       "   SELECT i.id FROM AdoptionInfo i " +
-      "   WHERE i.writer.id = :writerId AND i.completed = false" +
+      "   WHERE i.writer.id = :writerId" +
       ")")
-  void deleteImagesByWriterAndCompletedIsFalse(@Param("writerId") Long writerId);
+  void deleteImagesByWriter(@Param("writerId") Long writerId);
 
-  @Query("SELECT a.storeFileName FROM AdoptionImage a " +
+  @Query("SELECT a.storedFileName FROM AdoptionImage a " +
     "WHERE a.adoptionInfo.id IN (" + 
       "   SELECT i.id FROM AdoptionInfo i " +
-      "   WHERE i.writer.id = :writerId AND i.completed = false" +
+      "   WHERE i.writer.id = :writerId" +
       ")")
-  List<String> findStoreFileNamesByWriterAndCompletedIsFalse(@Param("writerId") Long writerId);
+  List<String> findStoredFileNamesByWriter(@Param("writerId") Long writerId);
 }
