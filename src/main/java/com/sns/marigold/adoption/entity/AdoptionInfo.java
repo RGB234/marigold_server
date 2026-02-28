@@ -16,7 +16,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 
@@ -73,8 +72,7 @@ public class AdoptionInfo {
   @Column(nullable = false)
   private String title;
 
-  @Lob
-  @Column(nullable = false)
+  @Column(columnDefinition = "TEXT", nullable = false)
   private String features;
 
   // 선택 입력
@@ -86,9 +84,8 @@ public class AdoptionInfo {
   private Double weight;
 
   // 입양 상태
-
   @Column(nullable = false)
-  private boolean completed ;
+  private boolean completed;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "adopter_id") // nullable = true (기본값). 입양 전엔 null이어야 하므로 nullable = true
@@ -156,6 +153,22 @@ public class AdoptionInfo {
     // [중요] 자식 엔티티에도 부모(나 자신)를 세팅해줘야 FK가 들어감
     if (image.getAdoptionInfo() != this) {
       image.setAdoptionInfo(this);
+    }
+  }
+
+  // ==========================================================
+  // 이미지 수정 (효율적인 교체 전략)
+  // ==========================================================
+  public void replaceImages(List<String> remainingImageNames, List<AdoptionImage> newImages) {
+    // 1. 삭제할 이미지 제거 (리스트에서 제거하면 orphanRemoval=true에 의해 DB 삭제됨)
+    // remainingImageNames에 포함되지 않은 기존 이미지는 삭제
+    this.images.removeIf(image -> !remainingImageNames.contains(image.getStoredFileName()));
+
+    // 2. 새로운 이미지 추가
+    if (newImages != null) {
+      for (AdoptionImage image : newImages) {
+        this.addImage(image);
+      }
     }
   }
 

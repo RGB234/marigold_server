@@ -17,5 +17,5 @@ public class AdoptionInfoEditor {
     private final String area;
     private final Species species;
     private final Sex sex;
-    private final Neutering neutering;    
+    private final Neutering neutering;
 }

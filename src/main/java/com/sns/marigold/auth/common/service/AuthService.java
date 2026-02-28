@@ -21,12 +21,11 @@ public class AuthService {
 
   private final CookieManager cookieManager;
 
-  // OAuth2 로그인 -> Spring security 에서 처리 (SecurityConfig & CustomOAuth2UserService
+  // OAuth2 로그인 & 회원가입 -> Spring security 에서 처리 (SecurityConfig & OAuth2UserService)
 
   public void logout(HttpServletResponse response, Authentication authentication) {
     cookieManager.expireCookie(response, "accessToken");
     cookieManager.expireCookie(response, "refreshToken");
-    log.info("로그아웃 성공 - 쿠키 삭제 완료");
   }
 
   public UserAuthStatusDto getAuthStatus(
@@ -39,12 +38,12 @@ public class AuthService {
       return new UserAuthStatusDto(null, Collections.emptyList());
     }
 
-    // 2. 안전하게 캐스팅
+    // 안전하게 캐스팅
     CustomPrincipal userPrincipal = (CustomPrincipal) authentication.getPrincipal();
 
-    // 3. DB 조회 없이 토큰(Principal)에 있는 정보로만 응답 (성능 최적화)
+    // DB 조회 없이 토큰(Principal)에 있는 정보로만 응답
     // JWT 필터를 통과했다면 이미 검증된 사용자라고 신뢰함.
-    // 보안상 민감한 부분에서는 DB에서 사용자 정보를 조회하여 검증하도록 함.
+    // 보안상 민감한 부분에서는 추후 DB에서 사용자 정보를 조회하여 검증하도록 함.
     return new UserAuthStatusDto(
         userPrincipal.getUserId(),
         userPrincipal.getAuthorities().stream().toList());
