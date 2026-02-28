@@ -8,8 +8,11 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/*
+  컨트롤러에 전달된 String format의 Enum 값을 검증하여 전달하는 어노테이션
+*/
 @Constraint(validatedBy = EnumValidator.class)
-@Target({ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER}) // 어노테이션이 붙는 범위
+@Target({ElementType.FIELD, ElementType.PARAMETER}) // 어노테이션이 붙는 범위
 @Retention(RetentionPolicy.RUNTIME) // 어노테이션 생명주기
 public @interface Enum {
   String message() default "Invalid enum value"; // 예외 발생 응답
