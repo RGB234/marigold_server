@@ -45,9 +45,9 @@ dependencies {
     implementation("io.jsonwebtoken:jjwt-api:0.12.5")
     implementation("io.jsonwebtoken:jjwt-impl:0.12.5")
     implementation("io.jsonwebtoken:jjwt-jackson:0.12.5")
-
-    // AWS S3
+    // Storage
     implementation("io.awspring.cloud:spring-cloud-aws-starter-s3:3.1.1")
+    implementation("org.apache.tika:tika-core:2.9.0")
     // TSID
     implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.7.0")
 }

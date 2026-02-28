@@ -4,12 +4,13 @@ import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
-import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
 import com.sns.marigold.global.annotation.Enum;
-import com.sns.marigold.user.entity.User;
+import com.sns.marigold.global.annotation.ValidImageCount;
+import com.sns.marigold.global.annotation.ValidImageFiles;
+import com.sns.marigold.global.validator.ImageCountValidatable;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
@@ -28,16 +29,19 @@ import lombok.Setter;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class AdoptionInfoUpdateDto {
+@ValidImageCount(min = 1, max = 8)
+public class AdoptionInfoUpdateDto implements ImageCountValidatable {
 
-  @NotNull
+  @NotNull(message = "값이 비어있습니다.")
   @Enum(target = Species.class)
   private Species species;
 
-  @NotNull
-  @Min(0)
-  private Integer age;
+  @NotNull(message = "값이 비어있습니다.")
+  @Min(value=0, message = "나이는 0 이상이어야 합니다.")
+  @Builder.Default
+  private Integer age = 0;
 
+  @NotNull(message = "값이 비어있습니다.")
   @Enum(target = Sex.class)
   private Sex sex;
 
@@ -45,35 +49,51 @@ public class AdoptionInfoUpdateDto {
   private String area;
 
   @NotBlank(message = "값이 비어있습니다.")
-  @Size(max = 16, message = "16자 이하여야 합니다.")
+  @Size(max = 16, message = "제목은 16자 이하여야 합니다.")
   private String title;
 
-  @Min(0)
-  private Double weight;
+  @NotNull(message = "값이 비어있습니다.")
+  @Min(value = 0, message = "무게는 0 이상이어야 합니다.")
+  @Builder.Default
+  private Double weight = 0.0;
 
+  @NotNull(message = "값이 비어있습니다.")
   @Enum(target = Neutering.class)
   private Neutering neutering;
 
+  @NotNull(message = "값이 비어있습니다.")
+  @Size(min = 20, max = 500, message = "20자 이상 500자 이하여야 합니다.")
   private String features;
 
-  // @Enum(target = AdoptionStatus.class)
-  // @Builder.Default
-  // private AdoptionStatus status = AdoptionStatus.RECRUITING;
+  // 이전 + 추가 이미지 파일 갯수 >= 1
+  @Schema(description = "이전 이미지 파일들", type = "string", nullable = true)
+  private List<String> imagesToKeep;
 
-  @Schema(description = "업로드할 이미지 파일들", type = "string", format = "binary", nullable = true)
+  @Schema(description = "새로 업로드할 이미지 파일들", type = "string", format = "binary", nullable = true)
+  @ValidImageFiles()
   private List<MultipartFile> images;
 
-  public AdoptionInfo toEntity(User writer) {
-    return AdoptionInfo.builder()
-        .writer(writer)
-        .species(this.species)
-        .title(this.title)
-        .age(this.age)
-        .sex(this.sex)
-        .area(this.area)
-        .weight(this.weight)
-        .neutering(this.neutering)
-        .features(this.features)
-        .build();
+  @Override
+  public List<String> getImagesToKeep() {
+    return imagesToKeep != null ? imagesToKeep : java.util.Collections.emptyList();
   }
+
+  @Override
+  public List<MultipartFile> getImages() {
+    return images != null ? images : java.util.Collections.emptyList();
+  }
+
+  // public AdoptionInfo toEntity(User writer) {
+  //   return AdoptionInfo.builder()
+  //       .writer(writer)
+  //       .species(this.species)
+  //       .title(this.title)
+  //       .age(this.age)
+  //       .sex(this.sex)
+  //       .area(this.area)
+  //       .weight(this.weight)
+  //       .neutering(this.neutering)
+  //       .features(this.features)
+  //       .build();
+  // }
 }

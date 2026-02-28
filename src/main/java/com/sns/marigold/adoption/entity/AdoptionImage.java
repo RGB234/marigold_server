@@ -41,7 +41,7 @@ public class AdoptionImage {
 
     // S3에 저장된 실제 파일명 (삭제 시 필요)
     @Column(nullable = false)
-    private String storeFileName;
+    private String storedFileName;
 
     // 사용자가 올린 원본 파일명 (다운로드용)
     @Column(nullable = false)

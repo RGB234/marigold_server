@@ -22,7 +22,7 @@ public class UserInfoDto {
     return UserInfoDto.builder()
         .id(user.getId())
         .nickname(user.getNickname())
-        .imageUrl(user.getImage() != null ? user.getImage().getStoreFileName() : null)
+        .imageUrl(user.getImage() != null ? user.getImage().getStoredFileName() : null)
         .build();
   }
 

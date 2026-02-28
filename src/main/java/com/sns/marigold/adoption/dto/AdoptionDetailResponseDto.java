@@ -46,14 +46,16 @@ public class AdoptionDetailResponseDto {
 
   private String features;
 
-  private List<String> imageUrls;
+  private List<String> imageFileNames; // 원본 파일명
+
+  private List<String> imageUrls; // 다운로드 가능한 URL
 
   private boolean completed;
 
   public static AdoptionDetailResponseDto from(AdoptionInfo adoptionInfo) {
 
-    List<String> imageUrls = adoptionInfo.getImages().stream()
-      .map(image -> image.getStoreFileName())
+    List<String> imageFileNames = adoptionInfo.getImages().stream()
+      .map(image -> image.getStoredFileName())
       .collect(Collectors.toList());
 
     UserInfoDto writer = UserInfoDto.from(adoptionInfo.getWriter());
@@ -71,8 +73,12 @@ public class AdoptionDetailResponseDto {
       .weight(adoptionInfo.getWeight())
       .neutering(adoptionInfo.getNeutering())
       .features(adoptionInfo.getFeatures())
-      .imageUrls(imageUrls)
+      .imageFileNames(imageFileNames)
       .completed(adoptionInfo.isCompleted())
       .build();
+  }
+
+  public void setImageUrls(List<String> imageUrls){
+    this.imageUrls = imageUrls;
   }
 }
