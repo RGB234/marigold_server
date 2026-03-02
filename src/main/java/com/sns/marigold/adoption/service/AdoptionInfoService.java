@@ -15,6 +15,7 @@ import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.global.error.exception.BusinessException;
 import com.sns.marigold.global.error.exception.InternalServerException;
 import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.service.S3Service;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
@@ -25,6 +26,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -44,6 +46,7 @@ public class AdoptionInfoService {
   private final AdoptionInfoRepository adoptionInfoRepository;
   private final S3Service s3Service;
   private final TransactionTemplate transactionTemplate;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional(readOnly = true)
   public AdoptionInfo findEntityById(@NonNull Long id) {
@@ -84,9 +87,7 @@ public class AdoptionInfoService {
     }
   }
 
-  /*
-   * 이미지와 status 값을 제외한 필드들을 업데이트
-   */
+
   public void update(@NonNull Long postId, @NonNull Long userId, @NonNull AdoptionInfoUpdateDto dto) {
     AdoptionInfo adoptionInfo = findEntityById(postId);
 
@@ -94,37 +95,38 @@ public class AdoptionInfoService {
     validateStatus(adoptionInfo);
 
     // 1. 새 이미지 S3 업로드 (실패 시 예외 발생, 파일 자동 삭제됨)
+    // 트랜잭션 외부에서 수행하여 DB 커넥션 점유 최소화
     final List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(dto.getImages());
 
-    // 2. 유지할 이미지 파일명 목록 (Null Safe)
-    List<String> imagesToKeep = dto.getImagesToKeep() != null ? dto.getImagesToKeep() : Collections.emptyList();
-
-    // 3. S3에서 삭제할 기존 이미지 식별
-    // (현재 DB 이미지 중, 유지할 목록에 없는 것들)
-    List<AdoptionImage> imagesToDeleteFromS3 = adoptionInfo.getImages().stream()
-        .filter(image -> !imagesToKeep.contains(image.getStoredFileName()))
-        .toList();
-
-    // 4. 새로 추가할 이미지 엔티티 생성
-    List<AdoptionImage> newImages = uploadedImages.stream()
-        .map(image -> AdoptionImage.builder()
-            .storedFileName(image.getStoredFileName())
-            .originalFileName(image.getOriginalFileName())
-            .build())
-        .toList();
-
-    AdoptionInfoEditor editor = AdoptionInfoEditor.builder()
-        .title(dto.getTitle())
-        .age(dto.getAge())
-        .weight(dto.getWeight())
-        .features(dto.getFeatures())
-        .area(dto.getArea())
-        .species(dto.getSpecies())
-        .sex(dto.getSex())
-        .neutering(dto.getNeutering())
-        .build();
-
     try {
+      // 2. 유지할 이미지 파일명 목록 (Null Safe)
+      List<String> imagesToKeep = dto.getImagesToKeep() != null ? dto.getImagesToKeep() : Collections.emptyList();
+
+      // 3. 삭제할 기존 이미지 목록 미리 계산 (DB 조회 필요 없음, 엔티티에서 추출)
+      List<String> storedFileNamesToDelete = adoptionInfo.getImages().stream()
+          .map(AdoptionImage::getStoredFileName)
+          .filter(fileName -> !imagesToKeep.contains(fileName))
+          .collect(Collectors.toList());
+
+      // 4. 새로 추가할 이미지 엔티티 생성 준비
+      List<AdoptionImage> newImages = uploadedImages.stream()
+          .map(image -> AdoptionImage.builder()
+              .storedFileName(image.getStoredFileName())
+              .originalFileName(image.getOriginalFileName())
+              .build())
+          .toList();
+
+      AdoptionInfoEditor editor = AdoptionInfoEditor.builder()
+          .title(dto.getTitle())
+          .age(dto.getAge())
+          .weight(dto.getWeight())
+          .features(dto.getFeatures())
+          .area(dto.getArea())
+          .species(dto.getSpecies())
+          .sex(dto.getSex())
+          .neutering(dto.getNeutering())
+          .build();
+
       // 5. DB 트랜잭션 (데이터 변경)
       transactionTemplate.executeWithoutResult(status -> {
         // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
@@ -133,18 +135,16 @@ public class AdoptionInfoService {
 
         // 이미지 교체 (유지할 것은 두고, 삭제할 것은 지우고, 새것은 추가)
         info.replaceImages(imagesToKeep, newImages);
-      });
 
-      // 6. 트랜잭션 성공 시: S3에서 기존 파일 삭제
-      if (!imagesToDeleteFromS3.isEmpty()) {
-        s3Service.deleteUploadedImagesFromS3ByStoredFileNames(
-            imagesToDeleteFromS3.stream()
-                .map(AdoptionImage::getStoredFileName)
-                .collect(Collectors.toList()));
-      }
+        // 6. 트랜잭션 안에서 이벤트 발행 -> 커밋 성공 시에만 리스너 동작
+        if (!storedFileNamesToDelete.isEmpty()) {
+          eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(storedFileNamesToDelete));
+        }
+      });
 
     } catch (Exception e) {
       // 7. 실패 시 보상 트랜잭션: 새로 업로드한 S3 파일 삭제
+      // 트랜잭션 롤백과 무관하게 업로드된 파일은 지워야 함
       log.error("Update failed. Deleting uploaded S3 files... error: {}", e.getMessage());
 
       try {
