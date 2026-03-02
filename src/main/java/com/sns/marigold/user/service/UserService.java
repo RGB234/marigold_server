@@ -4,14 +4,13 @@ import com.sns.marigold.adoption.repository.AdoptionInfoRepository;
 import com.sns.marigold.auth.oauth2.RandomUsernameGenerator;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.storage.dto.ImageUploadDto;
-import com.sns.marigold.storage.event.StorageFileDeleteEvent;
+import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.service.S3Service;
 import com.sns.marigold.user.dto.create.UserCreateDto;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.entity.UserImage;
-import com.sns.marigold.user.event.UserDeletedEvent;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
 
@@ -29,6 +28,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @Slf4j
@@ -40,6 +40,7 @@ public class UserService {
   private final AdoptionInfoRepository adoptionInfoRepository;
   private final RandomUsernameGenerator randomUsernameGenerator;
   private final S3Service s3Service;
+  private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
 
   @Transactional(readOnly = true)
@@ -121,38 +122,65 @@ public class UserService {
     throw UserException.forUserNicknameAlreadyExists();
   }
 
-  @Transactional
   public void updateUser(Long uid, UserUpdateDto dto) {
-    User user = findEntityById(uid);
-    UserImage previousImage = user.getImage();
-    String storedFileName = previousImage != null ? previousImage.getStoredFileName() : null;
-
-    // 사용자가 기본 프로필 사진 사용을 선택
-    if (dto.isRemoveImage()) { 
-      user.update(dto.getNickname(), null); // DB에서 이미지 삭제. null일 경우 프론트에서 기본 프로필 사진 사용하도록 처리
-
-      if (storedFileName != null) {
-        eventPublisher.publishEvent(new StorageFileDeleteEvent(storedFileName));
-      }
-      return;
+    // 1. 이미지 업로드 (트랜잭션 밖에서 수행)
+    ImageUploadDto uploadedImageDto = null;
+    if (dto.getImage() != null && !dto.getImage().isEmpty()) {
+      uploadedImageDto = s3Service.uploadFile(dto.getImage());
     }
-    
-    ImageUploadDto newImageUploadDto = null;
-    if (dto.getImage() != null && !dto.getImage().isEmpty()) { // 이미지 업데이트
-      newImageUploadDto = s3Service.uploadFile(dto.getImage());
 
-      UserImage newImage = UserImage.builder()
-      .storedFileName(newImageUploadDto.getStoredFileName())
-      .originalFileName(newImageUploadDto.getOriginalFileName()).build();
+    try {
+      final ImageUploadDto newImageUploadDto = uploadedImageDto;
 
-      user.update(dto.getNickname(), newImage);
-      if (storedFileName != null) { 
-        eventPublisher.publishEvent(new StorageFileDeleteEvent(storedFileName));
+      // 2. DB 트랜잭션 (데이터 변경)
+      transactionTemplate.executeWithoutResult(status -> {
+        // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
+        User user = findEntityById(uid);
+        UserImage previousImage = user.getImage();
+        String fileToDelete = null;
+
+        // 사용자가 기본 프로필 사진 사용을 선택
+        if (dto.isRemoveImage()) {
+          fileToDelete = previousImage != null ? previousImage.getStoredFileName() : null;
+          user.update(dto.getNickname(), null); // DB에서 이미지 삭제
+        } else if (newImageUploadDto != null) {
+          // 새 이미지로 교체
+          fileToDelete = previousImage != null ? previousImage.getStoredFileName() : null;
+          
+          UserImage newImage = UserImage.builder()
+              .storedFileName(newImageUploadDto.getStoredFileName())
+              .originalFileName(newImageUploadDto.getOriginalFileName())
+              .build();
+          user.update(dto.getNickname(), newImage);
+        } else {
+          // 닉네임만 변경 (이미지는 유지)
+          user.update(dto.getNickname());
+        }
+
+        // 3. 트랜잭션 성공 시: 삭제해야 할 기존 이미지(프로필 제거 또는 교체 시)가 있다면 이벤트 발행
+        if (fileToDelete != null) {
+          eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(List.of(fileToDelete)));
+        }
+      });
+
+    } catch (Exception e) {
+      // 4. 실패 시 보상 트랜잭션: 새로 업로드한 S3 파일 삭제
+      if (uploadedImageDto != null) {
+        log.error("Update user failed. Deleting uploaded S3 file... error: {}", e.getMessage());
+        try {
+          s3Service.deleteUploadedImagesFromS3(List.of(uploadedImageDto));
+        } catch (Exception s3Ex) {
+          log.error("Failed to delete S3 image during rollback. File: {}", uploadedImageDto, s3Ex);
+        }
       }
-    }else{
-      user.update(dto.getNickname());
+
+      if (e instanceof RuntimeException) {
+        throw (RuntimeException) e;
+      }
+      throw new RuntimeException(e);
     }
   }
+
 
   // soft delete And PII scrubbing
   @Transactional
@@ -180,7 +208,7 @@ public class UserService {
     userRepository.save(user);
     // 트랜잭션 종료 시 스토리지 상 이미지 삭제
     if (!imageUrls.isEmpty()) {
-      eventPublisher.publishEvent(new UserDeletedEvent(imageUrls));
+      eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imageUrls));
     }
   }
 }
