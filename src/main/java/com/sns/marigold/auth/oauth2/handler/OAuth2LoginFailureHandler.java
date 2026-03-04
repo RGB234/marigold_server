@@ -4,6 +4,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,8 +40,9 @@ public class OAuth2LoginFailureHandler extends SimpleUrlAuthenticationFailureHan
     String errorCode = ErrorCode.AUTH_OAUTH2_LOGIN_FAILURE.getCode();
     String errorMessage = exception.getMessage();
     // 로그인 콜백 URL로 에러 정보와 함께 리다이렉트
-    String redirectUrl = env.getProperty("url.frontend.auth.login");
-    Objects.requireNonNull(redirectUrl, "url.frontend.auth.login is not configured");
+    // String redirectUrl = env.getProperty("url.frontend.auth.login");
+    String callbackUrl = env.getProperty("url.frontend.auth.callback");
+    Objects.requireNonNull(callbackUrl, "url.frontend.auth.callback is not configured");
 
     if (exception instanceof OAuth2AuthenticationException) {
       OAuth2AuthenticationException oAuth2AuthenticationException = (OAuth2AuthenticationException) exception;
@@ -48,18 +51,17 @@ public class OAuth2LoginFailureHandler extends SimpleUrlAuthenticationFailureHan
       errorMessage = oAuth2Error.getDescription();
     }
 
-    String targetUrl = UriComponentsBuilder.fromUriString(redirectUrl)
-    .queryParam("code", errorCode)
-    .build().toUriString();
-
+    String redirectUrl = UriComponentsBuilder.fromUriString(callbackUrl)
+        .queryParam("error", URLEncoder.encode(errorCode, StandardCharsets.UTF_8))
+        .queryParam("error_description", URLEncoder.encode(errorMessage, StandardCharsets.UTF_8))
+        .build().toUriString();
 
     log.info("로그인 실패: errorCode - {}, errorMessage - {}", errorCode, errorMessage);
 
     if (response.isCommitted()) {
-      log.debug("응답이 이미 커밋되어 리다이렉트 할 수 없습니다. URL: {}", targetUrl);
+      log.debug("응답이 이미 커밋되어 리다이렉트 할 수 없습니다. URL: {}", redirectUrl);
       return;
     }
-    getRedirectStrategy().sendRedirect(request, response, targetUrl);
+    getRedirectStrategy().sendRedirect(request, response, redirectUrl);
   }
 }
-
