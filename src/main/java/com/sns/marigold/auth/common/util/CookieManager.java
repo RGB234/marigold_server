@@ -38,8 +38,8 @@ public class CookieManager {
     ResponseCookie cookie = ResponseCookie.from(name, value)
         .path("/")
         .httpOnly(true)
-        .secure(true) // 실무 환경은 HTTPS이므로 true 권장
-        .sameSite("Lax") // CSRF 방지 및 일반적인 웹 환경에 적합
+        .secure(true) // HTTPS 환경에서만 사용
+        .sameSite("Lax") // 같은 도메인 + 외부 링크에서 접속하는 경우에만 사용 가능
         .maxAge(maxAge)
         .build();
 
