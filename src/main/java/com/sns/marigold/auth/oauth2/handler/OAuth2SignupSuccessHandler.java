@@ -9,6 +9,7 @@ import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -23,7 +24,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class OAuth2SignupSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {  
+public class OAuth2SignupSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
   private final Environment env;
 
   @Override
@@ -34,19 +35,18 @@ public class OAuth2SignupSuccessHandler extends SimpleUrlAuthenticationSuccessHa
 
     log.info("회원가입 성공 - UserId: {}", principal.getUserId());
 
-    String redirectUrl = env.getProperty("url.frontend.auth.login");
-    Objects.requireNonNull(redirectUrl, "url.frontend.auth.login is not configured");
+    String callbackUrl = env.getProperty("url.frontend.auth.callback");
+    Objects.requireNonNull(callbackUrl, "url.frontend.auth.callback is not configured");
 
-    String targetUrl = UriComponentsBuilder.fromUriString(redirectUrl)
-    // .queryParam("code", AuthResponseCode.SUCCESS.getCode())
-    .build().toUriString();
-    
+    String redirectUrl = UriComponentsBuilder.fromUriString(callbackUrl)
+        .queryParam("status", HttpStatus.CREATED.value())
+        .build().toUriString();
+
     if (response.isCommitted()) {
-      log.debug("응답이 이미 커밋되어 리다이렉트 할 수 없습니다. URL: {}", targetUrl);
+      log.debug("응답이 이미 커밋되어 리다이렉트 할 수 없습니다. URL: {}", redirectUrl);
       return;
     }
 
-    getRedirectStrategy().sendRedirect(request, response, targetUrl);
+    getRedirectStrategy().sendRedirect(request, response, redirectUrl);
   }
 }
-

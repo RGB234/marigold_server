@@ -4,6 +4,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +18,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.sns.marigold.global.error.ErrorCode;
-
 
 /**
  * 회원가입 전용 OAuth2 실패 Handler
@@ -48,20 +49,19 @@ public class OAuth2SignupFailureHandler extends SimpleUrlAuthenticationFailureHa
 
     log.error("회원가입 실패 - Error: {}, Message: {}", errorCode, errorMessage);
 
-    // 회원가입 페이지로 리다이렉트
-    String redirectUrl = env.getProperty("url.frontend.auth.signup");
-    Objects.requireNonNull(redirectUrl, "url.frontend.auth.signup is not configured");
+    String callbackUrl = env.getProperty("url.frontend.auth.callback");
+    Objects.requireNonNull(callbackUrl, "url.frontend.auth.callback is not configured");
 
-    String targetUrl = UriComponentsBuilder.fromUriString(redirectUrl)
-    .queryParam("error", errorCode)
-    .build().toUriString();
-    
+    String redirectUrl = UriComponentsBuilder.fromUriString(callbackUrl)
+        .queryParam("error", URLEncoder.encode(errorCode, StandardCharsets.UTF_8))
+        .queryParam("error_description", URLEncoder.encode(errorMessage, StandardCharsets.UTF_8))
+        .build().toUriString();
+
     if (response.isCommitted()) {
-      log.debug("응답이 이미 커밋되어 리다이렉트 할 수 없습니다. URL: {}", targetUrl);
+      log.debug("응답이 이미 커밋되어 리다이렉트 할 수 없습니다. URL: {}", redirectUrl);
       return;
     }
 
     getRedirectStrategy().sendRedirect(request, response, redirectUrl);
   }
 }
-
