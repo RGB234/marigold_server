@@ -94,7 +94,7 @@ public class UserService {
         .role(dto.getRole())
         .build();
 
-    userRepository.save(user);
+    userRepository.save(Objects.requireNonNull(user));
 
     // 저장
     return user.getId();
