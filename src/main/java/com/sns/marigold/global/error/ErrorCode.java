@@ -21,10 +21,12 @@ public enum ErrorCode {
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE_UPLOAD_FAILED", "파일 업로드에 실패했습니다."),
 
     // Auth
+    AUTH_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AUTH_UNAUTHORIZED", "인증이 필요합니다."),
     AUTH_ACCESS_DENIED(HttpStatus.FORBIDDEN, "AUTH_ACCESS_DENIED", "권한이 없습니다."),
     AUTH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "AUTH_TOKEN_INVALID", "토큰이 유효하지 않습니다."),
     AUTH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH_TOKEN_EXPIRED", "토큰이 만료되었습니다."),
     AUTH_INVALID_PROVIDER(HttpStatus.BAD_REQUEST, "AUTH_INVALID_PROVIDER", "지원하지 않는 OAuth2 Provider입니다."),
+    AUTH_INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "AUTH_INTERNAL_SERVER_ERROR", "인증과정에서 서버 오류가 발생했습니다."),
 
     AUTH_OAUTH2_LOGIN_FAILURE(HttpStatus.BAD_REQUEST, "AUTH_OAUTH2_LOGIN_FAILURE", "OAuth2 로그인이 실패했습니다."),
     AUTH_OAUTH2_SIGNUP_FAILURE(HttpStatus.BAD_REQUEST, "AUTH_OAUTH2_SIGNUP_FAILURE", "OAuth2 회원가입이 실패했습니다."),
@@ -44,5 +46,4 @@ public enum ErrorCode {
     private final HttpStatus status;
     private final String code;
     private final String message;
-
 }
