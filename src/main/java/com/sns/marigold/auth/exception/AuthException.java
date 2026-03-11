@@ -13,11 +13,23 @@ public class AuthException extends RuntimeException{
         this.errorCode = errorCode;
     }
 
-    public static AuthException forAuthorizationDenied() {
+    public static AuthException forUnauthorized() {
+        return new AuthException(ErrorCode.AUTH_UNAUTHORIZED);
+    }
+
+    public static AuthException forAccessDenied() {
         return new AuthException(ErrorCode.AUTH_ACCESS_DENIED);
     }
 
-    public static AuthException forAuthenticationFailed() {
+    public static AuthException forInvalidToken() {
         return new AuthException(ErrorCode.AUTH_TOKEN_INVALID);
+    }
+
+    public static AuthException forExpiredToken() {
+        return new AuthException(ErrorCode.AUTH_TOKEN_EXPIRED);
+    }
+
+    public static AuthException forInternalServerError() {
+        return new AuthException(ErrorCode.AUTH_INTERNAL_SERVER_ERROR);
     }
 }
