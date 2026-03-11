@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Objects;
 
 @SpringBootTest
 @ActiveProfiles("dev")
@@ -106,7 +107,7 @@ public class DebugServiceTest {
                 .weight(1.5)         // 테스트용 고정값
                 .features(title + "입니다.") // 테스트용
                 .images(List.of(imageFile))
-                .build(), userId);
+                .build(), Objects.requireNonNull(userId));
         
         System.out.println("✅ 게시글 생성 완료: " + title);
     }

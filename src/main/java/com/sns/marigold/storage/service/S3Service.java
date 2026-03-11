@@ -48,10 +48,10 @@ public class S3Service {
     }
 
     String originalFilename = file.getOriginalFilename();
-    String key = createFileName(originalFilename); // Random UUID + 파일 확장자
+    String key = Objects.requireNonNull(createFileName(originalFilename)); // Random UUID + 파일 확장자
 
     try (InputStream inputStream = file.getInputStream()) {
-      s3Template.upload(bucketName, key, inputStream,
+      s3Template.upload(Objects.requireNonNull(bucketName), key, inputStream,
           ObjectMetadata.builder().contentType(file.getContentType()).contentLength(file.getSize()).build());
     } catch (IOException | S3Exception e) {
       log.error("S3 upload failed", e);
