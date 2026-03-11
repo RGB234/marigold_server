@@ -1,5 +1,6 @@
 package com.sns.marigold.adoption.controller;
 
+import com.sns.marigold.adoption.enums.AdoptionStatus;
 import com.sns.marigold.adoption.dto.AdoptionDetailResponseDto;
 import com.sns.marigold.adoption.dto.AdoptionInfoCreateDto;
 import com.sns.marigold.adoption.dto.AdoptionInfoResponseDto;
@@ -34,10 +35,11 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/adoption")
+@RequestMapping("/api/v1/adoption")
 @RequiredArgsConstructor
 @Slf4j
 public class AdoptionInfoController {
@@ -50,7 +52,7 @@ public class AdoptionInfoController {
       @AuthenticationPrincipal CustomPrincipal principal) {
     // Defensive Coding
     if (principal == null) {
-      throw AuthException.forAuthenticationFailed();
+      throw AuthException.forUnauthorized();
     }
     Long userId = Objects.requireNonNull(principal.getUserId());
     Long adoptionInfoId = adoptionInfoService.create(dto, userId);
@@ -72,7 +74,7 @@ public class AdoptionInfoController {
   }
 
   @GetMapping("/writer/{userId}")
-  public ResponseEntity<ApiResponse<Page<AdoptionInfoResponseDto>>> searchByWriter(@PathVariable Long userId,
+  public ResponseEntity<ApiResponse<Page<AdoptionInfoResponseDto>>> searchByWriter(@PathVariable("userId") Long userId,
       @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull Pageable pageable) {
     Page<AdoptionInfoResponseDto> result = adoptionInfoService.searchByWriter(userId, pageable);
     return ResponseEntity.status(HttpStatus.OK)
@@ -80,7 +82,7 @@ public class AdoptionInfoController {
   }
 
   @GetMapping("/{id}")
-  public ResponseEntity<ApiResponse<AdoptionDetailResponseDto>> getDetail(@PathVariable @NonNull Long id) {
+  public ResponseEntity<ApiResponse<AdoptionDetailResponseDto>> getDetail(@PathVariable("id") @NonNull Long id) {
     AdoptionDetailResponseDto result = adoptionInfoService.getDetail(id);
     return ResponseEntity.status(HttpStatus.OK)
         .body(ApiResponse.success(HttpStatus.OK, "Adoption info detail successfully", result));
@@ -88,10 +90,10 @@ public class AdoptionInfoController {
 
   @PatchMapping("/{id}")
   public ResponseEntity<ApiResponse<?>> update(@NonNull @AuthenticationPrincipal CustomPrincipal principal,
-      @NonNull @PathVariable Long id, @Validated({Default.class}) @ModelAttribute AdoptionInfoUpdateDto dto) {
+      @NonNull @PathVariable("id") Long id, @Validated({Default.class}) @ModelAttribute AdoptionInfoUpdateDto dto) {
     Long userId = principal.getUserId();
     if (userId == null) {
-      throw AuthException.forAuthenticationFailed();
+      throw AuthException.forUnauthorized();
     }
 
     Objects.requireNonNull(dto, "dto cannot be null");
@@ -101,12 +103,24 @@ public class AdoptionInfoController {
         .body(ApiResponse.success(HttpStatus.OK, "Adoption info updated successfully"));
   }
 
-  @DeleteMapping("/{id}")
-  public ResponseEntity<ApiResponse<?>> delete(@NonNull @AuthenticationPrincipal CustomPrincipal principal,
-      @NonNull @PathVariable Long id) {
+  @PatchMapping("/{id}/status")
+  public ResponseEntity<ApiResponse<?>> updateStatus(@NonNull @AuthenticationPrincipal CustomPrincipal principal,
+      @NonNull @PathVariable("id") Long id, @NonNull @RequestParam("status") AdoptionStatus status) {
     Long userId = principal.getUserId();
     if (userId == null) {
-      throw AuthException.forAuthenticationFailed();
+      throw AuthException.forUnauthorized();
+    }
+    adoptionInfoService.updateStatus(id, status, userId);
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption status updated successfully"));
+  }
+
+  @DeleteMapping("/{id}")
+  public ResponseEntity<ApiResponse<?>> delete(@NonNull @AuthenticationPrincipal CustomPrincipal principal,
+      @NonNull @PathVariable("id") Long id) {
+    Long userId = principal.getUserId();
+    if (userId == null) {
+      throw AuthException.forUnauthorized();
     }
     adoptionInfoService.delete(id, userId);
     return ResponseEntity.status(HttpStatus.OK)
