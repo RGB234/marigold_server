@@ -1,5 +1,6 @@
 package com.sns.marigold.adoption.entity;
 
+import com.sns.marigold.adoption.enums.AdoptionStatus;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
@@ -77,21 +78,22 @@ public class AdoptionInfo {
 
   // 선택 입력
 
-  @Column(nullable = true)
+  @Column()
   private Integer age;
 
-  @Column(nullable = true)
+  @Column()
   private Double weight;
 
   // 입양 상태
+  @Enumerated(EnumType.STRING)
   @Column(nullable = false)
-  private boolean completed;
+  private AdoptionStatus status;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "adopter_id") // nullable = true (기본값). 입양 전엔 null이어야 하므로 nullable = true
   private User adopter;
 
-  @Column(nullable = true)
+  @Column()
   private LocalDateTime adoptedAt;
 
   // 이미지
@@ -118,7 +120,7 @@ public class AdoptionInfo {
     this.features = features;
     //
     this.images = (images != null) ? images : new ArrayList<>();
-    this.completed = false;
+    this.status = AdoptionStatus.PROCEEDING;
   }
 
   // Null로 수정 가능
@@ -133,19 +135,28 @@ public class AdoptionInfo {
     this.neutering = editor.getNeutering();
   }
 
-  // 입양 완료 처리
-  public void completeAdoption(User adopter) {
-    this.completed = true;
-    this.adopter = adopter;
-    this.adoptedAt = LocalDateTime.now();
+  // // 입양 완료 처리
+  // public void completeAdoption(User adopter) {
+  //   this.status = AdoptionStatus.COMPLETED;
+  //   this.adopter = adopter;
+  //   this.adoptedAt = LocalDateTime.now();
+  // }
+
+  // 입양 상태 변경 (예약 등)
+  public void updateStatus(AdoptionStatus status) {
+      this.status = status;
+      if (status != AdoptionStatus.COMPLETED) {
+          this.adopter = null;
+          this.adoptedAt = null;
+      }
   }
 
-  // 입양 취소 처리 (필요시)
-  public void cancelAdoption() {
-    this.completed = false;
-    this.adopter = null;
-    this.adoptedAt = null;
-  }
+  // // 입양 취소 처리 (필요시)
+  // public void cancelAdoption() {
+  //   this.status = AdoptionStatus.PROCEEDING;
+  //   this.adopter = null;
+  //   this.adoptedAt = null;
+  // }
 
   // --- [연관 관계 편의 메서드 수정] ---
   public void addImage(AdoptionImage image) {
