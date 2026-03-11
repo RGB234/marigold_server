@@ -14,7 +14,7 @@ import com.sns.marigold.storage.service.S3Service;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/storage")
+@RequestMapping("/api/v1/storage")
 @RequiredArgsConstructor
 class StorageController {
     private final S3Service s3Service;
