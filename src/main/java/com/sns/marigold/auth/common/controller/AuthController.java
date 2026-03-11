@@ -25,7 +25,7 @@ import java.util.Map;
 // /oauth2/authorization/naver
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/v1/auth")
 @Slf4j
 @RequiredArgsConstructor
 public class AuthController {
