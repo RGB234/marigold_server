@@ -7,14 +7,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsUtils;
 
@@ -26,7 +24,7 @@ import org.springframework.web.cors.CorsUtils;
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 // @RequiredArgsConstructor
-@Order(3) // 가장 마지막에 적용 (fallback)
+@Order(3) // SecurityConfig중에서 가장 마지막에 적용 (fallback)
 public class CommonSecurityConfig {
 
     // private final Environment env;
@@ -39,27 +37,35 @@ public class CommonSecurityConfig {
     private final String logoutUrl;
     private final String statusUrl;
     private final String adoptionInfoSearchUrl;
+    private final String adoptionInfoDetailUrl;
     private final String storageGetUrl;
+    private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
 
     public CommonSecurityConfig(CustomCorsConfigurationSource customCorsConfigurationSource,
             CustomAccessDeniedHandler customAccessDeniedHandler,
             JwtAuthenticationFilter jwtAuthenticationFilter,
+            CustomAuthenticationEntryPoint customAuthenticationEntryPoint,
+
             @Value("${url.backend.auth.login.base}") String loginBaseUrl,
             @Value("${url.backend.auth.signup.base}") String signupBaseUrl,
             @Value("${url.backend.auth.logout}") String logoutUrl,
             @Value("${url.backend.auth.status}") String statusUrl,
+            @Value("${url.backend.adoption.detail}") String adoptionInfoDetailUrl,
             @Value("${url.backend.adoption.search}") String adoptionInfoSearchUrl,
             @Value("${url.backend.storage.get}") String storageGetUrl
+            
      ) {
 
         this.customCorsConfigurationSource = customCorsConfigurationSource;
         this.customAccessDeniedHandler = customAccessDeniedHandler;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.customAuthenticationEntryPoint = customAuthenticationEntryPoint;
 
         this.loginBaseUrl = loginBaseUrl;
         this.signupBaseUrl = signupBaseUrl;
         this.logoutUrl = logoutUrl;
         this.statusUrl = statusUrl;
+        this.adoptionInfoDetailUrl = adoptionInfoDetailUrl;
         this.adoptionInfoSearchUrl = adoptionInfoSearchUrl;
         this.storageGetUrl = storageGetUrl;
     }
@@ -88,8 +94,9 @@ public class CommonSecurityConfig {
                                         logoutUrl,
                                         statusUrl,
                                         adoptionInfoSearchUrl,
-                                        storageGetUrl
-
+                                        adoptionInfoDetailUrl,
+                                        storageGetUrl,
+                                        "/ws/**"
                                 )
                                 .permitAll()
                                 // Swagger
@@ -97,6 +104,7 @@ public class CommonSecurityConfig {
                                         "/v3/api-docs/**",
                                         "/swagger-ui/**")
                                 .permitAll()
+                                // JwtAuthenticationFilter에서 인증 처리
                                 .anyRequest().authenticated())
                 .formLogin(AbstractHttpConfigurer::disable)
                 // 로그아웃
@@ -106,8 +114,9 @@ public class CommonSecurityConfig {
                 // 예외처리
                 .exceptionHandling(
                         ex -> ex
-                                .accessDeniedHandler(customAccessDeniedHandler)
-                                .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)));
+                                .accessDeniedHandler(customAccessDeniedHandler) // 403 권한없음
+                                .authenticationEntryPoint(customAuthenticationEntryPoint)); // 401 인증실패
+                                // .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))); // 401 인증실패
 
         return http.build();
     }

@@ -2,8 +2,6 @@ package com.sns.marigold.auth.common.jwt;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
@@ -28,7 +26,7 @@ public class JwtManager {
   public static final String AUTHORITIES_KEY = "auth";
   public static final String USER_ID_KEY = "sub"; // subject
 
-  private final SecretKey secretKey;
+  private final SecretKey key;
   @Getter
   public final long accessTokenValidityInMilliseconds;
   @Getter
@@ -38,15 +36,16 @@ public class JwtManager {
       @Value("${jwt.secret.defaultSecretKeyForDevelopmentOnlyChangeInProduction}") String secret,
       @Value("${jwt.access-token-validity-in-seconds}") long accessTokenValidityInSeconds,
       @Value("${jwt.refresh-token-validity-in-seconds}") long refreshTokenValidityInSeconds) {
-    this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     this.accessTokenValidityInMilliseconds = accessTokenValidityInSeconds * 1000;
     this.refreshTokenValidityInMilliseconds = refreshTokenValidityInSeconds * 1000;
   }
 
   /*
-    토큰 payload 정보를 바탕으로 Authentication 객체를 생성하여 반환
+   * 토큰 payload 정보를 바탕으로 Authentication 객체를 생성하여 반환
    */
   public Authentication getAuthentication(String token) {
+    // 토큰이 유효한 경우 Claims 추출. 유효하지 않은 경우 예외 발생
     Claims claims = getClaims(token);
     Long userId = getUserId(claims);
     List<SimpleGrantedAuthority> authorities = getAuthorities(claims);
@@ -70,7 +69,7 @@ public class JwtManager {
         .claim(AUTHORITIES_KEY, authorities) // 권한 정보
         .issuedAt(now)
         .expiration(validity)
-        .signWith(secretKey)
+        .signWith(key)
         .compact();
   }
 
@@ -86,7 +85,7 @@ public class JwtManager {
         .claim(USER_ID_KEY, principal.getUserId().toString())
         .issuedAt(now)
         .expiration(validity)
-        .signWith(secretKey)
+        .signWith(key)
         .compact();
   }
 
@@ -94,19 +93,11 @@ public class JwtManager {
    * Token에서 Claims 추출
    */
   public Claims getClaims(String token) {
-    try {
-      return Jwts.parser()
-      .verifyWith(secretKey)
-      .build()
-      .parseSignedClaims(token)
-      .getPayload();
-    } catch (ExpiredJwtException e) {
-      // 만료된 토큰이어도 Claims 정보(ID 등)가 필요할 때가 있어서 반환해주는 경우도 있지만,
-      // 기본 인증 과정에서는 예외를 그대로 던져서 Filter가 잡게 하는 것이 정석입니다.
-      throw e;
-    } catch (JwtException e) {
-      throw new JwtException("Invalid JWT token", e);
-    }
+    return Jwts.parser()
+        .verifyWith(key)
+        .build()
+        .parseSignedClaims(token)
+        .getPayload();
   }
 
   /**
