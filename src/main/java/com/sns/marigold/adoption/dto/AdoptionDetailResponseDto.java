@@ -1,6 +1,8 @@
 package com.sns.marigold.adoption.dto;
 
+import com.sns.marigold.adoption.entity.AdoptionImage;
 import com.sns.marigold.adoption.entity.AdoptionInfo;
+import com.sns.marigold.adoption.enums.AdoptionStatus;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
@@ -10,11 +12,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Getter
 @Builder
@@ -48,14 +46,15 @@ public class AdoptionDetailResponseDto {
 
   private List<String> imageFileNames; // 원본 파일명
 
+  @Setter
   private List<String> imageUrls; // 다운로드 가능한 URL
 
-  private boolean completed;
+  private AdoptionStatus status;
 
   public static AdoptionDetailResponseDto from(AdoptionInfo adoptionInfo) {
 
     List<String> imageFileNames = adoptionInfo.getImages().stream()
-      .map(image -> image.getStoredFileName())
+      .map(AdoptionImage::getStoredFileName)
       .collect(Collectors.toList());
 
     UserInfoDto writer = UserInfoDto.from(adoptionInfo.getWriter());
@@ -74,11 +73,7 @@ public class AdoptionDetailResponseDto {
       .neutering(adoptionInfo.getNeutering())
       .features(adoptionInfo.getFeatures())
       .imageFileNames(imageFileNames)
-      .completed(adoptionInfo.isCompleted())
+      .status(adoptionInfo.getStatus())
       .build();
-  }
-
-  public void setImageUrls(List<String> imageUrls){
-    this.imageUrls = imageUrls;
   }
 }

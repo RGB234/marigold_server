@@ -8,9 +8,6 @@ public class AdoptionException extends BusinessException {
         super(errorCode);
     }
 
-    public static AdoptionException forAdoptionInfoCompleted() {
-        return new AdoptionException(ErrorCode.ADOPTION_INFO_COMPLETED);
-    }
 
     public static AdoptionException forAdoptionInfoNotExists() {
         return new AdoptionException(ErrorCode.ADOPTION_INFO_NOT_FOUND);

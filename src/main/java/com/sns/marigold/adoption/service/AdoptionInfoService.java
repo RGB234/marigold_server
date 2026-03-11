@@ -5,6 +5,7 @@ import com.sns.marigold.adoption.dto.AdoptionInfoCreateDto;
 import com.sns.marigold.adoption.dto.AdoptionInfoResponseDto;
 import com.sns.marigold.adoption.dto.AdoptionInfoSearchFilterDto;
 import com.sns.marigold.adoption.dto.AdoptionInfoUpdateDto;
+import com.sns.marigold.adoption.enums.AdoptionStatus;
 import com.sns.marigold.adoption.entity.AdoptionImage;
 import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.adoption.entity.AdoptionInfoEditor;
@@ -36,6 +37,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -92,7 +94,6 @@ public class AdoptionInfoService {
     AdoptionInfo adoptionInfo = findEntityById(postId);
 
     validateWriter(adoptionInfo, userId);
-    validateStatus(adoptionInfo);
 
     // 1. 새 이미지 S3 업로드 (실패 시 예외 발생, 파일 자동 삭제됨)
     // 트랜잭션 외부에서 수행하여 DB 커넥션 점유 최소화
@@ -195,23 +196,19 @@ public class AdoptionInfoService {
   }
 
   @Transactional
-  public void completeAdoption(User adopter, @NonNull Long id) {
+  public void updateStatus(@NonNull Long id, @NonNull AdoptionStatus status, @NonNull Long userId) {
     AdoptionInfo info = findEntityById(id);
-
-    validateWriter(info, adopter.getId());
-    validateStatus(info);
-
-    info.completeAdoption(adopter);
+    validateWriter(info, userId);
+    info.updateStatus(status);
   }
 
   public void delete(@NonNull Long id, @NonNull Long userId) {
     // User user = userService.findEntityById(userId);
-    List<ImageUploadDto> images = null;
+    List<ImageUploadDto> images;
 
     images = transactionTemplate.execute(status -> {
       AdoptionInfo info = findEntityById(id);
       validateWriter(info, userId);
-      validateStatus(info);
 
       // 삭제 전 이미지 리스트 추출 (영속성 컨텍스트가 살아있을 때 수행)
       List<ImageUploadDto> dtoList = info.getImages() != null
@@ -223,19 +220,14 @@ public class AdoptionInfoService {
       return dtoList;
     });
 
-    s3Service.deleteUploadedImagesFromS3(images);
+    if (!Objects.isNull(images)){
+      s3Service.deleteUploadedImagesFromS3(images);
+    }
   }
 
   public void validateWriter(AdoptionInfo info, Long userId) {
     if (!info.getWriter().getId().equals(userId)) {
-      throw AuthException.forAuthorizationDenied();
-    }
-  }
-
-  // 입양 완료된 게시글은 수정 불가
-  public void validateStatus(AdoptionInfo info) {
-    if (info.isCompleted()) {
-      throw AdoptionException.forAdoptionInfoCompleted();
+      throw AuthException.forAccessDenied();
     }
   }
 }
