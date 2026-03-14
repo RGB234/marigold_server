@@ -4,7 +4,7 @@ import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
-import com.sns.marigold.global.annotation.Enum;
+import com.sns.marigold.global.annotation.EnumType;
 import com.sns.marigold.global.annotation.ValidImageFiles;
 import com.sns.marigold.global.annotation.ValidImageCount;
 import com.sns.marigold.global.validator.ImageCountValidatable;
@@ -15,7 +15,6 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -29,14 +28,14 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @Builder
 @AllArgsConstructor
 @ValidImageCount(min = 1, max = 8)
 public class AdoptionInfoCreateDto implements ImageCountValidatable {
 
   @NotNull(message = "값이 비어있습니다.")
-  @Enum(target = Species.class)
+  @EnumType(target = Species.class)
   private Species species;
 
   @NotNull(message = "값이 비어있습니다.")
@@ -45,7 +44,7 @@ public class AdoptionInfoCreateDto implements ImageCountValidatable {
   private Integer age = 0;
 
   @NotNull(message = "값이 비어있습니다.")
-  @Enum(target = Sex.class)
+  @EnumType(target = Sex.class)
   private Sex sex;
 
   @NotBlank(message = "값이 비어있습니다.")
@@ -61,7 +60,7 @@ public class AdoptionInfoCreateDto implements ImageCountValidatable {
   private Double weight = 0.0;
 
   @NotNull(message = "값이 비어있습니다.")
-  @Enum(target = Neutering.class)
+  @EnumType(target = Neutering.class)
   private Neutering neutering;
 
   @NotNull(message = "값이 비어있습니다.")

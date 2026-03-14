@@ -1,5 +1,6 @@
 package com.sns.marigold.auth.oauth2.handler;
 
+import com.sns.marigold.global.config.UrlProperties;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -28,7 +29,7 @@ import com.sns.marigold.global.error.ErrorCode;
 @Slf4j
 public class OAuth2SignupFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
-  private final Environment env;
+  private final UrlProperties urlProperties;
 
   @Override
   public void onAuthenticationFailure(
@@ -49,7 +50,7 @@ public class OAuth2SignupFailureHandler extends SimpleUrlAuthenticationFailureHa
 
     log.error("회원가입 실패 - Error: {}, Message: {}", errorCode, errorMessage);
 
-    String callbackUrl = env.getProperty("url.frontend.auth.callback");
+    String callbackUrl = urlProperties.frontend().auth().callback();
     Objects.requireNonNull(callbackUrl, "url.frontend.auth.callback is not configured");
 
     String redirectUrl = UriComponentsBuilder.fromUriString(callbackUrl)

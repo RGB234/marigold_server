@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
 @Constraint(validatedBy = EnumValidator.class)
 @Target({ElementType.FIELD, ElementType.PARAMETER}) // 어노테이션이 붙는 범위
 @Retention(RetentionPolicy.RUNTIME) // 어노테이션 생명주기
-public @interface Enum {
+public @interface EnumType {
   String message() default "Invalid enum value"; // 예외 발생 응답
 
   Class<?>[] groups() default {}; // Validation 그룹 지정

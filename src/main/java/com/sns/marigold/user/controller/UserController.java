@@ -1,11 +1,14 @@
 package com.sns.marigold.user.controller;
 
+import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.global.dto.ApiResponse;
 import com.sns.marigold.user.dto.create.UserCreateDto;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
+import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.service.UserService;
+import io.hypersistence.tsid.TSID;
 import jakarta.validation.Valid;
 
 import java.util.List;
@@ -16,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,7 +33,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/user")
+@RequestMapping(UrlConstants.USER_BASE)
 @RequiredArgsConstructor
 @Slf4j
 public class UserController {
@@ -38,6 +42,7 @@ public class UserController {
 
   // ** create **
 
+  @PreAuthorize("permitAll()")
   @PostMapping("/create")
   public ResponseEntity<ApiResponse<Long>> create(@RequestBody @Valid UserCreateDto dto) {
     Long userId = userService.createUser(dto);
@@ -45,6 +50,7 @@ public class UserController {
   }
 
   // ** update **
+  @PreAuthorize("isAuthenticated()")
   @PatchMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<ApiResponse<Void>> update(
       @AuthenticationPrincipal CustomPrincipal principal, @ModelAttribute @Valid UserUpdateDto dto) {
@@ -56,20 +62,30 @@ public class UserController {
   // ** get **
 
   // 검색
+  @PreAuthorize("permitAll()")
   @GetMapping("/search")
   public ApiResponse<List<UserInfoDto>> getPersonByNickname(@RequestParam("query") String nickname) {
     return ApiResponse.success(HttpStatus.OK, "User search fetched successfully",
         userService.getUserByNickname(nickname));
   }
 
+  @PreAuthorize("permitAll()")
   @GetMapping("/profile/{userId}")
-  public ResponseEntity<ApiResponse<UserInfoDto>> getPersonProfile(@PathVariable("userId") Long userId) {
+  public ResponseEntity<ApiResponse<UserInfoDto>> getPersonProfile(@PathVariable("userId") String userId) {
+    long uid;
+    try{
+      uid = TSID.from(userId).toLong();
+    }catch(IllegalArgumentException e){
+      throw UserException.forUserNotFound();
+    }
+
     return ResponseEntity
-        .ok(ApiResponse.success(HttpStatus.OK, "User profile fetched successfully", userService.getUserById(userId)));
+        .ok(ApiResponse.success(HttpStatus.OK, "User profile fetched successfully", userService.getUserById(uid)));
   }
 
   // ** delete **
 
+  @PreAuthorize("isAuthenticated()")
   @DeleteMapping("/delete")
   public ResponseEntity<ApiResponse<Void>> deletePerson(@AuthenticationPrincipal CustomPrincipal principal) {
     Long userId = principal.getUserId();

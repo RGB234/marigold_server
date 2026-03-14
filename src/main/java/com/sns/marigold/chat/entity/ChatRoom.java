@@ -1,12 +1,28 @@
 package com.sns.marigold.chat.entity;
 
+import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.user.entity.User;
-import jakarta.persistence.*;
-import lombok.*;
+import io.hypersistence.utils.hibernate.id.Tsid;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -19,32 +35,38 @@ import java.time.LocalDateTime;
 })
 public class ChatRoom {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @Tsid
+  @Column(updatable = false, nullable = false)
+  private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user1_id", nullable = false)
-    private User user1;
+  @OneToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "adoption_info_id", nullable = false)
+  private AdoptionInfo adoptionInfo;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user2_id", nullable = false)
-    private User user2;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "user1_id", nullable = false)
+  private User user1;
 
-    @CreatedDate
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "user2_id", nullable = false)
+  private User user2;
 
-    public static ChatRoom create(User user1, User user2) {
-        // Ensure user1.id < user2.id for consistent room identification
-        if (user1.getId() > user2.getId()) {
-            User temp = user1;
-            user1 = user2;
-            user2 = temp;
-        }
-        return ChatRoom.builder()
-                .user1(user1)
-                .user2(user2)
-                .build();
+  @CreatedDate
+  @Column(updatable = false)
+  private LocalDateTime createdAt;
+
+  public static ChatRoom create(User user1, User user2, AdoptionInfo adoptionInfo) {
+    // Ensure user1.id < user2.id for consistent room identification
+    if (user1.getId() > user2.getId()) {
+      User temp = user1;
+      user1 = user2;
+      user2 = temp;
     }
+    return ChatRoom.builder()
+        .user1(user1)
+        .user2(user2)
+        .adoptionInfo(adoptionInfo)
+        .build();
+  }
 }

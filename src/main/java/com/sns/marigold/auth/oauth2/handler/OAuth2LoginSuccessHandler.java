@@ -3,6 +3,7 @@ package com.sns.marigold.auth.oauth2.handler;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.global.config.UrlProperties;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -26,8 +27,8 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
 
     private final JwtManager jwtManager;
     private final CookieManager cookieManager;
+    private final UrlProperties urlProperties;
 
-    private final Environment env;
 
     @Override
     public void onAuthenticationSuccess(
@@ -47,7 +48,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         cookieManager.addCookie(response, cookieManager.REFRESH_TOKEN_NAME, refreshToken,
                 jwtManager.getRefreshTokenValidityInMilliseconds());
 
-        String callbackUrl = env.getProperty("url.frontend.auth.callback");
+        String callbackUrl = urlProperties.frontend().auth().callback();
         Objects.requireNonNull(callbackUrl, "url.frontend.auth.callback is not configured");
 
         String redirectUrl = UriComponentsBuilder.fromUriString(callbackUrl)

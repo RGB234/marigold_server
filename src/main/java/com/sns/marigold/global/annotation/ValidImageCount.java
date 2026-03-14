@@ -14,7 +14,7 @@ import jakarta.validation.Payload;
 @Target({ElementType.TYPE}) // 클래스
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ValidImageCount {
-    String message() default "이미지 파일을 1개 이상 8개 이하로 업로드해주세요.";
+    String message() default "이미지 파일을 {min}개 이상 {max}개 이하로 업로드해주세요.";
 
     Class<?>[] groups() default {};
 
