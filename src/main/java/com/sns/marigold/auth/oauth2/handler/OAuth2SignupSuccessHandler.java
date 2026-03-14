@@ -1,6 +1,7 @@
 package com.sns.marigold.auth.oauth2.handler;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.global.config.UrlProperties;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -25,7 +26,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RequiredArgsConstructor
 @Slf4j
 public class OAuth2SignupSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
-  private final Environment env;
+  private final UrlProperties urlProperties;
 
   @Override
   public void onAuthenticationSuccess(
@@ -35,7 +36,7 @@ public class OAuth2SignupSuccessHandler extends SimpleUrlAuthenticationSuccessHa
 
     log.info("회원가입 성공 - UserId: {}", principal.getUserId());
 
-    String callbackUrl = env.getProperty("url.frontend.auth.callback");
+    String callbackUrl = urlProperties.frontend().auth().callback();
     Objects.requireNonNull(callbackUrl, "url.frontend.auth.callback is not configured");
 
     String redirectUrl = UriComponentsBuilder.fromUriString(callbackUrl)

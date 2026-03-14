@@ -7,14 +7,20 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import io.hypersistence.tsid.TSID;
-import org.springframework.boot.jackson.JsonComponent;
 import org.springframework.util.ObjectUtils;
 
 import java.io.IOException;
 
-@JsonComponent
-public class TSIDJacksonConfig {
 
+/*
+@RequestBody 기반의 JSON 포맷 데이터를 담당.
+DTO필드에 Serializer/Deserializer 추가해야 적용.
+ */
+public class TsidJacksonConfig {
+
+  /*
+  LONG to BASE32
+   */
   public static class Serializer extends JsonSerializer<Long> {
     @Override
     public void serialize(Long value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
@@ -26,6 +32,9 @@ public class TSIDJacksonConfig {
     }
   }
 
+  /*
+  BASE32 to LONG
+   */
   public static class Deserializer extends JsonDeserializer<Long> {
     @Override
     public Long deserialize(JsonParser p,

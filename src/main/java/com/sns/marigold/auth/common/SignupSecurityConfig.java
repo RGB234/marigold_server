@@ -5,6 +5,7 @@ import com.sns.marigold.auth.common.jwt.JwtAuthenticationFilter;
 import com.sns.marigold.auth.oauth2.handler.OAuth2SignupFailureHandler;
 import com.sns.marigold.auth.oauth2.handler.OAuth2SignupSuccessHandler;
 import com.sns.marigold.auth.oauth2.service.OAuth2UserServiceForSignup;
+import com.sns.marigold.global.config.UrlProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,16 +34,20 @@ public class SignupSecurityConfig {
   private final OAuth2UserServiceForSignup oAuth2UserServiceForSignup;
   private final OAuth2SignupSuccessHandler oAuth2SignupSuccessHandler;
   private final OAuth2SignupFailureHandler oAuth2SignupFailureHandler;
-
   private final CustomAccessDeniedHandler customAccessDeniedHandler;
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
-  private final Environment env;
+
+  private final UrlProperties urlProperties;
 
   @Bean
   public SecurityFilterChain signupSecurityFilterChain(HttpSecurity http) throws Exception {
+    String signupBaseUrl = urlProperties.backend().auth().signup().base();
+    String signupEndpointBaseUrl = urlProperties.backend().auth().signup().endpoint().base();
+    String signupRedirectionUrl = urlProperties.backend().auth().signup().redirection();
+
     http
         // 회원가입 경로에만 적용
-        .securityMatcher(env.getProperty("url.backend.auth.signup.base") + "/**")
+        .securityMatcher(signupBaseUrl + "/**")
         // 세션 비활성화 (JWT 사용)
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -61,11 +66,9 @@ public class SignupSecurityConfig {
         .oauth2Login(
             oauth2 -> oauth2
                 .authorizationEndpoint(endpoint -> endpoint
-                    .baseUri(env.getProperty("url.backend.auth.signup.endpoint")))
-                    // .baseUri("/oauth2/signup/authorization"))
+                    .baseUri(signupEndpointBaseUrl))
                 .redirectionEndpoint(endpoint -> endpoint
-                    .baseUri(env.getProperty("url.backend.auth.signup.redirection")))
-                    // .baseUri("/oauth2/signup/code/*"))
+                    .baseUri(signupRedirectionUrl))
                 .successHandler(oAuth2SignupSuccessHandler)
                 .failureHandler(oAuth2SignupFailureHandler)
                 .userInfoEndpoint(userInfo -> userInfo.userService(oAuth2UserServiceForSignup)))

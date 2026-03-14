@@ -17,7 +17,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class AdoptionInfoResponseDto {
+public class AdoptionInfoDto {
 
   private Long id;
 
@@ -37,8 +37,8 @@ public class AdoptionInfoResponseDto {
 
   private LocalDateTime createdAt;
 
-  public static AdoptionInfoResponseDto from(AdoptionInfo adoptionInfo) {
-    return AdoptionInfoResponseDto
+  public static AdoptionInfoDto from(AdoptionInfo adoptionInfo) {
+    return AdoptionInfoDto
         .builder()
         .id(adoptionInfo.getId())
         .title(adoptionInfo.getTitle())

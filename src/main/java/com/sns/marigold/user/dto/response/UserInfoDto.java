@@ -1,7 +1,8 @@
 package com.sns.marigold.user.dto.response;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import com.sns.marigold.global.util.TsidJacksonConfig;
 import com.sns.marigold.user.entity.User;
 
 import lombok.Builder;
@@ -12,7 +13,8 @@ import lombok.RequiredArgsConstructor;
 @Builder
 @RequiredArgsConstructor
 public class UserInfoDto {
-  @JsonSerialize(using = ToStringSerializer.class)
+  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
+  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
   private final Long id;
   private final String nickname;
   private final String imageUrl;

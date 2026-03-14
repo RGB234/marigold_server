@@ -2,8 +2,9 @@ package com.sns.marigold.auth.common;
 
 import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
 import com.sns.marigold.auth.common.jwt.JwtAuthenticationFilter;
-
-import org.springframework.beans.factory.annotation.Value;
+import com.sns.marigold.global.UrlConstants;
+import com.sns.marigold.global.config.UrlProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -17,107 +18,65 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsUtils;
 
 /**
- * 일반 API 요청을 위한 SecurityFilterChain
- * OAuth2 경로를 제외한 모든 경로에 적용됩니다.
+ * 일반 API 요청을 위한 SecurityFilterChain OAuth2 경로를 제외한 모든 경로에 적용됩니다.
  */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-// @RequiredArgsConstructor
+@RequiredArgsConstructor
 @Order(3) // SecurityConfig중에서 가장 마지막에 적용 (fallback)
 public class CommonSecurityConfig {
 
-    // private final Environment env;
-    private final CustomCorsConfigurationSource customCorsConfigurationSource;
-    private final CustomAccessDeniedHandler customAccessDeniedHandler;
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+  private final CustomCorsConfigurationSource customCorsConfigurationSource;
+  private final CustomAccessDeniedHandler customAccessDeniedHandler;
+  private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    private final String loginBaseUrl;
-    private final String signupBaseUrl;
-    private final String logoutUrl;
-    private final String statusUrl;
-    private final String adoptionInfoSearchUrl;
-    private final String adoptionInfoDetailUrl;
-    private final String storageGetUrl;
-    private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+  private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+  private final UrlProperties urlProperties;
 
-    public CommonSecurityConfig(CustomCorsConfigurationSource customCorsConfigurationSource,
-            CustomAccessDeniedHandler customAccessDeniedHandler,
-            JwtAuthenticationFilter jwtAuthenticationFilter,
-            CustomAuthenticationEntryPoint customAuthenticationEntryPoint,
+  @Bean
+  public SecurityFilterChain commonSecurityFilterChain(HttpSecurity http) throws Exception {
+    String loginBaseUrl = urlProperties.backend().auth().login().base();
+    String signupBaseUrl = urlProperties.backend().auth().signup().base();
 
-            @Value("${url.backend.auth.login.base}") String loginBaseUrl,
-            @Value("${url.backend.auth.signup.base}") String signupBaseUrl,
-            @Value("${url.backend.auth.logout}") String logoutUrl,
-            @Value("${url.backend.auth.status}") String statusUrl,
-            @Value("${url.backend.adoption.detail}") String adoptionInfoDetailUrl,
-            @Value("${url.backend.adoption.search}") String adoptionInfoSearchUrl,
-            @Value("${url.backend.storage.get}") String storageGetUrl
-            
-     ) {
+    http
+        .securityMatcher(request -> {
+          String path = request.getRequestURI();
+          // OAuth2 로그인/회원가입 경로는 제외
+          return !path.startsWith(loginBaseUrl) &&
+              !path.startsWith(signupBaseUrl);
+        })
+        // 세션 비활성화 (JWT 사용)
+        .sessionManagement(
+            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .cors(corsCustomizer -> corsCustomizer.configurationSource(customCorsConfigurationSource))
+        .csrf(AbstractHttpConfigurer::disable)
+        .httpBasic(AbstractHttpConfigurer::disable)
+        // JWT 인증 필터
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        .authorizeHttpRequests(
+            auth -> auth
+                .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
+                // Swagger
+                .requestMatchers(
+                    "/v3/api-docs/**",
+                    "/swagger-ui/**")
+                .permitAll()
+                // 구체적인 권한 제어는 Controller의 @PreAuthorize에서 처리하므로
+                // 필터 체인 레벨에서는 모든 요청을 통과.
+                .anyRequest().permitAll())
+        .formLogin(AbstractHttpConfigurer::disable)
+        // 지금은 AuthController에서 처리 중
+//        .logout(logout -> logout
+//            .logoutUrl("/api/auth/logout")
+//            .addLogoutHandler(customLogoutHandler) // 토큰 블랙리스트 처리 등
+//            .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.OK)) // 성공 시 200 반환
+//        )
+        .exceptionHandling(
+            ex -> ex
+                .accessDeniedHandler(customAccessDeniedHandler) // 403 권한없음
+                .authenticationEntryPoint(customAuthenticationEntryPoint)); // 401 인증실패
 
-        this.customCorsConfigurationSource = customCorsConfigurationSource;
-        this.customAccessDeniedHandler = customAccessDeniedHandler;
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.customAuthenticationEntryPoint = customAuthenticationEntryPoint;
-
-        this.loginBaseUrl = loginBaseUrl;
-        this.signupBaseUrl = signupBaseUrl;
-        this.logoutUrl = logoutUrl;
-        this.statusUrl = statusUrl;
-        this.adoptionInfoDetailUrl = adoptionInfoDetailUrl;
-        this.adoptionInfoSearchUrl = adoptionInfoSearchUrl;
-        this.storageGetUrl = storageGetUrl;
-    }
-
-    @Bean
-    public SecurityFilterChain commonSecurityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .securityMatcher(request -> {
-                    String path = request.getRequestURI();
-                    // OAuth2 로그인/회원가입 경로는 제외
-                    return !path.startsWith(loginBaseUrl) &&
-                            !path.startsWith(signupBaseUrl);
-                })
-                // 세션 비활성화 (JWT 사용)
-                .sessionManagement(
-                        session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .cors(corsCustomizer -> corsCustomizer.configurationSource(customCorsConfigurationSource))
-                .csrf(AbstractHttpConfigurer::disable)
-                .httpBasic(AbstractHttpConfigurer::disable)
-                // JWT 인증 필터
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .authorizeHttpRequests(
-                        auth -> auth
-                                .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
-                                .requestMatchers(
-                                        logoutUrl,
-                                        statusUrl,
-                                        adoptionInfoSearchUrl,
-                                        adoptionInfoDetailUrl,
-                                        storageGetUrl,
-                                        "/ws/**"
-                                )
-                                .permitAll()
-                                // Swagger
-                                .requestMatchers(
-                                        "/v3/api-docs/**",
-                                        "/swagger-ui/**")
-                                .permitAll()
-                                // JwtAuthenticationFilter에서 인증 처리
-                                .anyRequest().authenticated())
-                .formLogin(AbstractHttpConfigurer::disable)
-                // 로그아웃
-                // .logout(logout -> logout
-                // .logoutUrl(logoutUrl)
-                // .permitAll())
-                // 예외처리
-                .exceptionHandling(
-                        ex -> ex
-                                .accessDeniedHandler(customAccessDeniedHandler) // 403 권한없음
-                                .authenticationEntryPoint(customAuthenticationEntryPoint)); // 401 인증실패
-                                // .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))); // 401 인증실패
-
-        return http.build();
-    }
+    return http.build();
+  }
 }

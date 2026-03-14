@@ -1,16 +1,16 @@
 package com.sns.marigold.global.validator;
 
-import com.sns.marigold.global.annotation.Enum;
+import com.sns.marigold.global.annotation.EnumType;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
 // Defines the logic to validate a given constraint A for a given object type T.
-public class EnumValidator implements ConstraintValidator<Enum, java.lang.Enum<?>> {
+public class EnumValidator implements ConstraintValidator<EnumType, java.lang.Enum<?>> {
 
-  private Enum annotation;
+  private EnumType annotation;
 
   @Override
-  public void initialize(Enum constraintAnnotation) {
+  public void initialize(EnumType constraintAnnotation) {
     this.annotation = constraintAnnotation;
   }
 

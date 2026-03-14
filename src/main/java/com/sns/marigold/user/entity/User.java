@@ -25,9 +25,8 @@ import io.hypersistence.utils.hibernate.id.Tsid;
 @AllArgsConstructor
 public class User {
   @Id
-  @Tsid // TSID는 toString()을 하면 "0C7X..." 같은 짧은 문자열(Crockford Base32)로 변환됨
-  @GeneratedValue(strategy = GenerationType.UUID) // Hibernate 6.x에서 UUID 생성 전략 지정
-  @Column(name = "id", updatable = false, nullable = false)
+  @Tsid
+  @Column(updatable = false, nullable = false)
   private Long id; // DB에서는 BIGINT로 저장
 
   // 비공개 정보

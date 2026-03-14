@@ -1,4 +1,4 @@
-package com.sns.marigold.chat.dto;
+package com.sns.marigold.adoption.dto;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -8,20 +8,19 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
-@ToString
-public class ChatMessageDto {
-
-    private Long roomId;
-
+@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class AdoptionWithChatDto {
+    private AdoptionInfoDto adoptionInfo;
+    
+    private Long chatRoomId;
+    
     @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
     @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
-    private Long senderId;
-
-    private String senderNickname;
-    private String message;
-    private LocalDateTime createdAt;
+    private Long receiverId;
+    
+    private String receiverNickname;
+    
+    private LocalDateTime chatCreatedAt;
 }

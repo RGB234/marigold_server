@@ -18,7 +18,7 @@ import lombok.*;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class AdoptionDetailResponseDto {
+public class AdoptionInfoDetailDto {
 
   private Long id;
 
@@ -51,7 +51,7 @@ public class AdoptionDetailResponseDto {
 
   private AdoptionStatus status;
 
-  public static AdoptionDetailResponseDto from(AdoptionInfo adoptionInfo) {
+  public static AdoptionInfoDetailDto from(AdoptionInfo adoptionInfo) {
 
     List<String> imageFileNames = adoptionInfo.getImages().stream()
       .map(AdoptionImage::getStoredFileName)
@@ -59,7 +59,7 @@ public class AdoptionDetailResponseDto {
 
     UserInfoDto writer = UserInfoDto.from(adoptionInfo.getWriter());
 
-    return AdoptionDetailResponseDto.builder()
+    return AdoptionInfoDetailDto.builder()
       .id(adoptionInfo.getId())
       .writer(writer)
       .createdAt(adoptionInfo.getCreatedAt())

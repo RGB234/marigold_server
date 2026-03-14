@@ -1,5 +1,7 @@
 package com.sns.marigold.chat.service;
 
+import com.sns.marigold.adoption.entity.AdoptionInfo;
+import com.sns.marigold.adoption.repository.AdoptionInfoRepository;
 import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.entity.ChatMessage;
@@ -8,92 +10,105 @@ import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-
-import org.springframework.lang.NonNull;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ChatService {
 
-    private final ChatRoomRepository chatRoomRepository;
-    private final ChatMessageRepository chatMessageRepository;
-    private final UserRepository userRepository;
+  private final ChatRoomRepository chatRoomRepository;
+  private final ChatMessageRepository chatMessageRepository;
+  private final UserRepository userRepository;
+  private final AdoptionInfoRepository adoptionInfoRepository;
 
-    @Transactional
-    public ChatRoomDto getOrCreateRoom(@NonNull Long user1Id, @NonNull Long user2Id) {
-        User user1 = userRepository.findById(user1Id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + user1Id));
-        User user2 = userRepository.findById(user2Id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + user2Id));
+  public  ChatRoomDto getRoom(@NonNull Long roomId) {
+    ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(
+        () -> new IllegalArgumentException("Chat room not found: " + roomId)
+    );
+    return convertToRoomDto(Objects.requireNonNull(chatRoom));
+  }
 
-        ChatRoom chatRoom = chatRoomRepository.findByUsers(user1, user2)
-                .orElseGet(() -> {
-                    ChatRoom newRoom = ChatRoom.create(user1, user2);
-                    return chatRoomRepository.save(Objects.requireNonNull(newRoom));
-                });
+  @Transactional
+  public ChatRoomDto createRoom(@NonNull Long user1Id, @NonNull Long user2Id, @NonNull Long postId) {
+    User user1 = userRepository.findById(user1Id)
+        .orElseThrow(() -> new IllegalArgumentException("User not found: " + user1Id));
+    User user2 = userRepository.findById(user2Id)
+        .orElseThrow(() -> new IllegalArgumentException("User not found: " + user2Id));
+    AdoptionInfo adoptionInfo = adoptionInfoRepository.findById(postId).orElseThrow(
+        () -> new IllegalArgumentException("Adoption info not found: " + postId));
 
-        return convertToRoomDto(Objects.requireNonNull(chatRoom));
-    }
+    ChatRoom chatRoom = chatRoomRepository.findByUsers(user1, user2)
+        .orElseGet(() -> {
+          ChatRoom newRoom = ChatRoom.create(user1, user2, adoptionInfo);
+          return chatRoomRepository.save(Objects.requireNonNull(newRoom));
+        });
 
-    public List<ChatRoomDto> getUserRooms(@NonNull Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-        return chatRoomRepository.findAllByUser(user).stream()
-                .map(this::convertToRoomDto)
-                .collect(Collectors.toList());
-    }
+    return convertToRoomDto(Objects.requireNonNull(chatRoom));
+  }
 
-    public List<ChatMessageDto> getRoomMessages(@NonNull Long roomId) {
-        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
-        return chatMessageRepository.findAllByChatRoomOrderByCreatedAtAsc(chatRoom).stream()
-                .map(this::convertToMessageDto)
-                .collect(Collectors.toList());
-    }
+  public Page<ChatRoomDto> getUserRooms(@NonNull Long userId, @NonNull Pageable pageable) {
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+    return chatRoomRepository.findAllByUser(user, pageable).map(this::convertToRoomDto);
+  }
 
-    @Transactional
-    public ChatMessageDto saveMessage(ChatMessageDto messageDto) {
-        ChatRoom chatRoom = chatRoomRepository.findById(Objects.requireNonNull(messageDto.getRoomId()))
-                .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + messageDto.getRoomId()));
-        User sender = userRepository.findById(Objects.requireNonNull(messageDto.getSenderId()))
-                .orElseThrow(() -> new IllegalArgumentException("Sender not found: " + messageDto.getSenderId()));
+  public List<ChatMessageDto> getRoomMessages(@NonNull Long roomId) {
+    ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+        .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
+    return chatMessageRepository.findAllByChatRoomOrderByCreatedAtAsc(chatRoom).stream()
+        .map(this::convertToMessageDto)
+        .collect(Collectors.toList());
+  }
 
-        ChatMessage chatMessage = ChatMessage.builder()
-                .chatRoom(chatRoom)
-                .sender(sender)
-                .message(messageDto.getMessage())
-                .build();
+  @Transactional
+  public ChatMessageDto saveMessage(ChatMessageDto messageDto) {
+    ChatRoom chatRoom = chatRoomRepository.findById(Objects.requireNonNull(messageDto.getRoomId()))
+        .orElseThrow(
+            () -> new IllegalArgumentException("Chat room not found: " + messageDto.getRoomId()));
+    User sender = userRepository.findById(Objects.requireNonNull(messageDto.getSenderId()))
+        .orElseThrow(
+            () -> new IllegalArgumentException("Sender not found: " + messageDto.getSenderId()));
 
-        chatMessageRepository.save(Objects.requireNonNull(chatMessage));
-        return convertToMessageDto(chatMessage);
-    }
+    ChatMessage chatMessage = ChatMessage.builder()
+        .chatRoom(chatRoom)
+        .sender(sender)
+        .message(messageDto.getMessage())
+        .build();
 
-    private ChatRoomDto convertToRoomDto(@NonNull ChatRoom chatRoom) {
-        return ChatRoomDto.builder()
-                .id(chatRoom.getId())
-                .user1Id(chatRoom.getUser1().getId())
-                .user1Nickname(chatRoom.getUser1().getNickname())
-                .user2Id(chatRoom.getUser2().getId())
-                .user2Nickname(chatRoom.getUser2().getNickname())
-                .createdAt(chatRoom.getCreatedAt())
-                .build();
-    }
+    chatMessageRepository.save(Objects.requireNonNull(chatMessage));
+    return convertToMessageDto(chatMessage);
+  }
 
-    private ChatMessageDto convertToMessageDto(ChatMessage message) {
-        return ChatMessageDto.builder()
-                .roomId(message.getChatRoom().getId())
-                .senderId(message.getSender().getId())
-                .senderNickname(message.getSender().getNickname())
-                .message(message.getMessage())
-                .createdAt(message.getCreatedAt())
-                .build();
-    }
+  private ChatRoomDto convertToRoomDto(@NonNull ChatRoom chatRoom) {
+    return ChatRoomDto.builder()
+        .id(chatRoom.getId())
+        .postId(chatRoom.getAdoptionInfo().getId())
+        .postTitle(chatRoom.getAdoptionInfo().getTitle())
+        .user1Id(chatRoom.getUser1().getId())
+        .user1Nickname(chatRoom.getUser1().getNickname())
+        .user2Id(chatRoom.getUser2().getId())
+        .user2Nickname(chatRoom.getUser2().getNickname())
+        .createdAt(chatRoom.getCreatedAt())
+        .build();
+  }
+
+
+  private ChatMessageDto convertToMessageDto(ChatMessage message) {
+    return ChatMessageDto.builder()
+        .roomId(message.getChatRoom().getId())
+        .senderId(message.getSender().getId())
+        .senderNickname(message.getSender().getNickname())
+        .message(message.getMessage())
+        .createdAt(message.getCreatedAt())
+        .build();
+  }
 }

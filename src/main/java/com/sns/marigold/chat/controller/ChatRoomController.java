@@ -3,36 +3,65 @@ package com.sns.marigold.chat.controller;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.dto.ChatRoomDto;
+import com.sns.marigold.chat.dto.NewChatDto;
 import com.sns.marigold.chat.service.ChatService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.lang.NonNull;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
-
+import jakarta.validation.Valid;
+import jakarta.validation.groups.Default;
 import java.util.List;
 import java.util.Objects;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.sns.marigold.global.UrlConstants;
 
 @RestController
-@RequestMapping("/api/v1/chat")
+@RequestMapping(UrlConstants.CHAT_BASE)
 @RequiredArgsConstructor
 public class ChatRoomController {
 
-    private final ChatService chatService;
+  private final ChatService chatService;
+  // WebSocket에도 ApiResponse를 쓰는 것은 과함
+  // 1. 페이로드가 무거움
+  // 2. 이미 STOMP에는 에러가 발생하면 ERROR 프레임을 보낼 수 있는 매커니즘이 있음
 
-    @PostMapping("/rooms")
-    public ResponseEntity<ChatRoomDto> createRoom(@AuthenticationPrincipal CustomPrincipal principal,
-                                                 @RequestParam("receiverId") @NonNull Long receiverId) {
-        return ResponseEntity.ok(chatService.getOrCreateRoom(Objects.requireNonNull(principal.getUserId()), receiverId));
-    }
+  @PreAuthorize("isAuthenticated()")
+  @PostMapping("/rooms")
+  public ResponseEntity<ChatRoomDto> createRoom(@AuthenticationPrincipal CustomPrincipal principal,
+      @RequestBody @Validated({Default.class}) NewChatDto newChatDto) {
+    return ResponseEntity.ok(
+        chatService.createRoom(Objects.requireNonNull(principal.getUserId()),
+            newChatDto.getReceiverId(),
+            newChatDto.getAdoptionInfoId()));
+  }
 
-    @GetMapping("/rooms")
-    public ResponseEntity<List<ChatRoomDto>> getMyRooms(@AuthenticationPrincipal CustomPrincipal principal) {
-        return ResponseEntity.ok(chatService.getUserRooms(Objects.requireNonNull(principal.getUserId())));
-    }
+  @PreAuthorize("isAuthenticated()")
+  @GetMapping("/rooms")
+  public ResponseEntity<Page<ChatRoomDto>> getMyRooms(
+      @AuthenticationPrincipal CustomPrincipal principal,
+      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull Pageable pageable) {
+    return ResponseEntity.ok(
+        chatService.getUserRooms(Objects.requireNonNull(principal.getUserId()), pageable));
+  }
 
-    @GetMapping("/rooms/{roomId}/messages")
-    public ResponseEntity<List<ChatMessageDto>> getRoomMessages(@NonNull @PathVariable("roomId") Long roomId) {
-        return ResponseEntity.ok(chatService.getRoomMessages(roomId));
-    }
+  @PreAuthorize("isAuthenticated()")
+  @GetMapping("/rooms/{roomId}/messages")
+  public ResponseEntity<List<ChatMessageDto>> getRoomMessages(
+      @NonNull @PathVariable("roomId") Long roomId) {
+    return ResponseEntity.ok(chatService.getRoomMessages(roomId));
+  }
 }

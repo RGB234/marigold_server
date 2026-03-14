@@ -1,18 +1,21 @@
 package com.sns.marigold.adoption.service;
 
-import com.sns.marigold.adoption.dto.AdoptionDetailResponseDto;
 import com.sns.marigold.adoption.dto.AdoptionInfoCreateDto;
-import com.sns.marigold.adoption.dto.AdoptionInfoResponseDto;
+import com.sns.marigold.adoption.dto.AdoptionInfoDetailDto;
+import com.sns.marigold.adoption.dto.AdoptionInfoDto;
 import com.sns.marigold.adoption.dto.AdoptionInfoSearchFilterDto;
 import com.sns.marigold.adoption.dto.AdoptionInfoUpdateDto;
-import com.sns.marigold.adoption.enums.AdoptionStatus;
+import com.sns.marigold.adoption.dto.AdoptionWithChatDto;
 import com.sns.marigold.adoption.entity.AdoptionImage;
 import com.sns.marigold.adoption.entity.AdoptionInfo;
 import com.sns.marigold.adoption.entity.AdoptionInfoEditor;
+import com.sns.marigold.adoption.enums.AdoptionStatus;
 import com.sns.marigold.adoption.exception.AdoptionException;
 import com.sns.marigold.adoption.repository.AdoptionInfoRepository;
 import com.sns.marigold.adoption.specification.AdoptionInfoSpecification;
 import com.sns.marigold.auth.exception.AuthException;
+import com.sns.marigold.chat.dto.ChatRoomDto;
+import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.global.error.exception.BusinessException;
 import com.sns.marigold.global.error.exception.InternalServerException;
 import com.sns.marigold.storage.dto.ImageUploadDto;
@@ -20,32 +23,30 @@ import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.service.S3Service;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
-
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
-
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AdoptionInfoService {
+
   private final UserService userService;
   private final AdoptionInfoRepository adoptionInfoRepository;
+  private final ChatService chatService;
   private final S3Service s3Service;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
@@ -57,7 +58,8 @@ public class AdoptionInfoService {
   }
 
   public Long create(AdoptionInfoCreateDto dto, @NonNull Long writerId) {
-    List<MultipartFile> images = dto.getImages() != null ? dto.getImages() : Collections.emptyList();
+    List<MultipartFile> images =
+        dto.getImages() != null ? dto.getImages() : Collections.emptyList();
     List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(images);
 
     User writer = userService.findEntityById(writerId);
@@ -90,7 +92,8 @@ public class AdoptionInfoService {
   }
 
 
-  public void update(@NonNull Long postId, @NonNull Long userId, @NonNull AdoptionInfoUpdateDto dto) {
+  public void update(@NonNull Long postId, @NonNull Long userId,
+      @NonNull AdoptionInfoUpdateDto dto) {
     AdoptionInfo adoptionInfo = findEntityById(postId);
 
     validateWriter(adoptionInfo, userId);
@@ -101,7 +104,8 @@ public class AdoptionInfoService {
 
     try {
       // 2. 유지할 이미지 파일명 목록 (Null Safe)
-      List<String> imagesToKeep = dto.getImagesToKeep() != null ? dto.getImagesToKeep() : Collections.emptyList();
+      List<String> imagesToKeep =
+          dto.getImagesToKeep() != null ? dto.getImagesToKeep() : Collections.emptyList();
 
       // 3. 삭제할 기존 이미지 목록 미리 계산 (DB 조회 필요 없음, 엔티티에서 추출)
       List<String> storedFileNamesToDelete = adoptionInfo.getImages().stream()
@@ -163,7 +167,7 @@ public class AdoptionInfoService {
 
   // 검색
   @Transactional(readOnly = true)
-  public Page<AdoptionInfoResponseDto> search(AdoptionInfoSearchFilterDto dto, @NonNull Pageable pageable) {
+  public Page<AdoptionInfoDto> search(AdoptionInfoSearchFilterDto dto, @NonNull Pageable pageable) {
 
     Page<AdoptionInfo> resultPage = adoptionInfoRepository.findAll(
         Specification.allOf(
@@ -171,28 +175,48 @@ public class AdoptionInfoService {
             AdoptionInfoSpecification.hasSex(dto.getSex())),
         pageable);
 
-    return resultPage.map(AdoptionInfoResponseDto::from);
+    return resultPage.map(AdoptionInfoDto::from);
   }
 
   @Transactional(readOnly = true)
-  public Page<AdoptionInfoResponseDto> searchByWriter(Long writerId, @NonNull Pageable pageable) {
+  public Page<AdoptionInfoDto> searchByWriter(Long writerId, @NonNull Pageable pageable) {
     Page<AdoptionInfo> resultPage = adoptionInfoRepository.findByWriter_Id(writerId, pageable);
-    return resultPage.map(AdoptionInfoResponseDto::from);
+    return resultPage.map(AdoptionInfoDto::from);
   }
 
   // 상세
   @Transactional(readOnly = true)
-  public AdoptionDetailResponseDto getDetail(@NonNull Long id) {
+  public AdoptionInfoDetailDto getDetail(@NonNull Long id) {
     AdoptionInfo info = findEntityById(id);
-    AdoptionDetailResponseDto detailResponseDto = AdoptionDetailResponseDto.from(info);
+    AdoptionInfoDetailDto detailResponseDto = AdoptionInfoDetailDto.from(info);
 
     List<String> imageUrls = info.getImages().stream()
         .map(image -> s3Service.getPresignedGetUrl(image.getStoredFileName()))
         .collect(Collectors.toList());
-        
+
     detailResponseDto.setImageUrls(imageUrls);
 
     return detailResponseDto;
+  }
+
+  public Page<AdoptionWithChatDto> searchByJoinedChats(@NonNull Long uid, @NonNull Pageable pageable) {
+    Page<ChatRoomDto> rooms = chatService.getUserRooms(uid, pageable);
+    return rooms.map(room -> {
+      Long postId = room.getPostId();
+      AdoptionInfo adoptionInfo = findEntityById(postId);
+      AdoptionInfoDto infoDto = AdoptionInfoDto.from(adoptionInfo);
+      
+      Long receiverId = room.getUser1Id().equals(uid) ? room.getUser2Id() : room.getUser1Id();
+      String receiverNickname = room.getUser1Id().equals(uid) ? room.getUser2Nickname() : room.getUser1Nickname();
+
+      return AdoptionWithChatDto.builder()
+          .adoptionInfo(infoDto)
+          .chatRoomId(room.getId())
+          .receiverId(receiverId)
+          .receiverNickname(receiverNickname)
+          .chatCreatedAt(room.getCreatedAt())
+          .build();
+    });
   }
 
   @Transactional
@@ -220,7 +244,7 @@ public class AdoptionInfoService {
       return dtoList;
     });
 
-    if (!Objects.isNull(images)){
+    if (!Objects.isNull(images)) {
       s3Service.deleteUploadedImagesFromS3(images);
     }
   }

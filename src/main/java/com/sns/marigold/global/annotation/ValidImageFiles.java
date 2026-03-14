@@ -15,7 +15,7 @@ import jakarta.validation.Payload;
 @Target({ElementType.FIELD, ElementType.PARAMETER})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ValidImageFiles {
-    String message() default "이미지 파일을 최소 1개 이상 업로드해주세요.";
+    String message() default "유효하지 않은 이미지 파일입니다.";
 
     Class<?>[] groups() default {};
 

@@ -5,11 +5,11 @@ import com.sns.marigold.auth.common.jwt.JwtAuthenticationFilter;
 import com.sns.marigold.auth.oauth2.handler.OAuth2LoginFailureHandler;
 import com.sns.marigold.auth.oauth2.handler.OAuth2LoginSuccessHandler;
 import com.sns.marigold.auth.oauth2.service.OAuth2UserServiceForLogin;
+import com.sns.marigold.global.config.UrlProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -20,8 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsUtils;
 
 /**
- * 로그인 전용 SecurityFilterChain
- * /oauth2/login/** 경로에 적용됩니다.
+ * 로그인 전용 SecurityFilterChain /oauth2/login/** 경로에 적용됩니다.
  */
 @Configuration
 @RequiredArgsConstructor
@@ -33,17 +32,20 @@ public class LoginSecurityConfig {
   private final OAuth2UserServiceForLogin oAuth2UserServiceForLogin;
   private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
   private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
-
   private final CustomAccessDeniedHandler customAccessDeniedHandler;
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-  private final Environment env;
+  private final UrlProperties urlProperties;
 
   @Bean
   public SecurityFilterChain loginSecurityFilterChain(HttpSecurity http) throws Exception {
+    String loginBaseUrl = urlProperties.backend().auth().login().base();
+    String loginEndpointBaseUrl = urlProperties.backend().auth().login().endpoint().base();
+    String loginRedirectionUrl = urlProperties.backend().auth().login().redirection();
+
     http
         // 로그인 경로에만 적용
-        .securityMatcher(env.getProperty("url.backend.auth.login.base") + "/**") 
+        .securityMatcher(loginBaseUrl + "/**")
         // 세션 비활성화 (JWT 사용)
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -62,9 +64,9 @@ public class LoginSecurityConfig {
         .oauth2Login(
             oauth2 -> oauth2
                 .authorizationEndpoint(endpoint -> endpoint
-                    .baseUri(env.getProperty("url.backend.auth.login.endpoint")))
+                    .baseUri(loginEndpointBaseUrl))
                 .redirectionEndpoint(endpoint -> endpoint
-                    .baseUri(env.getProperty("url.backend.auth.login.redirection")))
+                    .baseUri(loginRedirectionUrl))
                 .successHandler(oAuth2LoginSuccessHandler)
                 .failureHandler(oAuth2LoginFailureHandler)
                 .userInfoEndpoint(userInfo -> userInfo.userService(oAuth2UserServiceForLogin)))
