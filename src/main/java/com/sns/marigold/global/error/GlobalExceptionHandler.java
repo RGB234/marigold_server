@@ -1,9 +1,14 @@
 package com.sns.marigold.global.error;
 
+import com.sns.marigold.auth.exception.AuthException;
+import com.sns.marigold.global.dto.ApiResponse;
+import com.sns.marigold.global.error.dto.FieldErrorDetail;
+import com.sns.marigold.global.error.exception.BusinessException;
+import com.sns.marigold.global.error.exception.InternalServerException;
+import com.sns.marigold.storage.exception.StorageException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -11,13 +16,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
-import com.sns.marigold.auth.exception.AuthException;
-import com.sns.marigold.global.dto.ApiResponse;
-import com.sns.marigold.global.error.dto.FieldErrorDetail;
-import com.sns.marigold.global.error.exception.BusinessException;
-import com.sns.marigold.global.error.exception.InternalServerException;
-import com.sns.marigold.storage.exception.StorageException;
-
+/**
+ * 전역 예외 처리를 담당하는 Advice 클래스입니다.
+ */
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
