@@ -5,7 +5,6 @@ import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.service.AuthService;
 import com.sns.marigold.global.dto.ApiResponse;
 
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,11 +13,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
 
 // OAuth2 로그인은 Spring security가 처리
 // SecurityConfig 및 관련 코드 참조
@@ -33,15 +30,6 @@ import java.util.Map;
 public class AuthController {
 
   private final AuthService authService;
-
-  @PreAuthorize("isAuthenticated()")
-  @PostMapping("/logout")
-  public ResponseEntity<ApiResponse<Map<String, Object>>> logout(HttpServletResponse response,
-      Authentication authentication) {
-    authService.logout(response, authentication);
-
-    return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(HttpStatus.OK, "logout success"));
-  }
 
   /*
    * HttpOnly Cookie를 사용하여 인증 상태 관리

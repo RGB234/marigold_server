@@ -1,6 +1,8 @@
 package com.sns.marigold.auth.common;
 
 import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
+import com.sns.marigold.auth.common.handler.CustomLogoutHandler;
+import com.sns.marigold.auth.common.handler.CustomLogoutSuccessHandler;
 import com.sns.marigold.auth.common.jwt.JwtAuthenticationFilter;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.config.UrlProperties;
@@ -29,6 +31,8 @@ public class CommonSecurityConfig {
 
   private final CustomCorsConfigurationSource customCorsConfigurationSource;
   private final CustomAccessDeniedHandler customAccessDeniedHandler;
+  private final CustomLogoutHandler customLogoutHandler;
+  private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
   private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
@@ -66,12 +70,11 @@ public class CommonSecurityConfig {
                 // 필터 체인 레벨에서는 모든 요청을 통과.
                 .anyRequest().permitAll())
         .formLogin(AbstractHttpConfigurer::disable)
-        // 지금은 AuthController에서 처리 중
-//        .logout(logout -> logout
-//            .logoutUrl("/api/auth/logout")
-//            .addLogoutHandler(customLogoutHandler) // 토큰 블랙리스트 처리 등
-//            .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.OK)) // 성공 시 200 반환
-//        )
+        .logout(logout -> logout
+            .logoutUrl(UrlConstants.AUTH_BASE + "/logout")
+            .addLogoutHandler(customLogoutHandler)
+            .logoutSuccessHandler(customLogoutSuccessHandler)
+        )
         .exceptionHandling(
             ex -> ex
                 .accessDeniedHandler(customAccessDeniedHandler) // 403 권한없음
