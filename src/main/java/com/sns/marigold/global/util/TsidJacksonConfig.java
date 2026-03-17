@@ -14,7 +14,7 @@ import java.io.IOException;
 
 /*
 @RequestBody 기반의 JSON 포맷 데이터를 담당.
-DTO필드에 Serializer/Deserializer 추가해야 적용.
+DTO필드에 Serializer/Deserializer 추가하여 적용.
  */
 public class TsidJacksonConfig {
 
