@@ -2,9 +2,6 @@ package com.sns.marigold.auth.common.service;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
-import com.sns.marigold.auth.common.util.CookieManager;
-
-import jakarta.servlet.http.HttpServletResponse;
 
 import java.util.Collections;
 
@@ -19,14 +16,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class AuthService {
 
-  private final CookieManager cookieManager;
-
-  // OAuth2 로그인 & 회원가입 -> Spring security 에서 처리 (SecurityConfig & OAuth2UserService)
-
-  public void logout(HttpServletResponse response, Authentication authentication) {
-    cookieManager.expireCookie(response, "accessToken");
-    cookieManager.expireCookie(response, "refreshToken");
-  }
+  // OAuth2 로그인/로그아웃 & 회원가입 -> Spring security 에서 처리 (SecurityConfig & OAuth2UserService)
 
   public UserAuthStatusDto getAuthStatus(
       Authentication authentication) {
