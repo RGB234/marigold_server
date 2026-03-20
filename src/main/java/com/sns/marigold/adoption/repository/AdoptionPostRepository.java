@@ -1,6 +1,6 @@
 package com.sns.marigold.adoption.repository;
 
-import com.sns.marigold.adoption.entity.AdoptionInfo;
+import com.sns.marigold.adoption.entity.AdoptionPost;
 
 import java.util.List;
 
@@ -12,34 +12,34 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface AdoptionInfoRepository extends JpaRepository<AdoptionInfo, Long>,
-    JpaSpecificationExecutor<AdoptionInfo> {
+public interface AdoptionPostRepository extends JpaRepository<AdoptionPost, Long>,
+    JpaSpecificationExecutor<AdoptionPost> {
 
-  // @Query("SELECT a FROM AdoptionInfo a WHERE a.writer.id = :writerId")
-  Page<AdoptionInfo> findByWriter_Id(@Param("writerId") Long writerId, Pageable pageable);
+  // @Query("SELECT a FROM AdoptionPost a WHERE a.writer.id = :writerId")
+  Page<AdoptionPost> findByWriter_Id(@Param("writerId") Long writerId, Pageable pageable);
 
   // clearAutomatically = true : 벌크 연산 후 영속성 컨텍스트 초기화 (권장)
   @Modifying(clearAutomatically = true)
-  @Query("DELETE FROM AdoptionInfo a WHERE a.writer.id = :writerId")
+  @Query("DELETE FROM AdoptionPost a WHERE a.writer.id = :writerId")
   void deleteByWriter(@Param("writerId") Long writerId);
 
   // @Modifying(clearAutomatically = true)
-  // @Query("DELETE FROM AdoptionImage a WHERE a.adoptionInfo.writer.id =
-  // :writerId AND a.adoptionInfo.completed = false")
+  // @Query("DELETE FROM AdoptionImage a WHERE a.adoptionPost.writer.id =
+  // :writerId AND a.adoptionPost.completed = false")
   // void deleteImagesByWriterAndCompletedIsFalse(@Param("writerId") UUID
   // writerId);
 
   @Modifying(clearAutomatically = true)
-  @Query("DELETE FROM AdoptionImage a " +
-      "WHERE a.adoptionInfo.id IN (" +
-      "   SELECT i.id FROM AdoptionInfo i " +
+  @Query("DELETE FROM AdoptionPostImage a " +
+      "WHERE a.adoptionPost.id IN (" +
+      "   SELECT i.id FROM AdoptionPost i " +
       "   WHERE i.writer.id = :writerId" +
       ")")
   void deleteImagesByWriter(@Param("writerId") Long writerId);
 
-  @Query("SELECT a.storedFileName FROM AdoptionImage a " +
-    "WHERE a.adoptionInfo.id IN (" + 
-      "   SELECT i.id FROM AdoptionInfo i " +
+  @Query("SELECT a.storedFileName FROM AdoptionPostImage a " +
+    "WHERE a.adoptionPost.id IN (" + 
+      "   SELECT i.id FROM AdoptionPost i " +
       "   WHERE i.writer.id = :writerId" +
       ")")
   List<String> findStoredFileNamesByWriter(@Param("writerId") Long writerId);

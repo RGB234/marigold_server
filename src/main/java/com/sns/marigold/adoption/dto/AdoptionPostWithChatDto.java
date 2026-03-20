@@ -1,38 +1,31 @@
-package com.sns.marigold.chat.dto;
+package com.sns.marigold.adoption.dto;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.sns.marigold.global.util.TsidJacksonConfig;
 import java.time.LocalDateTime;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
-public class ChatRoomDto {
+@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class AdoptionPostWithChatDto {
+
+  private AdoptionPostDto adoptionPost;
+  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
+  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
+  private Long chatRoomId;
 
   @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
   @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
-  private Long id;
+  private Long receiverId;
 
-  private Long postId;
-  private String postTitle;
-  private LocalDateTime createdAt;
+  private String receiverNickname;
 
-  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
-  private Long user1Id;
-  private String user1Nickname;
-
-  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
-  private Long user2Id;
-  private String user2Nickname;
-
+  private LocalDateTime chatCreatedAt;
 }

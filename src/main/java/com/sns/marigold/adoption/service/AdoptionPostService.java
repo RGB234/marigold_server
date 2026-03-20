@@ -1,18 +1,18 @@
 package com.sns.marigold.adoption.service;
 
-import com.sns.marigold.adoption.dto.AdoptionInfoCreateDto;
-import com.sns.marigold.adoption.dto.AdoptionInfoDetailDto;
-import com.sns.marigold.adoption.dto.AdoptionInfoDto;
-import com.sns.marigold.adoption.dto.AdoptionInfoSearchFilterDto;
-import com.sns.marigold.adoption.dto.AdoptionInfoUpdateDto;
-import com.sns.marigold.adoption.dto.AdoptionWithChatDto;
-import com.sns.marigold.adoption.entity.AdoptionImage;
-import com.sns.marigold.adoption.entity.AdoptionInfo;
-import com.sns.marigold.adoption.entity.AdoptionInfoEditor;
-import com.sns.marigold.adoption.enums.AdoptionStatus;
-import com.sns.marigold.adoption.exception.AdoptionException;
-import com.sns.marigold.adoption.repository.AdoptionInfoRepository;
-import com.sns.marigold.adoption.specification.AdoptionInfoSpecification;
+import com.sns.marigold.adoption.dto.AdoptionPostCreateDto;
+import com.sns.marigold.adoption.dto.AdoptionPostDetailDto;
+import com.sns.marigold.adoption.dto.AdoptionPostDto;
+import com.sns.marigold.adoption.dto.AdoptionPostSearchFilterDto;
+import com.sns.marigold.adoption.dto.AdoptionPostUpdateDto;
+import com.sns.marigold.adoption.dto.AdoptionPostWithChatDto;
+import com.sns.marigold.adoption.entity.AdoptionPostImage;
+import com.sns.marigold.adoption.entity.AdoptionPost;
+import com.sns.marigold.adoption.entity.AdoptionPostEditor;
+import com.sns.marigold.adoption.enums.AdoptionPostStatus;
+import com.sns.marigold.adoption.exception.AdoptionPostException;
+import com.sns.marigold.adoption.repository.AdoptionPostRepository;
+import com.sns.marigold.adoption.specification.AdoptionPostSpecification;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.service.ChatService;
@@ -42,37 +42,37 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class AdoptionInfoService {
+public class AdoptionPostService {
 
   private final UserService userService;
-  private final AdoptionInfoRepository adoptionInfoRepository;
+  private final AdoptionPostRepository adoptionPostRepository;
   private final ChatService chatService;
   private final S3Service s3Service;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
 
   @Transactional(readOnly = true)
-  public AdoptionInfo findEntityById(@NonNull Long id) {
-    return adoptionInfoRepository.findById(id)
-        .orElseThrow(AdoptionException::forAdoptionInfoNotExists);
+  public AdoptionPost findEntityById(@NonNull Long id) {
+    return adoptionPostRepository.findById(id)
+        .orElseThrow(AdoptionPostException::forAdoptionPostNotExists);
   }
 
-  public Long create(AdoptionInfoCreateDto dto, @NonNull Long writerId) {
+  public Long create(AdoptionPostCreateDto dto, @NonNull Long writerId) {
     List<MultipartFile> images =
         dto.getImages() != null ? dto.getImages() : Collections.emptyList();
     List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(images);
 
     User writer = userService.findEntityById(writerId);
-    AdoptionInfo adoptionInfo = dto.toEntity(writer);
+    AdoptionPost adoptionPost = dto.toEntity(writer);
 
     try {
       return transactionTemplate.execute(status -> {
-        adoptionInfo.changeImages(uploadedImages.stream().map(image -> AdoptionImage.builder()
+        adoptionPost.changeImages(uploadedImages.stream().map(image -> AdoptionPostImage.builder()
             .storedFileName(image.getStoredFileName())
             .originalFileName(image.getOriginalFileName())
             .build()).collect(Collectors.toList()));
 
-        return adoptionInfoRepository.save(adoptionInfo).getId();
+        return adoptionPostRepository.save(adoptionPost).getId();
       });
 
     } catch (Exception e) {
@@ -93,10 +93,10 @@ public class AdoptionInfoService {
 
 
   public void update(@NonNull Long postId, @NonNull Long userId,
-      @NonNull AdoptionInfoUpdateDto dto) {
-    AdoptionInfo adoptionInfo = findEntityById(postId);
+      @NonNull AdoptionPostUpdateDto dto) {
+    AdoptionPost adoptionPost = findEntityById(postId);
 
-    validateWriter(adoptionInfo, userId);
+    validateWriter(adoptionPost, userId);
 
     // 1. 새 이미지 S3 업로드 (실패 시 예외 발생, 파일 자동 삭제됨)
     // 트랜잭션 외부에서 수행하여 DB 커넥션 점유 최소화
@@ -108,20 +108,20 @@ public class AdoptionInfoService {
           dto.getImagesToKeep() != null ? dto.getImagesToKeep() : Collections.emptyList();
 
       // 3. 삭제할 기존 이미지 목록 미리 계산 (DB 조회 필요 없음, 엔티티에서 추출)
-      List<String> storedFileNamesToDelete = adoptionInfo.getImages().stream()
-          .map(AdoptionImage::getStoredFileName)
+      List<String> storedFileNamesToDelete = adoptionPost.getImages().stream()
+          .map(AdoptionPostImage::getStoredFileName)
           .filter(fileName -> !imagesToKeep.contains(fileName))
           .collect(Collectors.toList());
 
       // 4. 새로 추가할 이미지 엔티티 생성 준비
-      List<AdoptionImage> newImages = uploadedImages.stream()
-          .map(image -> AdoptionImage.builder()
+      List<AdoptionPostImage> newImages = uploadedImages.stream()
+          .map(image -> AdoptionPostImage.builder()
               .storedFileName(image.getStoredFileName())
               .originalFileName(image.getOriginalFileName())
               .build())
           .toList();
 
-      AdoptionInfoEditor editor = AdoptionInfoEditor.builder()
+      AdoptionPostEditor editor = AdoptionPostEditor.builder()
           .title(dto.getTitle())
           .age(dto.getAge())
           .weight(dto.getWeight())
@@ -135,7 +135,7 @@ public class AdoptionInfoService {
       // 5. DB 트랜잭션 (데이터 변경)
       transactionTemplate.executeWithoutResult(status -> {
         // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
-        AdoptionInfo info = findEntityById(postId);
+        AdoptionPost info = findEntityById(postId);
         info.updateInfo(editor);
 
         // 이미지 교체 (유지할 것은 두고, 삭제할 것은 지우고, 새것은 추가)
@@ -167,28 +167,28 @@ public class AdoptionInfoService {
 
   // 검색
   @Transactional(readOnly = true)
-  public Page<AdoptionInfoDto> search(AdoptionInfoSearchFilterDto dto, @NonNull Pageable pageable) {
+  public Page<AdoptionPostDto> search(AdoptionPostSearchFilterDto dto, @NonNull Pageable pageable) {
 
-    Page<AdoptionInfo> resultPage = adoptionInfoRepository.findAll(
+    Page<AdoptionPost> resultPage = adoptionPostRepository.findAll(
         Specification.allOf(
-            AdoptionInfoSpecification.hasSpecies(dto.getSpecies()),
-            AdoptionInfoSpecification.hasSex(dto.getSex())),
+            AdoptionPostSpecification.hasSpecies(dto.getSpecies()),
+            AdoptionPostSpecification.hasSex(dto.getSex())),
         pageable);
 
-    return resultPage.map(AdoptionInfoDto::from);
+    return resultPage.map(AdoptionPostDto::from);
   }
 
   @Transactional(readOnly = true)
-  public Page<AdoptionInfoDto> searchByWriter(Long writerId, @NonNull Pageable pageable) {
-    Page<AdoptionInfo> resultPage = adoptionInfoRepository.findByWriter_Id(writerId, pageable);
-    return resultPage.map(AdoptionInfoDto::from);
+  public Page<AdoptionPostDto> searchByWriter(Long writerId, @NonNull Pageable pageable) {
+    Page<AdoptionPost> resultPage = adoptionPostRepository.findByWriter_Id(writerId, pageable);
+    return resultPage.map(AdoptionPostDto::from);
   }
 
   // 상세
   @Transactional(readOnly = true)
-  public AdoptionInfoDetailDto getDetail(@NonNull Long id) {
-    AdoptionInfo info = findEntityById(id);
-    AdoptionInfoDetailDto detailResponseDto = AdoptionInfoDetailDto.from(info);
+  public AdoptionPostDetailDto getDetail(@NonNull Long id) {
+    AdoptionPost info = findEntityById(id);
+    AdoptionPostDetailDto detailResponseDto = AdoptionPostDetailDto.from(info);
 
     List<String> imageUrls = info.getImages().stream()
         .map(image -> s3Service.getPresignedGetUrl(image.getStoredFileName()))
@@ -199,18 +199,18 @@ public class AdoptionInfoService {
     return detailResponseDto;
   }
 
-  public Page<AdoptionWithChatDto> searchByJoinedChats(@NonNull Long uid, @NonNull Pageable pageable) {
+  public Page<AdoptionPostWithChatDto> searchByJoinedChats(@NonNull Long uid, @NonNull Pageable pageable) {
     Page<ChatRoomDto> rooms = chatService.getUserRooms(uid, pageable);
     return rooms.map(room -> {
       Long postId = room.getPostId();
-      AdoptionInfo adoptionInfo = findEntityById(postId);
-      AdoptionInfoDto infoDto = AdoptionInfoDto.from(adoptionInfo);
+      AdoptionPost adoptionPost = findEntityById(postId);
+      AdoptionPostDto infoDto = AdoptionPostDto.from(adoptionPost);
       
       Long receiverId = room.getUser1Id().equals(uid) ? room.getUser2Id() : room.getUser1Id();
       String receiverNickname = room.getUser1Id().equals(uid) ? room.getUser2Nickname() : room.getUser1Nickname();
 
-      return AdoptionWithChatDto.builder()
-          .adoptionInfo(infoDto)
+      return AdoptionPostWithChatDto.builder()
+          .adoptionPost(infoDto)
           .chatRoomId(room.getId())
           .receiverId(receiverId)
           .receiverNickname(receiverNickname)
@@ -220,8 +220,8 @@ public class AdoptionInfoService {
   }
 
   @Transactional
-  public void updateStatus(@NonNull Long id, @NonNull AdoptionStatus status, @NonNull Long userId) {
-    AdoptionInfo info = findEntityById(id);
+  public void updateStatus(@NonNull Long id, @NonNull AdoptionPostStatus status, @NonNull Long userId) {
+    AdoptionPost info = findEntityById(id);
     validateWriter(info, userId);
     info.updateStatus(status);
   }
@@ -231,7 +231,7 @@ public class AdoptionInfoService {
     List<ImageUploadDto> images;
 
     images = transactionTemplate.execute(status -> {
-      AdoptionInfo info = findEntityById(id);
+      AdoptionPost info = findEntityById(id);
       validateWriter(info, userId);
 
       // 삭제 전 이미지 리스트 추출 (영속성 컨텍스트가 살아있을 때 수행)
@@ -239,7 +239,7 @@ public class AdoptionInfoService {
           ? info.getImages().stream().map(ImageUploadDto::from).collect(Collectors.toList())
           : Collections.emptyList();
 
-      adoptionInfoRepository.delete(info);
+      adoptionPostRepository.delete(info);
 
       return dtoList;
     });
@@ -249,7 +249,7 @@ public class AdoptionInfoService {
     }
   }
 
-  public void validateWriter(AdoptionInfo info, Long userId) {
+  public void validateWriter(AdoptionPost info, Long userId) {
     if (!info.getWriter().getId().equals(userId)) {
       throw AuthException.forAccessDenied();
     }

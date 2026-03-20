@@ -39,9 +39,9 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "존재하지 않는 사용자입니다."),
     USER_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_ALREADY_EXISTS", "이미 존재하는 사용자입니다."),
     USER_NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_NICKNAME_ALREADY_EXISTS", "이미 존재하는 닉네임입니다."),
-    // AdoptionInfo
-    ADOPTION_INFO_NOT_FOUND(HttpStatus.NOT_FOUND, "ADOPTION_INFO_NOT_FOUND", "존재하지 않는 입양 정보입니다."),
-    ADOPTION_INFO_COMPLETED(HttpStatus.BAD_REQUEST, "ADOPTION_INFO_COMPLETED", "입양 완료된 게시글은 수정할 수 없습니다.");
+    // AdoptionPost
+    ADOPTION_POST_NOT_FOUND(HttpStatus.NOT_FOUND, "ADOPTION_POST_NOT_FOUND", "존재하지 않는 입양 게시글입니다."),
+    ADOPTION_POST_COMPLETED(HttpStatus.BAD_REQUEST, "ADOPTION_POST_COMPLETED", "입양 완료된 게시글은 수정할 수 없습니다.");
 
     private final HttpStatus status;
     private final String code;

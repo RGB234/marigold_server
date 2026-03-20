@@ -9,7 +9,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class AdoptionInfoSearchFilterDto {
+public class AdoptionPostSearchFilterDto {
   @EnumType(target = Species.class)
   private Species species;
   

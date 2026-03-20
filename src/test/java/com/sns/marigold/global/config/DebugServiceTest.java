@@ -1,8 +1,8 @@
 package com.sns.marigold.global.config;
 
-import com.sns.marigold.adoption.dto.AdoptionInfoCreateDto;
+import com.sns.marigold.adoption.dto.AdoptionPostCreateDto;
 import com.sns.marigold.adoption.enums.*; // Enum 한 번에 import
-import com.sns.marigold.adoption.service.AdoptionInfoService;
+import com.sns.marigold.adoption.service.AdoptionPostService;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.user.dto.create.UserCreateDto;
@@ -34,7 +34,7 @@ import java.util.Objects;
 public class DebugServiceTest {
 
     @Autowired private UserService userService;
-    @Autowired private AdoptionInfoService adoptionInfoService;
+    @Autowired private AdoptionPostService adoptionPostService;
     private final Logger logger = LoggerFactory.getLogger(DebugServiceTest.class);
 
     @Test
@@ -97,7 +97,7 @@ public class DebugServiceTest {
         );
 
         // 서비스 호출
-        adoptionInfoService.create(AdoptionInfoCreateDto.builder()
+        adoptionPostService.create(AdoptionPostCreateDto.builder()
                 .title(title)
                 .species(species)
                 .sex(sex)

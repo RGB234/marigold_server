@@ -1,6 +1,6 @@
 package com.sns.marigold.adoption.entity;
 
-import com.sns.marigold.adoption.enums.AdoptionStatus;
+import com.sns.marigold.adoption.enums.AdoptionPostStatus;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
@@ -41,7 +41,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @DynamicUpdate // 변경된 필드만 UPDATE 쿼리 생성
-public class AdoptionInfo {
+public class AdoptionPost {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY) // Auto increment
@@ -87,7 +87,7 @@ public class AdoptionInfo {
   // 입양 상태
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
-  private AdoptionStatus status;
+  private AdoptionPostStatus status;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "adopter_id") // nullable = true (기본값). 입양 전엔 null이어야 하므로 nullable = true
@@ -101,13 +101,13 @@ public class AdoptionInfo {
   // 1:N 관계 설정
   // cascade = CascadeType.ALL: 게시글 저장/삭제 시 이미지도 같이 저장/삭제
   // orphanRemoval = true: 리스트에서 이미지를 제거하면 DB에서도 삭제됨
-  @OneToMany(mappedBy = "adoptionInfo", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-  private List<AdoptionImage> images;
+  @OneToMany(mappedBy = "adoptionPost", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<AdoptionPostImage> images;
 
 
   @Builder
-  public AdoptionInfo(User writer, Species species, String title, Integer age,
-      Sex sex, String area, Double weight, Neutering neutering, List<AdoptionImage> images,
+  public AdoptionPost(User writer, Species species, String title, Integer age,
+      Sex sex, String area, Double weight, Neutering neutering, List<AdoptionPostImage> images,
       String features) {
     this.writer = writer;
     this.species = species;
@@ -120,11 +120,11 @@ public class AdoptionInfo {
     this.features = features;
     //
     this.images = (images != null) ? images : new ArrayList<>();
-    this.status = AdoptionStatus.PROCEEDING;
+    this.status = AdoptionPostStatus.PROCEEDING;
   }
 
   // Null로 수정 가능
-  public void updateInfo(AdoptionInfoEditor editor) {
+  public void updateInfo(AdoptionPostEditor editor) {
     this.title = editor.getTitle();
     this.age = editor.getAge();
     this.weight = editor.getWeight();
@@ -143,9 +143,9 @@ public class AdoptionInfo {
   // }
 
   // 입양 상태 변경 (예약 등)
-  public void updateStatus(AdoptionStatus status) {
+  public void updateStatus(AdoptionPostStatus status) {
       this.status = status;
-      if (status != AdoptionStatus.COMPLETED) {
+      if (status != AdoptionPostStatus.COMPLETED) {
           this.adopter = null;
           this.adoptedAt = null;
       }
@@ -159,25 +159,25 @@ public class AdoptionInfo {
   // }
 
   // --- [연관 관계 편의 메서드 수정] ---
-  public void addImage(AdoptionImage image) {
+  public void addImage(AdoptionPostImage image) {
     this.images.add(image);
     // [중요] 자식 엔티티에도 부모(나 자신)를 세팅해줘야 FK가 들어감
-    if (image.getAdoptionInfo() != this) {
-      image.setAdoptionInfo(this);
+    if (image.getAdoptionPost() != this) {
+      image.setAdoptionPost(this);
     }
   }
 
   // ==========================================================
   // 이미지 수정 (효율적인 교체 전략)
   // ==========================================================
-  public void replaceImages(List<String> remainingImageNames, List<AdoptionImage> newImages) {
+  public void replaceImages(List<String> remainingImageNames, List<AdoptionPostImage> newImages) {
     // 1. 삭제할 이미지 제거 (리스트에서 제거하면 orphanRemoval=true에 의해 DB 삭제됨)
     // remainingImageNames에 포함되지 않은 기존 이미지는 삭제
     this.images.removeIf(image -> !remainingImageNames.contains(image.getStoredFileName()));
 
     // 2. 새로운 이미지 추가
     if (newImages != null) {
-      for (AdoptionImage image : newImages) {
+      for (AdoptionPostImage image : newImages) {
         this.addImage(image);
       }
     }
@@ -186,13 +186,13 @@ public class AdoptionInfo {
   // ==========================================================
   // 이미지 수정 (전체 교체 전략)
   // ==========================================================
-  public void changeImages(List<AdoptionImage> newImages) {
+  public void changeImages(List<AdoptionPostImage> newImages) {
     // 1. 기존 이미지 리스트를 비움 (orphanRemoval=true 덕분에 DB에서 DELETE 쿼리 발생)
     this.images.clear();
 
     // 2. 새로운 이미지 추가 (CascadeType.ALL 덕분에 DB에 INSERT 쿼리 발생)
     if (newImages != null && !newImages.isEmpty()) {
-      for (AdoptionImage image : newImages) {
+      for (AdoptionPostImage image : newImages) {
         this.addImage(image); // 편의 메서드 재사용 (양방향 연관관계 설정)
       }
     }

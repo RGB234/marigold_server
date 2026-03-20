@@ -5,7 +5,9 @@ import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.dto.NewChatDto;
 import com.sns.marigold.chat.service.ChatService;
-import jakarta.validation.Valid;
+import com.sns.marigold.global.UrlConstants;
+import com.sns.marigold.global.annotation.TsidType;
+import io.hypersistence.tsid.TSID;
 import jakarta.validation.groups.Default;
 import java.util.List;
 import java.util.Objects;
@@ -19,15 +21,13 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.sns.marigold.global.UrlConstants;
 
 @RestController
 @RequestMapping(UrlConstants.CHAT_BASE)
@@ -46,7 +46,7 @@ public class ChatRoomController {
     return ResponseEntity.ok(
         chatService.createRoom(Objects.requireNonNull(principal.getUserId()),
             newChatDto.getReceiverId(),
-            newChatDto.getAdoptionInfoId()));
+            newChatDto.getAdoptionPostId()));
   }
 
   @PreAuthorize("isAuthenticated()")
@@ -61,7 +61,15 @@ public class ChatRoomController {
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/rooms/{roomId}/messages")
   public ResponseEntity<List<ChatMessageDto>> getRoomMessages(
-      @NonNull @PathVariable("roomId") Long roomId) {
+      @NonNull @PathVariable("roomId") @TsidType Long roomId) {
     return ResponseEntity.ok(chatService.getRoomMessages(roomId));
+  }
+
+  @PreAuthorize("isAuthenticated()")
+  @DeleteMapping("/rooms/{roomId}")
+  public ResponseEntity<Void> deleteRoom(@AuthenticationPrincipal CustomPrincipal principal,
+      @NonNull @PathVariable("roomId") @TsidType Long roomId) {
+    chatService.leaveRoom(roomId, Objects.requireNonNull(principal.getUserId()));
+    return ResponseEntity.ok().build();
   }
 }

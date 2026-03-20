@@ -1,6 +1,6 @@
 package com.sns.marigold.user.service;
 
-import com.sns.marigold.adoption.repository.AdoptionInfoRepository;
+import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.oauth2.RandomUsernameGenerator;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.storage.dto.ImageUploadDto;
@@ -37,7 +37,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class UserService {
 
   private final UserRepository userRepository;
-  private final AdoptionInfoRepository adoptionInfoRepository;
+  private final AdoptionPostRepository adoptionPostRepository;
   private final RandomUsernameGenerator randomUsernameGenerator;
   private final S3Service s3Service;
   private final TransactionTemplate transactionTemplate;
@@ -193,13 +193,13 @@ public class UserService {
     }
 
     // 작성자 게시글 이미지 스토리지 저장 파일명 조회 및 백업
-    adoptionInfoRepository.findStoredFileNamesByWriter(uid).forEach(imageUrls::add);
+    adoptionPostRepository.findStoredFileNamesByWriter(uid).forEach(imageUrls::add);
     // 작성자 게시글의 이미지부터 삭제
     // 여기서 clearAutomatically=true 발동 -> 영속성 컨텍스트 초기화됨
-    adoptionInfoRepository.deleteImagesByWriter(uid);
+    adoptionPostRepository.deleteImagesByWriter(uid);
     // 작성자 게시글 삭제
     // 여기서 clearAutomatically=true 발동 -> 영속성 컨텍스트 초기화됨
-    adoptionInfoRepository.deleteByWriter(uid);
+    adoptionPostRepository.deleteByWriter(uid);
 
     // soft delete
     user.softDelete();
