@@ -1,6 +1,5 @@
 package com.sns.marigold.chat.entity;
 
-import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.user.entity.User;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
@@ -10,9 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -28,43 +25,38 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @AllArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
-@Table(name = "chat_rooms", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"user1_id", "user2_id"})
-})
-public class ChatRoom {
+@Table(name = "room_participants")
+public class RoomParticipant {
 
   @Id
   @Tsid
   @Column(updatable = false, nullable = false)
   private Long id;
 
-  @OneToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "adoption_post_id", nullable = false)
-  private AdoptionPost adoptionPost;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "chat_room_id", nullable = false)
+  private ChatRoom chatRoom;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "user1_id", nullable = false)
-  private User user1;
-
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "user2_id", nullable = false)
-  private User user2;
+  @JoinColumn(name = "user_id", nullable = false)
+  private User user;
 
   @CreatedDate
   @Column(updatable = false)
-  private LocalDateTime createdAt;
+  private LocalDateTime joinedAt;
 
-  public static ChatRoom create(User user1, User user2, AdoptionPost adoptionPost) {
-    // Ensure user1.id < user2.id for consistent room identification
-    if (user1.getId() > user2.getId()) {
-      User temp = user1;
-      user1 = user2;
-      user2 = temp;
-    }
-    return ChatRoom.builder()
-        .user1(user1)
-        .user2(user2)
-        .adoptionPost(adoptionPost)
-        .build();
+  private LocalDateTime leavedAt;
+
+  @Builder.Default
+  private boolean isDeleted = false;
+
+  public void leave() {
+    this.isDeleted = true;
+    this.leavedAt = LocalDateTime.now();
+  }
+
+  public void reJoin() {
+    this.isDeleted = false;
+    this.leavedAt = null;
   }
 }

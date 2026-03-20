@@ -18,4 +18,7 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     @Query("SELECT cr FROM ChatRoom cr WHERE cr.user1 = :user OR cr.user2 = :user ORDER BY cr.createdAt DESC")
     Page<ChatRoom> findAllByUser(@Param("user") User user, Pageable pageable);
 
+    @Query("SELECT cr FROM ChatRoom cr JOIN RoomParticipant rp ON cr = rp.chatRoom WHERE rp.user = :user AND rp.isDeleted = false ORDER BY cr.createdAt DESC")
+    Page<ChatRoom> findAllActiveByUser(@Param("user") User user, Pageable pageable);
+
 }

@@ -28,8 +28,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@Table(name = "adoption_image")
-public class AdoptionImage {
+@Table(name = "adoption_post_image")
+public class AdoptionPostImage {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -48,12 +48,12 @@ public class AdoptionImage {
     private String originalFileName;
 
     // FK
-    // AdoptionInfo의 mappedBy="adoptionInfo"와 이름이 일치해야 함
+    // AdoptionPost의 mappedBy="adoptionPost"와 이름이 일치해야 함
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "adoption_info_id") 
-    private AdoptionInfo adoptionInfo;
+    @JoinColumn(name = "adoption_post_id") 
+    private AdoptionPost adoptionPost;
 
-    public void setAdoptionInfo(AdoptionInfo adoptionInfo) {
-        this.adoptionInfo = adoptionInfo;
+    public void setAdoptionPost(AdoptionPost adoptionPost) {
+        this.adoptionPost = adoptionPost;
     }
 }

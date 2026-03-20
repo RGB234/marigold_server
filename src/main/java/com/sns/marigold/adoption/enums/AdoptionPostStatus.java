@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum AdoptionStatus {
+public enum AdoptionPostStatus {
   PROCEEDING("모집중"),
   RESERVED("예약중"),
   COMPLETED("입양완료");

@@ -2,6 +2,7 @@ package com.sns.marigold.chat.controller;
 
 import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.service.ChatService;
+import io.hypersistence.tsid.TSID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -22,6 +23,7 @@ public class ChatController {
     public void message(ChatMessageDto messageDto) {
         log.info("Received message: {}", messageDto);
         ChatMessageDto savedMessage = chatService.saveMessage(messageDto);
-        messagingTemplate.convertAndSend("/sub/chat/room/" + savedMessage.getRoomId(), savedMessage);
+        String roomIdStr = TSID.from(savedMessage.getRoomId()).toString();
+        messagingTemplate.convertAndSend("/sub/chat/room/" + roomIdStr, savedMessage);
     }
 }

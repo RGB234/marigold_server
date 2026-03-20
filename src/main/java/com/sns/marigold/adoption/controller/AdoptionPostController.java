@@ -1,13 +1,13 @@
 package com.sns.marigold.adoption.controller;
 
-import com.sns.marigold.adoption.dto.AdoptionInfoCreateDto;
-import com.sns.marigold.adoption.dto.AdoptionInfoDetailDto;
-import com.sns.marigold.adoption.dto.AdoptionInfoDto;
-import com.sns.marigold.adoption.dto.AdoptionInfoSearchFilterDto;
-import com.sns.marigold.adoption.dto.AdoptionInfoUpdateDto;
-import com.sns.marigold.adoption.dto.AdoptionWithChatDto;
-import com.sns.marigold.adoption.enums.AdoptionStatus;
-import com.sns.marigold.adoption.service.AdoptionInfoService;
+import com.sns.marigold.adoption.dto.AdoptionPostCreateDto;
+import com.sns.marigold.adoption.dto.AdoptionPostDetailDto;
+import com.sns.marigold.adoption.dto.AdoptionPostDto;
+import com.sns.marigold.adoption.dto.AdoptionPostSearchFilterDto;
+import com.sns.marigold.adoption.dto.AdoptionPostUpdateDto;
+import com.sns.marigold.adoption.dto.AdoptionPostWithChatDto;
+import com.sns.marigold.adoption.enums.AdoptionPostStatus;
+import com.sns.marigold.adoption.service.AdoptionPostService;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.global.UrlConstants;
@@ -42,26 +42,26 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping(UrlConstants.ADOPTION_BASE)
 @RequiredArgsConstructor
 @Validated
-public class AdoptionInfoController {
+public class AdoptionPostController {
 
 
-  private final AdoptionInfoService adoptionInfoService;
+  private final AdoptionPostService adoptionPostService;
 
   @PreAuthorize("isAuthenticated()")
   @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<ApiResponse<Map<String, Object>>> create(
-      @ModelAttribute @Validated({Default.class}) AdoptionInfoCreateDto dto,
+      @ModelAttribute @Validated({Default.class}) AdoptionPostCreateDto dto,
       @AuthenticationPrincipal CustomPrincipal principal) {
     // Defensive Coding
     if (principal == null) {
       throw AuthException.forUnauthorized();
     }
     Long userId = Objects.requireNonNull(principal.getUserId());
-    Long adoptionInfoId = adoptionInfoService.create(dto, userId);
+    Long adoptionPostId = adoptionPostService.create(dto, userId);
 
     return ResponseEntity.status(HttpStatus.CREATED).body(
-        ApiResponse.success(HttpStatus.CREATED, "Adoption info created successfully",
-            Map.of("id", adoptionInfoId)));
+        ApiResponse.success(HttpStatus.CREATED, "Adoption post created successfully",
+            Map.of("id", adoptionPostId)));
   }
 
   /*
@@ -71,44 +71,44 @@ public class AdoptionInfoController {
   */
   @PreAuthorize("permitAll()")
   @GetMapping("")
-  public ResponseEntity<ApiResponse<Page<AdoptionInfoDto>>> search(
-      @ModelAttribute AdoptionInfoSearchFilterDto dto,
+  public ResponseEntity<ApiResponse<Page<AdoptionPostDto>>> search(
+      @ModelAttribute AdoptionPostSearchFilterDto dto,
       @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull Pageable pageable) {
-    Page<AdoptionInfoDto> result = adoptionInfoService.search(dto, pageable);
+    Page<AdoptionPostDto> result = adoptionPostService.search(dto, pageable);
     return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResponse.success(HttpStatus.OK, "Adoption info search successfully", result));
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption post search successfully", result));
   }
 
   @PreAuthorize("permitAll()")
   @GetMapping("/writer/{userId}")
-  public ResponseEntity<ApiResponse<Page<AdoptionInfoDto>>> searchByWriter(
+  public ResponseEntity<ApiResponse<Page<AdoptionPostDto>>> searchByWriter(
       @PathVariable("userId") @TsidType Long userId,
       @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull Pageable pageable) {
-    Page<AdoptionInfoDto> result = adoptionInfoService.searchByWriter(userId, pageable);
+    Page<AdoptionPostDto> result = adoptionPostService.searchByWriter(userId, pageable);
     return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResponse.success(HttpStatus.OK, "Adoption info search by writer successfully",
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption post search by writer successfully",
             result));
   }
 
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/chat")
-  public ResponseEntity<ApiResponse<Page<AdoptionWithChatDto>>> searchByJoinedChats(
+  public ResponseEntity<ApiResponse<Page<AdoptionPostWithChatDto>>> searchByJoinedChats(
       @AuthenticationPrincipal CustomPrincipal principal,
       @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull Pageable pageable) {
     Long uid = principal.getUserId();
 
-    Page<AdoptionWithChatDto> result = adoptionInfoService.searchByJoinedChats(uid, pageable);
+    Page<AdoptionPostWithChatDto> result = adoptionPostService.searchByJoinedChats(uid, pageable);
     return ResponseEntity.status(HttpStatus.OK)
         .body(ApiResponse.success(HttpStatus.OK, "SUCCESS", result));
   }
 
   @PreAuthorize("permitAll()")
   @GetMapping("/{id}")
-  public ResponseEntity<ApiResponse<AdoptionInfoDetailDto>> getDetail(
+  public ResponseEntity<ApiResponse<AdoptionPostDetailDto>> getDetail(
       @PathVariable("id") @NonNull Long id) {
-    AdoptionInfoDetailDto result = adoptionInfoService.getDetail(id);
+    AdoptionPostDetailDto result = adoptionPostService.getDetail(id);
     return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResponse.success(HttpStatus.OK, "Adoption info detail successfully", result));
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption post detail successfully", result));
   }
 
   @PreAuthorize("isAuthenticated()")
@@ -116,17 +116,17 @@ public class AdoptionInfoController {
   public ResponseEntity<ApiResponse<?>> update(
       @NonNull @AuthenticationPrincipal CustomPrincipal principal,
       @NonNull @PathVariable("id") Long id,
-      @Validated({Default.class}) @ModelAttribute AdoptionInfoUpdateDto dto) {
+      @Validated({Default.class}) @ModelAttribute AdoptionPostUpdateDto dto) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw AuthException.forUnauthorized();
     }
 
     Objects.requireNonNull(dto, "dto cannot be null");
-    adoptionInfoService.update(id, userId, dto);
+    adoptionPostService.update(id, userId, dto);
 
     return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResponse.success(HttpStatus.OK, "Adoption info updated successfully"));
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption post updated successfully"));
   }
 
   @PreAuthorize("isAuthenticated()")
@@ -134,12 +134,12 @@ public class AdoptionInfoController {
   public ResponseEntity<ApiResponse<?>> updateStatus(
       @NonNull @AuthenticationPrincipal CustomPrincipal principal,
       @NonNull @PathVariable("id") Long id,
-      @NonNull @RequestParam("status") AdoptionStatus status) {
+      @NonNull @RequestParam("status") AdoptionPostStatus status) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw AuthException.forUnauthorized();
     }
-    adoptionInfoService.updateStatus(id, status, userId);
+    adoptionPostService.updateStatus(id, status, userId);
     return ResponseEntity.status(HttpStatus.OK)
         .body(ApiResponse.success(HttpStatus.OK, "Adoption status updated successfully"));
   }
@@ -153,8 +153,8 @@ public class AdoptionInfoController {
     if (userId == null) {
       throw AuthException.forUnauthorized();
     }
-    adoptionInfoService.delete(id, userId);
+    adoptionPostService.delete(id, userId);
     return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResponse.success(HttpStatus.OK, "Adoption info deleted successfully"));
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption post deleted successfully"));
   }
 }

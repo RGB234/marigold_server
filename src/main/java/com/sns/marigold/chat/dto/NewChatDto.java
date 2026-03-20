@@ -15,7 +15,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class NewChatDto {
   @NotNull
-  private Long adoptionInfoId;
+  private Long adoptionPostId;
 
   @NotNull
   @JsonSerialize(using = TsidJacksonConfig.Serializer.class)

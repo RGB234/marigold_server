@@ -3,9 +3,13 @@ package com.sns.marigold.chat.dto;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.sns.marigold.global.util.TsidJacksonConfig;
-import lombok.*;
-
 import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 @Getter
 @Setter
@@ -15,13 +19,15 @@ import java.time.LocalDateTime;
 @ToString
 public class ChatMessageDto {
 
-    private Long roomId;
+  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
+  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
+  private Long roomId;
 
-    @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-    @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
-    private Long senderId;
+  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
+  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
+  private Long senderId;
 
-    private String senderNickname;
-    private String message;
-    private LocalDateTime createdAt;
+  private String senderNickname;
+  private String message;
+  private LocalDateTime createdAt;
 }
