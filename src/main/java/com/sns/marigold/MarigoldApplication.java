@@ -9,7 +9,8 @@ import org.springframework.data.web.config.EnableSpringDataWebSupport.PageSerial
 
 @SpringBootApplication
 @EnableJpaAuditing
-@EnableSpringDataWebSupport(pageSerializationMode = PageSerializationMode.VIA_DTO) // PAGE 객체를 표준 DTO형태로 내려보냄
+@EnableSpringDataWebSupport(
+    pageSerializationMode = PageSerializationMode.VIA_DTO) // PAGE 객체를 표준 DTO형태로 내려보냄
 @ConfigurationPropertiesScan
 public class MarigoldApplication {
 

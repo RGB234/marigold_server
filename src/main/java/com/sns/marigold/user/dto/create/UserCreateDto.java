@@ -3,7 +3,6 @@ package com.sns.marigold.user.dto.create;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.annotation.EnumType;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;

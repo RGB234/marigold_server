@@ -15,15 +15,15 @@ import org.springframework.stereotype.Controller;
 @RequiredArgsConstructor
 public class ChatController {
 
-    private final SimpMessagingTemplate messagingTemplate;
-    private final ChatService chatService;
+  private final SimpMessagingTemplate messagingTemplate;
+  private final ChatService chatService;
 
-    @PreAuthorize("isAuthenticated()")
-    @MessageMapping("/chat/message")
-    public void message(ChatMessageDto messageDto) {
-        log.info("Received message: {}", messageDto);
-        ChatMessageDto savedMessage = chatService.saveMessage(messageDto);
-        String roomIdStr = TSID.from(savedMessage.getRoomId()).toString();
-        messagingTemplate.convertAndSend("/sub/chat/room/" + roomIdStr, savedMessage);
-    }
+  @PreAuthorize("isAuthenticated()")
+  @MessageMapping("/chat/message")
+  public void message(ChatMessageDto messageDto) {
+    log.info("Received message: {}", messageDto);
+    ChatMessageDto savedMessage = chatService.saveMessage(messageDto);
+    String roomIdStr = TSID.from(savedMessage.getRoomId()).toString();
+    messagingTemplate.convertAndSend("/sub/chat/room/" + roomIdStr, savedMessage);
+  }
 }

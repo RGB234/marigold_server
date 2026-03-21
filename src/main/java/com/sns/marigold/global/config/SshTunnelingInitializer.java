@@ -14,22 +14,26 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
-//@ConfigurationProperties(prefix = "ssh") // application.properties 값 사용
+// @ConfigurationProperties(prefix = "ssh") // application.properties 값 사용
 public class SshTunnelingInitializer {
 
   // ** SSH host **
   @Value("${ssh.host}")
   private String host; // application.properties 의 ssh.host 값과 자동 매핑
+
   @Value("${ssh.port}")
   private int port;
+
   @Value("${ssh.user}")
   private String user;
+
   @Value("${ssh.private_key}")
   private String privateKey;
 
   // ** Remote host **
   @Value("${ssh.remote_host}")
   private String remoteHost;
+
   @Value("${ssh.remote_port}")
   private int remotePort;
 
@@ -47,15 +51,15 @@ public class SshTunnelingInitializer {
     Integer forwardedPort = null;
 
     JSch.setLogger(
-      new com.jcraft.jsch.Logger() {
-        public boolean isEnabled(int level) {
-          return true;
-        }
+        new com.jcraft.jsch.Logger() {
+          public boolean isEnabled(int level) {
+            return true;
+          }
 
-        public void log(int level, String message) {
-          System.out.println("JSch: " + message);
-        }
-      });
+          public void log(int level, String message) {
+            System.out.println("JSch: " + message);
+          }
+        });
 
     try {
       logger.info("Ssh tunneling start");
@@ -91,7 +95,7 @@ public class SshTunnelingInitializer {
       // -> SSH server (AWS EC2): ssh.host@ssh.port
       // -> Remote server (AWS RDS): ssh.remoteHost@ssh.remotePort
       forwardedPort =
-        session.setPortForwardingL(3030, remoteHost, remotePort); // lport 0 : auto assigned port
+          session.setPortForwardingL(3030, remoteHost, remotePort); // lport 0 : auto assigned port
       logger.info("port forwarding end");
     } catch (Exception e) {
       logger.error("SSH Tunneling Error");

@@ -47,8 +47,7 @@ public class RoomParticipant {
 
   private LocalDateTime leavedAt;
 
-  @Builder.Default
-  private boolean isDeleted = false;
+  @Builder.Default private boolean isDeleted = false;
 
   public void leave() {
     this.isDeleted = true;

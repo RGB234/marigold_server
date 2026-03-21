@@ -1,26 +1,25 @@
 package com.sns.marigold.user.entity;
 
+import com.sns.marigold.auth.common.enums.Role;
+import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
-import com.sns.marigold.auth.common.enums.Role;
-import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-
-import io.hypersistence.utils.hibernate.id.Tsid;
-
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "users", uniqueConstraints = {
-    @UniqueConstraint(columnNames = { "providerInfo", "providerId" }),
-    @UniqueConstraint(columnNames = { "nickname" })
-})
+@Table(
+    name = "users",
+    uniqueConstraints = {
+      @UniqueConstraint(columnNames = {"providerInfo", "providerId"}),
+      @UniqueConstraint(columnNames = {"nickname"})
+    })
 @Builder
 @AllArgsConstructor
 public class User {
@@ -37,18 +36,24 @@ public class User {
   @Column(nullable = true)
   private String providerId; // 소셜로그인 계정 id
 
+  @Column(nullable = true, unique = true)
+  private String email;
+
+  @Column(nullable = true)
+  private String password;
+
   @Enumerated(EnumType.STRING) // DB에 숫자가 아닌 문자열(ROLE_PERSON)로 저장
   @Column(nullable = false)
   @Builder.Default // 빌더로 생성 시 값을 안 넣으면 기본값 적용
   private Role role = Role.ROLE_PERSON;
 
   // 공개 정보
-  @Column(length = 50, nullable = false, unique = true) // 12자 이하 + #DEL_TSID -> 12 + 5 + 18 = 35
+  @Column(length = 50, nullable = false, unique = true) // 12자 이하 + #deleted -> 12 + 8 = 20
   private String nickname;
 
   /**
-   * 1. orphanRemoval = true 추가: image를 null로 바꾸거나 다른 걸로 교체하면 기존 이미지는 DB에서 자동 삭제
-   * 2. CascadeType.ALL: User 저장 시 Image도 자동 저장
+   * 1. orphanRemoval = true 추가: image를 null로 바꾸거나 다른 걸로 교체하면 기존 이미지는 DB에서 자동 삭제 2. CascadeType.ALL:
+   * User 저장 시 Image도 자동 저장
    */
   @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
   @JoinColumn(name = "image_id", nullable = true)
@@ -65,7 +70,6 @@ public class User {
     this.image = null;
   }
 
-  
   public void update(String nickname) {
     if (nickname != null) {
       this.nickname = nickname;
@@ -78,13 +82,13 @@ public class User {
     }
     if (newImage != null) {
       saveImage(newImage);
-    }else{
+    } else {
       deleteImage();
     }
   }
 
-  public void softDelete(){
-    this.nickname = this.nickname+"#deleted";
+  public void softDelete() {
+    this.nickname = this.nickname + "#deleted";
     this.image = null;
     this.providerInfo = null;
     this.providerId = null;

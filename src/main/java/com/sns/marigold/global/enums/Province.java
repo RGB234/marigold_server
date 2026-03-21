@@ -27,7 +27,6 @@ public enum Province {
   JEONNAM("전라남도", JeonnamDistrict.values()),
   JEJU("제주특별자치도", JejuDistrict.values());
 
-
   private final String name;
   private final Enum<?>[] children;
 
@@ -392,4 +391,3 @@ public enum Province {
     private final String name;
   }
 }
-

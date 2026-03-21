@@ -1,8 +1,6 @@
 package com.sns.marigold.storage.dto;
 
 import com.sns.marigold.adoption.entity.AdoptionPostImage;
-
-import com.sns.marigold.adoption.entity.AdoptionPostImage;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -20,10 +18,6 @@ public class ImageUploadDto {
   }
 
   public static ImageUploadDto emptyDto() {
-    return ImageUploadDto.builder()
-        .storedFileName(null)
-        .originalFileName(null)
-        .build();
+    return ImageUploadDto.builder().storedFileName(null).originalFileName(null).build();
   }
 }
-

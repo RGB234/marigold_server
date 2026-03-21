@@ -1,10 +1,8 @@
 package com.sns.marigold.auth.common;
 
 import jakarta.servlet.http.HttpServletRequest;
-
 import java.util.Collections;
 import java.util.List;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;

@@ -1,15 +1,13 @@
 package com.sns.marigold.user.dto.update;
 
-import org.springframework.web.multipart.MultipartFile;
-
 import com.sns.marigold.global.annotation.ValidImageFiles;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.web.multipart.MultipartFile;
 
 @Getter
 @Setter // @ModelAttribute 사용 시 필요

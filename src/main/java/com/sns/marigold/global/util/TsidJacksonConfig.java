@@ -7,10 +7,8 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import io.hypersistence.tsid.TSID;
-import org.springframework.util.ObjectUtils;
-
 import java.io.IOException;
-
+import org.springframework.util.ObjectUtils;
 
 /*
 @RequestBody 기반의 JSON 포맷 데이터를 담당.
@@ -23,7 +21,8 @@ public class TsidJacksonConfig {
    */
   public static class Serializer extends JsonSerializer<Long> {
     @Override
-    public void serialize(Long value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+    public void serialize(Long value, JsonGenerator gen, SerializerProvider serializers)
+        throws IOException {
       if (value == null) {
         gen.writeNull();
       } else {
@@ -37,8 +36,7 @@ public class TsidJacksonConfig {
    */
   public static class Deserializer extends JsonDeserializer<Long> {
     @Override
-    public Long deserialize(JsonParser p,
-                            DeserializationContext ctxt) throws IOException {
+    public Long deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
       String text = p.getText();
       if (ObjectUtils.isEmpty(text)) return null;
       try {
@@ -55,4 +53,3 @@ public class TsidJacksonConfig {
     }
   }
 }
-

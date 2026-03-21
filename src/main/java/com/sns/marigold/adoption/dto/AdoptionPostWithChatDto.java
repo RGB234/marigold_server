@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 public class AdoptionPostWithChatDto {
 
   private AdoptionPostDto adoptionPost;
+
   @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
   @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
   private Long chatRoomId;

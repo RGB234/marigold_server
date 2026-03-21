@@ -1,9 +1,10 @@
 package com.sns.marigold.storage.service;
 
+import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.exception.StorageException;
 import io.awspring.cloud.s3.ObjectMetadata;
 import io.awspring.cloud.s3.S3Exception;
 import io.awspring.cloud.s3.S3Template;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
@@ -14,15 +15,10 @@ import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
-import com.sns.marigold.storage.dto.ImageUploadDto;
-import com.sns.marigold.storage.exception.StorageException;
-
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -51,17 +47,20 @@ public class S3Service {
     String key = Objects.requireNonNull(createFileName(originalFilename)); // Random UUID + 파일 확장자
 
     try (InputStream inputStream = file.getInputStream()) {
-      s3Template.upload(Objects.requireNonNull(bucketName), key, inputStream,
-          ObjectMetadata.builder().contentType(file.getContentType()).contentLength(file.getSize()).build());
+      s3Template.upload(
+          Objects.requireNonNull(bucketName),
+          key,
+          inputStream,
+          ObjectMetadata.builder()
+              .contentType(file.getContentType())
+              .contentLength(file.getSize())
+              .build());
     } catch (IOException | S3Exception e) {
       log.error("S3 upload failed", e);
       throw StorageException.forFileUploadFailed(e);
     }
 
-    return ImageUploadDto.builder()
-        .storedFileName(key)
-        .originalFileName(originalFilename)
-        .build();
+    return ImageUploadDto.builder().storedFileName(key).originalFileName(originalFilename).build();
   }
 
   public void deleteFile(String storedFileName) {
@@ -89,8 +88,7 @@ public class S3Service {
       }
     } catch (StorageException e) {
       // 업로드 중간에 실패하면, 이미 올라간 파일들 삭제 후 예외 발생
-      this.deleteUploadedImagesFromS3(
-          result);
+      this.deleteUploadedImagesFromS3(result);
       throw StorageException.forFileUploadFailed(e.getCause());
     }
     return result;
@@ -120,15 +118,14 @@ public class S3Service {
     }
     String safeBucketName = Objects.requireNonNull(bucketName, "bucketName must not be null");
 
-    GetObjectRequest objectRequest = GetObjectRequest.builder()
-        .bucket(safeBucketName)
-        .key(storedFileName)
-        .build();
+    GetObjectRequest objectRequest =
+        GetObjectRequest.builder().bucket(safeBucketName).key(storedFileName).build();
 
-    GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-        .signatureDuration(Duration.ofMinutes(60)) // 1시간 유효
-        .getObjectRequest(objectRequest)
-        .build();
+    GetObjectPresignRequest presignRequest =
+        GetObjectPresignRequest.builder()
+            .signatureDuration(Duration.ofMinutes(60)) // 1시간 유효
+            .getObjectRequest(objectRequest)
+            .build();
 
     PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
     return presignedRequest.url().toString();

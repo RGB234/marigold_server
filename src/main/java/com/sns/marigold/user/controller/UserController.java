@@ -1,7 +1,7 @@
 package com.sns.marigold.user.controller;
 
-import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.dto.ApiResponse;
 import com.sns.marigold.user.dto.create.UserCreateDto;
 import com.sns.marigold.user.dto.response.UserInfoDto;
@@ -10,12 +10,9 @@ import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.service.UserService;
 import io.hypersistence.tsid.TSID;
 import jakarta.validation.Valid;
-
 import java.util.List;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -46,14 +43,16 @@ public class UserController {
   @PostMapping("/create")
   public ResponseEntity<ApiResponse<Long>> create(@RequestBody @Valid UserCreateDto dto) {
     Long userId = userService.createUser(dto);
-    return ResponseEntity.ok(ApiResponse.success(HttpStatus.CREATED, "User created successfully", userId));
+    return ResponseEntity.ok(
+        ApiResponse.success(HttpStatus.CREATED, "User created successfully", userId));
   }
 
   // ** update **
   @PreAuthorize("isAuthenticated()")
   @PatchMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<ApiResponse<Void>> update(
-      @AuthenticationPrincipal CustomPrincipal principal, @ModelAttribute @Valid UserUpdateDto dto) {
+      @AuthenticationPrincipal CustomPrincipal principal,
+      @ModelAttribute @Valid UserUpdateDto dto) {
     Long userId = principal.getUserId();
     userService.updateUser(userId, dto);
     return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "User updated successfully"));
@@ -64,30 +63,34 @@ public class UserController {
   // 검색
   @PreAuthorize("permitAll()")
   @GetMapping("/search")
-  public ApiResponse<List<UserInfoDto>> getPersonByNickname(@RequestParam("query") String nickname) {
-    return ApiResponse.success(HttpStatus.OK, "User search fetched successfully",
-        userService.getUserByNickname(nickname));
+  public ApiResponse<List<UserInfoDto>> getPersonByNickname(
+      @RequestParam("query") String nickname) {
+    return ApiResponse.success(
+        HttpStatus.OK, "User search fetched successfully", userService.getUserByNickname(nickname));
   }
 
   @PreAuthorize("permitAll()")
   @GetMapping("/profile/{userId}")
-  public ResponseEntity<ApiResponse<UserInfoDto>> getPersonProfile(@PathVariable("userId") String userId) {
+  public ResponseEntity<ApiResponse<UserInfoDto>> getPersonProfile(
+      @PathVariable("userId") String userId) {
     long uid;
-    try{
+    try {
       uid = TSID.from(userId).toLong();
-    }catch(IllegalArgumentException e){
+    } catch (IllegalArgumentException e) {
       throw UserException.forUserNotFound();
     }
 
-    return ResponseEntity
-        .ok(ApiResponse.success(HttpStatus.OK, "User profile fetched successfully", userService.getUserById(uid)));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK, "User profile fetched successfully", userService.getUserById(uid)));
   }
 
   // ** delete **
 
   @PreAuthorize("isAuthenticated()")
   @DeleteMapping("/delete")
-  public ResponseEntity<ApiResponse<Void>> deletePerson(@AuthenticationPrincipal CustomPrincipal principal) {
+  public ResponseEntity<ApiResponse<Void>> deletePerson(
+      @AuthenticationPrincipal CustomPrincipal principal) {
     Long userId = principal.getUserId();
     userService.deleteUser(userId);
     return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "User deleted successfully"));

@@ -1,4 +1,4 @@
-package com.sns.marigold.auth.oauth2.service;
+package com.sns.marigold.auth.oauth2.service.legacy;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.Role;
@@ -9,11 +9,9 @@ import com.sns.marigold.global.error.ErrorCode;
 import com.sns.marigold.user.dto.create.UserCreateDto;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.service.UserService;
-
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -26,14 +24,14 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
 /**
- * 회원가입 전용 OAuth2UserService
- * 계정이 없어도 예외를 발생시키지 않고, CustomPrincipal의 userId를 null로 반환합니다.
- * Handler에서 계정 존재 여부를 확인하여 회원가입을 진행합니다.
+ * 회원가입 전용 OAuth2UserService 계정이 없어도 예외를 발생시키지 않고, CustomPrincipal의 userId를 null로 반환합니다. Handler에서
+ * 계정 존재 여부를 확인하여 회원가입을 진행합니다.
  */
 @Service("oAuth2UserServiceForSignup")
 @RequiredArgsConstructor
 @Slf4j
-public class OAuth2UserServiceForSignup implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
+public class OAuth2UserServiceForSignup
+    implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
   private final UserService userService;
 
   @Override
@@ -46,18 +44,21 @@ public class OAuth2UserServiceForSignup implements OAuth2UserService<OAuth2UserR
     String providerCode = userRequest.getClientRegistration().getRegistrationId();
     ProviderInfo providerInfo = ProviderInfo.fromString(providerCode);
 
-    OAuth2UserInfo oAuth2UserInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(providerInfo, attributes);
+    OAuth2UserInfo oAuth2UserInfo =
+        OAuth2UserInfoFactory.getOAuth2UserInfo(providerInfo, attributes);
 
     String providerId = oAuth2UserInfo.getName();
 
     try {
-      UserCreateDto userCreateDto = UserCreateDto.builder()
-          .providerInfo(providerInfo)
-          .providerId(providerId)
-          .role(Role.ROLE_PERSON) // 기본 권한은 일반 사용자로 설정
-          .build();
+      UserCreateDto userCreateDto =
+          UserCreateDto.builder()
+              .providerInfo(providerInfo)
+              .providerId(providerId)
+              .role(Role.ROLE_PERSON) // 기본 권한은 일반 사용자로 설정
+              .build();
       Long userId = userService.createUser(userCreateDto);
-      Collection<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
+      Collection<SimpleGrantedAuthority> authorities =
+          List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
       return new CustomPrincipal(userId, authorities, attributes);
 
     } catch (UserException e) {

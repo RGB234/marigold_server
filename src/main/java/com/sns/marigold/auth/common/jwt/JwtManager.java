@@ -9,7 +9,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.crypto.SecretKey;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,10 +26,8 @@ public class JwtManager {
   public static final String USER_ID_KEY = "sub"; // subject
 
   private final SecretKey key;
-  @Getter
-  public final long accessTokenValidityInMilliseconds;
-  @Getter
-  public final long refreshTokenValidityInMilliseconds;
+  @Getter public final long accessTokenValidityInMilliseconds;
+  @Getter public final long refreshTokenValidityInMilliseconds;
 
   public JwtManager(
       @Value("${jwt.secret.defaultSecretKeyForDevelopmentOnlyChangeInProduction}") String secret,
@@ -49,19 +46,19 @@ public class JwtManager {
     Claims claims = getClaims(token);
     Long userId = getUserId(claims);
     List<SimpleGrantedAuthority> authorities = getAuthorities(claims);
-    return new UsernamePasswordAuthenticationToken(new CustomPrincipal(userId, authorities, null), "", authorities);
+    return new UsernamePasswordAuthenticationToken(
+        new CustomPrincipal(userId, authorities, null), "", authorities);
   }
 
-  /**
-   * Access Token 생성
-   */
+  /** Access Token 생성 */
   public String createAccessToken(CustomPrincipal principal) {
     Date now = new Date();
     Date validity = new Date(now.getTime() + accessTokenValidityInMilliseconds);
 
-    List<String> authorities = principal.getAuthorities().stream()
-        .map(GrantedAuthority::getAuthority)
-        .collect(Collectors.toList());
+    List<String> authorities =
+        principal.getAuthorities().stream()
+            .map(GrantedAuthority::getAuthority)
+            .collect(Collectors.toList());
 
     return Jwts.builder()
         .subject(principal.getUserId().toString())
@@ -73,9 +70,7 @@ public class JwtManager {
         .compact();
   }
 
-  /**
-   * Refresh Token 생성
-   */
+  /** Refresh Token 생성 */
   public String createRefreshToken(CustomPrincipal principal) {
     Date now = new Date();
     Date validity = new Date(now.getTime() + refreshTokenValidityInMilliseconds);
@@ -89,36 +84,24 @@ public class JwtManager {
         .compact();
   }
 
-  /**
-   * Token에서 Claims 추출
-   */
+  /** Token에서 Claims 추출 */
   public Claims getClaims(String token) {
-    return Jwts.parser()
-        .verifyWith(key)
-        .build()
-        .parseSignedClaims(token)
-        .getPayload();
+    return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
   }
 
-  /**
-   * Token에서 User ID 추출
-   */
+  /** Token에서 User ID 추출 */
   public Long getUserId(Claims claims) {
     return Long.parseLong(claims.get(USER_ID_KEY, String.class));
   }
 
-  /**
-   * Token에서 권한 정보 추출
-   */
+  /** Token에서 권한 정보 추출 */
   @SuppressWarnings("unchecked")
   public List<SimpleGrantedAuthority> getAuthorities(Claims claims) {
     List<String> authorities = claims.get(AUTHORITIES_KEY, List.class);
     if (authorities == null) {
       return List.of();
     }
-    return authorities.stream()
-        .map(SimpleGrantedAuthority::new)
-        .collect(Collectors.toList());
+    return authorities.stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList());
   }
 
   public Long getAccessTokenValidityInSeconds() {

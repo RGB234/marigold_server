@@ -13,17 +13,13 @@ import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.entity.UserImage;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
-
 import io.micrometer.common.lang.NonNull;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -33,7 +29,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-
 public class UserService {
 
   private final UserRepository userRepository;
@@ -44,21 +39,21 @@ public class UserService {
   private final ApplicationEventPublisher eventPublisher;
 
   @Transactional(readOnly = true)
-  public boolean existsByProviderInfoAndProviderId(@NonNull ProviderInfo providerInfo, @NonNull String providerId) {
+  public boolean existsByProviderInfoAndProviderId(
+      @NonNull ProviderInfo providerInfo, @NonNull String providerId) {
     return userRepository.existsByProviderInfoAndProviderId(providerInfo, providerId);
   }
 
   @Transactional(readOnly = true)
-  public Optional<User> findEntityByProviderInfoAndProviderId(@NonNull ProviderInfo providerInfo,
-      @NonNull String providerId) {
+  public Optional<User> findEntityByProviderInfoAndProviderId(
+      @NonNull ProviderInfo providerInfo, @NonNull String providerId) {
     return userRepository.findByProviderInfoAndProviderId(providerInfo, providerId);
   }
 
   @Transactional(readOnly = true)
   public User findEntityById(Long uid) {
     Long userId = Objects.requireNonNull(uid, "사용자 ID가 비었습니다.");
-    return userRepository.findById(userId)
-        .orElseThrow(() -> UserException.forUserNotFound());
+    return userRepository.findById(userId).orElseThrow(() -> UserException.forUserNotFound());
   }
 
   @Transactional(readOnly = true)
@@ -70,9 +65,7 @@ public class UserService {
   @Transactional(readOnly = true)
   public List<UserInfoDto> getUserByNickname(String nickname) {
     List<User> users = userRepository.findPersonalUsersByNickname(nickname);
-    return users.stream()
-        .map(UserInfoDto::from)
-        .toList();
+    return users.stream().map(UserInfoDto::from).toList();
   }
 
   @Transactional
@@ -87,12 +80,13 @@ public class UserService {
     String generatedNickname = generateUniqueNickname();
 
     // User 엔티티 생성
-    User user = User.builder()
-        .providerInfo(dto.getProviderInfo())
-        .providerId(dto.getProviderId())
-        .nickname(generatedNickname)
-        .role(dto.getRole())
-        .build();
+    User user =
+        User.builder()
+            .providerInfo(dto.getProviderInfo())
+            .providerId(dto.getProviderId())
+            .nickname(generatedNickname)
+            .role(dto.getRole())
+            .build();
 
     userRepository.save(Objects.requireNonNull(user));
 
@@ -100,9 +94,7 @@ public class UserService {
     return user.getId();
   }
 
-  /**
-   * 고유한 nickname 생성 (중복 체크 포함)
-   */
+  /** 고유한 nickname 생성 (중복 체크 포함) */
   private String generateUniqueNickname() {
     int maxAttempts = 10; // 최대 시도 횟수
     String nickname;
@@ -133,35 +125,37 @@ public class UserService {
       final ImageUploadDto newImageUploadDto = uploadedImageDto;
 
       // 2. DB 트랜잭션 (데이터 변경)
-      transactionTemplate.executeWithoutResult(status -> {
-        // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
-        User user = findEntityById(uid);
-        UserImage previousImage = user.getImage();
-        String fileToDelete = null;
+      transactionTemplate.executeWithoutResult(
+          status -> {
+            // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
+            User user = findEntityById(uid);
+            UserImage previousImage = user.getImage();
+            String fileToDelete = null;
 
-        // 사용자가 기본 프로필 사진 사용을 선택
-        if (dto.isRemoveImage()) {
-          fileToDelete = previousImage != null ? previousImage.getStoredFileName() : null;
-          user.update(dto.getNickname(), null); // DB에서 이미지 삭제
-        } else if (newImageUploadDto != null) {
-          // 새 이미지로 교체
-          fileToDelete = previousImage != null ? previousImage.getStoredFileName() : null;
-          
-          UserImage newImage = UserImage.builder()
-              .storedFileName(newImageUploadDto.getStoredFileName())
-              .originalFileName(newImageUploadDto.getOriginalFileName())
-              .build();
-          user.update(dto.getNickname(), newImage);
-        } else {
-          // 닉네임만 변경 (이미지는 유지)
-          user.update(dto.getNickname());
-        }
+            // 사용자가 기본 프로필 사진 사용을 선택
+            if (dto.isRemoveImage()) {
+              fileToDelete = previousImage != null ? previousImage.getStoredFileName() : null;
+              user.update(dto.getNickname(), null); // DB에서 이미지 삭제
+            } else if (newImageUploadDto != null) {
+              // 새 이미지로 교체
+              fileToDelete = previousImage != null ? previousImage.getStoredFileName() : null;
 
-        // 3. 트랜잭션 성공 시: 삭제해야 할 기존 이미지(프로필 제거 또는 교체 시)가 있다면 이벤트 발행
-        if (fileToDelete != null) {
-          eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(List.of(fileToDelete)));
-        }
-      });
+              UserImage newImage =
+                  UserImage.builder()
+                      .storedFileName(newImageUploadDto.getStoredFileName())
+                      .originalFileName(newImageUploadDto.getOriginalFileName())
+                      .build();
+              user.update(dto.getNickname(), newImage);
+            } else {
+              // 닉네임만 변경 (이미지는 유지)
+              user.update(dto.getNickname());
+            }
+
+            // 3. 트랜잭션 성공 시: 삭제해야 할 기존 이미지(프로필 제거 또는 교체 시)가 있다면 이벤트 발행
+            if (fileToDelete != null) {
+              eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(List.of(fileToDelete)));
+            }
+          });
 
     } catch (Exception e) {
       // 4. 실패 시 보상 트랜잭션: 새로 업로드한 S3 파일 삭제
@@ -180,7 +174,6 @@ public class UserService {
       throw new RuntimeException(e);
     }
   }
-
 
   // soft delete And PII scrubbing
   @Transactional

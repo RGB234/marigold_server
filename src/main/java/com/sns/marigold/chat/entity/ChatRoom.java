@@ -28,9 +28,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @AllArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
-@Table(name = "chat_rooms", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"user1_id", "user2_id"})
-})
+@Table(
+    name = "chat_rooms",
+    uniqueConstraints = {@UniqueConstraint(columnNames = {"user1_id", "user2_id"})})
 public class ChatRoom {
 
   @Id
@@ -61,10 +61,6 @@ public class ChatRoom {
       user1 = user2;
       user2 = temp;
     }
-    return ChatRoom.builder()
-        .user1(user1)
-        .user2(user2)
-        .adoptionPost(adoptionPost)
-        .build();
+    return ChatRoom.builder().user1(user1).user2(user2).adoptionPost(adoptionPost).build();
   }
 }

@@ -4,26 +4,21 @@ import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
 import com.sns.marigold.auth.common.jwt.JwtAuthenticationFilter;
 import com.sns.marigold.auth.oauth2.handler.OAuth2SignupFailureHandler;
 import com.sns.marigold.auth.oauth2.handler.OAuth2SignupSuccessHandler;
-import com.sns.marigold.auth.oauth2.service.OAuth2UserServiceForSignup;
+import com.sns.marigold.auth.oauth2.service.CustomOAuth2UserService;
 import com.sns.marigold.global.config.UrlProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsUtils;
 
-/**
- * 회원가입 전용 SecurityFilterChain
- * /oauth2/signup/** 경로에 적용됩니다.
- */
+/** 회원가입 전용 SecurityFilterChain /oauth2/signup/** 경로에 적용됩니다. */
 @Configuration
 @RequiredArgsConstructor
 @Order(2) // 로그인 다음에 적용
@@ -31,7 +26,8 @@ public class SignupSecurityConfig {
 
   private final CustomCorsConfigurationSource customCorsConfigurationSource;
 
-  private final OAuth2UserServiceForSignup oAuth2UserServiceForSignup;
+  //  private final OAuth2UserServiceForSignup oAuth2UserServiceForSignup;
+  private final CustomOAuth2UserService customOAuth2UserService;
   private final OAuth2SignupSuccessHandler oAuth2SignupSuccessHandler;
   private final OAuth2SignupFailureHandler oAuth2SignupFailureHandler;
   private final CustomAccessDeniedHandler customAccessDeniedHandler;
@@ -55,30 +51,33 @@ public class SignupSecurityConfig {
         .csrf(AbstractHttpConfigurer::disable)
         .httpBasic(AbstractHttpConfigurer::disable)
         // JWT 인증 필터
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        //        .addFilterBefore(jwtAuthenticationFilter,
+        // UsernamePasswordAuthenticationFilter.class)
         .authorizeHttpRequests(
-            auth -> auth
-                .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
-                .anyRequest().permitAll() // OAuth2 인증은 모두 허용
-        )
+            auth ->
+                auth.requestMatchers(CorsUtils::isPreFlightRequest)
+                    .permitAll()
+                    .anyRequest()
+                    .permitAll() // 회원가입 경로 모두 허용
+            )
         .formLogin(AbstractHttpConfigurer::disable)
         // 회원가입 전용 OAuth2 설정
         .oauth2Login(
-            oauth2 -> oauth2
-                .authorizationEndpoint(endpoint -> endpoint
-                    .baseUri(signupEndpointBaseUrl))
-                .redirectionEndpoint(endpoint -> endpoint
-                    .baseUri(signupRedirectionUrl))
-                .successHandler(oAuth2SignupSuccessHandler)
-                .failureHandler(oAuth2SignupFailureHandler)
-                .userInfoEndpoint(userInfo -> userInfo.userService(oAuth2UserServiceForSignup)))
+            oauth2 ->
+                oauth2
+                    .authorizationEndpoint(endpoint -> endpoint.baseUri(signupEndpointBaseUrl))
+                    .redirectionEndpoint(endpoint -> endpoint.baseUri(signupRedirectionUrl))
+                    .successHandler(oAuth2SignupSuccessHandler)
+                    .failureHandler(oAuth2SignupFailureHandler)
+                    //                .userInfoEndpoint(userInfo ->
+                    // userInfo.userService(oAuth2UserServiceForSignup)))
+                    .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService)))
         // 예외처리
         .exceptionHandling(
-            ex -> ex
-                .accessDeniedHandler(customAccessDeniedHandler)
-                .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)));
+            ex ->
+                ex.accessDeniedHandler(customAccessDeniedHandler)
+                    .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)));
 
     return http.build();
   }
 }
-
