@@ -5,7 +5,7 @@ import com.sns.marigold.adoption.enums.*; // Enum 한 번에 import
 import com.sns.marigold.adoption.service.AdoptionPostService;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.user.dto.create.UserCreateDto;
+import com.sns.marigold.user.dto.create.OAuth2SignupDto;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.service.UserService;
 import java.io.IOException;
@@ -72,7 +72,7 @@ public class DebugServiceTest {
     try {
       Long userId =
           userService.createUser(
-              UserCreateDto.builder()
+              OAuth2SignupDto.builder()
                   .providerInfo(provider)
                   .providerId(providerId)
                   .role(role)

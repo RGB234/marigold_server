@@ -6,7 +6,7 @@ import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.error.ErrorCode;
-import com.sns.marigold.user.dto.create.UserCreateDto;
+import com.sns.marigold.user.dto.create.OAuth2SignupDto;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.service.UserService;
 import java.util.Collection;
@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class OAuth2UserServiceForSignup
     implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
+
   private final UserService userService;
 
   @Override
@@ -50,13 +51,13 @@ public class OAuth2UserServiceForSignup
     String providerId = oAuth2UserInfo.getName();
 
     try {
-      UserCreateDto userCreateDto =
-          UserCreateDto.builder()
+      OAuth2SignupDto oAuth2SignupDto =
+          OAuth2SignupDto.builder()
               .providerInfo(providerInfo)
               .providerId(providerId)
               .role(Role.ROLE_PERSON) // 기본 권한은 일반 사용자로 설정
               .build();
-      Long userId = userService.createUser(userCreateDto);
+      Long userId = userService.createUser(oAuth2SignupDto);
       Collection<SimpleGrantedAuthority> authorities =
           List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
       return new CustomPrincipal(userId, authorities, attributes);

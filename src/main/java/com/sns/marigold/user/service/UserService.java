@@ -6,7 +6,7 @@ import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.service.S3Service;
-import com.sns.marigold.user.dto.create.UserCreateDto;
+import com.sns.marigold.user.dto.create.OAuth2SignupDto;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.entity.User;
@@ -69,7 +69,7 @@ public class UserService {
   }
 
   @Transactional
-  public Long createUser(UserCreateDto dto) {
+  public Long createUser(OAuth2SignupDto dto) {
     Objects.requireNonNull(dto, "UserCreateDto는 null일 수 없습니다.");
 
     if (existsByProviderInfoAndProviderId(dto.getProviderInfo(), dto.getProviderId())) {

@@ -5,7 +5,7 @@ import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.user.dto.create.UserCreateDto;
+import com.sns.marigold.user.dto.create.OAuth2SignupDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
 import java.util.Collection;
@@ -49,13 +49,13 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
           List.of(new SimpleGrantedAuthority(user.getRole().name()));
       return new CustomPrincipal(user.getId(), authorities, attributes);
     } else { // 존재하지 않는 사용자라면 회원가입 처리
-      UserCreateDto userCreateDto =
-          UserCreateDto.builder()
+      OAuth2SignupDto oAuth2SignupDto =
+          OAuth2SignupDto.builder()
               .providerInfo(providerInfo)
               .providerId(providerId)
               .role(Role.ROLE_PERSON) // 기본 권한은 일반 사용자로 설정
               .build();
-      Long userId = userService.createUser(userCreateDto);
+      Long userId = userService.createUser(oAuth2SignupDto);
       Collection<SimpleGrantedAuthority> authorities =
           List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
       return new CustomPrincipal(userId, authorities, attributes);

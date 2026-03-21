@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserCreateDto {
+public class OAuth2SignupDto {
   @EnumType(target = ProviderInfo.class)
   @NotNull(message = "소셜 로그인 제공자는 필수입니다.")
   private ProviderInfo providerInfo; // 소셜로그인 제공 서비스 종류 (Google, Kakao, ...)

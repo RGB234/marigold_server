@@ -3,7 +3,7 @@ package com.sns.marigold.user.controller;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.dto.ApiResponse;
-import com.sns.marigold.user.dto.create.UserCreateDto;
+import com.sns.marigold.user.dto.create.OAuth2SignupDto;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.exception.UserException;
@@ -41,7 +41,7 @@ public class UserController {
 
   @PreAuthorize("permitAll()")
   @PostMapping("/create")
-  public ResponseEntity<ApiResponse<Long>> create(@RequestBody @Valid UserCreateDto dto) {
+  public ResponseEntity<ApiResponse<Long>> create(@RequestBody @Valid OAuth2SignupDto dto) {
     Long userId = userService.createUser(dto);
     return ResponseEntity.ok(
         ApiResponse.success(HttpStatus.CREATED, "User created successfully", userId));
