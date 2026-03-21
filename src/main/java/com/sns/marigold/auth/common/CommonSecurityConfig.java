@@ -16,12 +16,9 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsUtils;
 
-/**
- * 일반 API 요청을 위한 SecurityFilterChain OAuth2 경로를 제외한 모든 경로에 적용됩니다.
- */
+/** 일반 API 요청을 위한 SecurityFilterChain OAuth2 경로를 제외한 모든 경로에 적용됩니다. */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
@@ -43,13 +40,12 @@ public class CommonSecurityConfig {
     String loginBaseUrl = urlProperties.backend().auth().login().base();
     String signupBaseUrl = urlProperties.backend().auth().signup().base();
 
-    http
-        .securityMatcher(request -> {
-          String path = request.getRequestURI();
-          // OAuth2 로그인/회원가입 경로는 제외
-          return !path.startsWith(loginBaseUrl) &&
-              !path.startsWith(signupBaseUrl);
-        })
+    http.securityMatcher(
+            request -> {
+              String path = request.getRequestURI();
+              // OAuth2 로그인/회원가입 경로는 제외
+              return !path.startsWith(loginBaseUrl) && !path.startsWith(signupBaseUrl);
+            })
         // 세션 비활성화 (JWT 사용)
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -57,28 +53,32 @@ public class CommonSecurityConfig {
         .csrf(AbstractHttpConfigurer::disable)
         .httpBasic(AbstractHttpConfigurer::disable)
         // JWT 인증 필터
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        // formLogin 비활성화 시 UsernamePasswordAuthenticationFilter가 없기도 하고,
+        // 이미 @Component로 전역으로 등록 설정함.
+        //        .addFilterBefore(jwtAuthenticationFilter,
+        // UsernamePasswordAuthenticationFilter.class)
         .authorizeHttpRequests(
-            auth -> auth
-                .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
-                // Swagger
-                .requestMatchers(
-                    "/v3/api-docs/**",
-                    "/swagger-ui/**")
-                .permitAll()
-                // 구체적인 권한 제어는 Controller의 @PreAuthorize에서 처리하므로
-                // 필터 체인 레벨에서는 모든 요청을 통과.
-                .anyRequest().permitAll())
+            auth ->
+                auth.requestMatchers(CorsUtils::isPreFlightRequest)
+                    .permitAll()
+                    // Swagger
+                    .requestMatchers("/v3/api-docs/**", "/swagger-ui/**")
+                    .permitAll()
+                    // 구체적인 권한 제어는 Controller의 @PreAuthorize에서 처리하므로
+                    // 필터 체인 레벨에서는 모든 요청을 통과.
+                    .anyRequest()
+                    .permitAll())
         .formLogin(AbstractHttpConfigurer::disable)
-        .logout(logout -> logout
-            .logoutUrl(UrlConstants.AUTH_BASE + "/logout")
-            .addLogoutHandler(customLogoutHandler)
-            .logoutSuccessHandler(customLogoutSuccessHandler)
-        )
+        .logout(
+            logout ->
+                logout
+                    .logoutUrl(UrlConstants.AUTH_BASE + "/logout")
+                    .addLogoutHandler(customLogoutHandler)
+                    .logoutSuccessHandler(customLogoutSuccessHandler))
         .exceptionHandling(
-            ex -> ex
-                .accessDeniedHandler(customAccessDeniedHandler) // 403 권한없음
-                .authenticationEntryPoint(customAuthenticationEntryPoint)); // 401 인증실패
+            ex ->
+                ex.accessDeniedHandler(customAccessDeniedHandler) // 403 권한없음
+                    .authenticationEntryPoint(customAuthenticationEntryPoint)); // 401 인증실패
 
     return http.build();
   }

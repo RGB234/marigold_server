@@ -1,7 +1,6 @@
 package com.sns.marigold.auth.oauth2;
 
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-
 import java.util.Map;
 
 public abstract class OAuth2UserInfo {

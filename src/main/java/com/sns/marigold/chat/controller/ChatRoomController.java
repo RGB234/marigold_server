@@ -7,7 +7,6 @@ import com.sns.marigold.chat.dto.NewChatDto;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.annotation.TsidType;
-import io.hypersistence.tsid.TSID;
 import jakarta.validation.groups.Default;
 import java.util.List;
 import java.util.Objects;
@@ -35,16 +34,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class ChatRoomController {
 
   private final ChatService chatService;
+
   // WebSocket에도 ApiResponse를 쓰는 것은 과함
   // 1. 페이로드가 무거움
   // 2. 이미 STOMP에는 에러가 발생하면 ERROR 프레임을 보낼 수 있는 매커니즘이 있음
 
   @PreAuthorize("isAuthenticated()")
   @PostMapping("/rooms")
-  public ResponseEntity<ChatRoomDto> createRoom(@AuthenticationPrincipal CustomPrincipal principal,
+  public ResponseEntity<ChatRoomDto> createRoom(
+      @AuthenticationPrincipal CustomPrincipal principal,
       @RequestBody @Validated({Default.class}) NewChatDto newChatDto) {
     return ResponseEntity.ok(
-        chatService.createRoom(Objects.requireNonNull(principal.getUserId()),
+        chatService.createRoom(
+            Objects.requireNonNull(principal.getUserId()),
             newChatDto.getReceiverId(),
             newChatDto.getAdoptionPostId()));
   }
@@ -53,7 +55,8 @@ public class ChatRoomController {
   @GetMapping("/rooms")
   public ResponseEntity<Page<ChatRoomDto>> getMyRooms(
       @AuthenticationPrincipal CustomPrincipal principal,
-      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull Pageable pageable) {
+      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull
+          Pageable pageable) {
     return ResponseEntity.ok(
         chatService.getUserRooms(Objects.requireNonNull(principal.getUserId()), pageable));
   }
@@ -67,7 +70,8 @@ public class ChatRoomController {
 
   @PreAuthorize("isAuthenticated()")
   @DeleteMapping("/rooms/{roomId}")
-  public ResponseEntity<Void> deleteRoom(@AuthenticationPrincipal CustomPrincipal principal,
+  public ResponseEntity<Void> deleteRoom(
+      @AuthenticationPrincipal CustomPrincipal principal,
       @NonNull @PathVariable("roomId") @TsidType Long roomId) {
     chatService.leaveRoom(roomId, Objects.requireNonNull(principal.getUserId()));
     return ResponseEntity.ok().build();

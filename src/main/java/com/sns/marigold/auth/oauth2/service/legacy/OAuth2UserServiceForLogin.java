@@ -1,4 +1,4 @@
-package com.sns.marigold.auth.oauth2.service;
+package com.sns.marigold.auth.oauth2.service.legacy;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
@@ -7,12 +7,10 @@ import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.error.ErrorCode;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
-
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -24,10 +22,7 @@ import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
-/**
- * 로그인 전용 OAuth2UserService
- * 계정이 반드시 존재해야 하며, 없으면 예외를 발생시킵니다.
- */
+/** 로그인 전용 OAuth2UserService 계정이 반드시 존재해야 하며, 없으면 예외를 발생시킵니다. */
 @Service("oAuth2UserServiceForLogin")
 @RequiredArgsConstructor
 @Slf4j
@@ -44,21 +39,22 @@ public class OAuth2UserServiceForLogin implements OAuth2UserService<OAuth2UserRe
     String providerCode = userRequest.getClientRegistration().getRegistrationId();
     ProviderInfo providerInfo = ProviderInfo.fromString(providerCode);
 
-    OAuth2UserInfo oAuth2UserInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(providerInfo, attributes);
+    OAuth2UserInfo oAuth2UserInfo =
+        OAuth2UserInfoFactory.getOAuth2UserInfo(providerInfo, attributes);
 
     String providerId = oAuth2UserInfo.getName();
 
-    Optional<User> userOptional = userService.findEntityByProviderInfoAndProviderId(providerInfo, providerId);
+    Optional<User> userOptional =
+        userService.findEntityByProviderInfoAndProviderId(providerInfo, providerId);
     if (userOptional.isPresent()) {
       User user = userOptional.get();
-      Collection<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(user.getRole().name()));
+      Collection<SimpleGrantedAuthority> authorities =
+          List.of(new SimpleGrantedAuthority(user.getRole().name()));
       return new CustomPrincipal(user.getId(), authorities, attributes);
     } else {
       throw new OAuth2AuthenticationException(
           new OAuth2Error(
-              ErrorCode.USER_NOT_FOUND.getCode(),
-              ErrorCode.USER_NOT_FOUND.getMessage(),
-              null));
+              ErrorCode.USER_NOT_FOUND.getCode(), ErrorCode.USER_NOT_FOUND.getMessage(), null));
     }
   }
 }

@@ -15,9 +15,6 @@ public enum Role {
 
   @JsonCreator // 역직렬화. String -> Enum
   public static Role fromRole(String name) {
-    return Arrays.stream(values())
-      .filter(role -> role.name().equals(name))
-      .findAny()
-      .orElse(null);
+    return Arrays.stream(values()).filter(role -> role.name().equals(name)).findAny().orElse(null);
   }
 }

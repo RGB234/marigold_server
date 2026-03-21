@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -17,10 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 /**
- * 회원가입 전용 OAuth2 성공 Handler
- * 계정 존재 여부를 확인하고:
- * - 계정이 이미 존재하면: 에러 리다이렉트
- * - 계정이 없으면: 회원가입 수행 후 JWT 토큰 발급
+ * 회원가입 전용 OAuth2 성공 Handler 계정 존재 여부를 확인하고: - 계정이 이미 존재하면: 에러 리다이렉트 - 계정이 없으면: 회원가입 수행 후 JWT 토큰 발급
  */
 @Component
 @RequiredArgsConstructor
@@ -39,9 +35,11 @@ public class OAuth2SignupSuccessHandler extends SimpleUrlAuthenticationSuccessHa
     String callbackUrl = urlProperties.frontend().auth().callback();
     Objects.requireNonNull(callbackUrl, "url.frontend.auth.callback is not configured");
 
-    String redirectUrl = UriComponentsBuilder.fromUriString(callbackUrl)
-        .queryParam("status", HttpStatus.CREATED.value())
-        .build().toUriString();
+    String redirectUrl =
+        UriComponentsBuilder.fromUriString(callbackUrl)
+            .queryParam("status", HttpStatus.CREATED.value())
+            .build()
+            .toUriString();
 
     if (response.isCommitted()) {
       log.debug("응답이 이미 커밋되어 리다이렉트 할 수 없습니다. URL: {}", redirectUrl);

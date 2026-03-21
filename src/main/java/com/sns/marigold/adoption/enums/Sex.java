@@ -1,6 +1,5 @@
 package com.sns.marigold.adoption.enums;
 
-
 import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -14,6 +13,5 @@ public enum Sex {
   OTHER("기타", "OTHER");
 
   private final String name;
-  @JsonValue
-  private final String value;
+  @JsonValue private final String value;
 }

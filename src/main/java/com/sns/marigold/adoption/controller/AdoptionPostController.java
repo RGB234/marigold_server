@@ -44,7 +44,6 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 public class AdoptionPostController {
 
-
   private final AdoptionPostService adoptionPostService;
 
   @PreAuthorize("isAuthenticated()")
@@ -59,9 +58,12 @@ public class AdoptionPostController {
     Long userId = Objects.requireNonNull(principal.getUserId());
     Long adoptionPostId = adoptionPostService.create(dto, userId);
 
-    return ResponseEntity.status(HttpStatus.CREATED).body(
-        ApiResponse.success(HttpStatus.CREATED, "Adoption post created successfully",
-            Map.of("id", adoptionPostId)));
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                HttpStatus.CREATED,
+                "Adoption post created successfully",
+                Map.of("id", adoptionPostId)));
   }
 
   /*
@@ -73,7 +75,8 @@ public class AdoptionPostController {
   @GetMapping("")
   public ResponseEntity<ApiResponse<Page<AdoptionPostDto>>> search(
       @ModelAttribute AdoptionPostSearchFilterDto dto,
-      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull Pageable pageable) {
+      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull
+          Pageable pageable) {
     Page<AdoptionPostDto> result = adoptionPostService.search(dto, pageable);
     return ResponseEntity.status(HttpStatus.OK)
         .body(ApiResponse.success(HttpStatus.OK, "Adoption post search successfully", result));
@@ -83,18 +86,21 @@ public class AdoptionPostController {
   @GetMapping("/writer/{userId}")
   public ResponseEntity<ApiResponse<Page<AdoptionPostDto>>> searchByWriter(
       @PathVariable("userId") @TsidType Long userId,
-      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull Pageable pageable) {
+      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull
+          Pageable pageable) {
     Page<AdoptionPostDto> result = adoptionPostService.searchByWriter(userId, pageable);
     return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResponse.success(HttpStatus.OK, "Adoption post search by writer successfully",
-            result));
+        .body(
+            ApiResponse.success(
+                HttpStatus.OK, "Adoption post search by writer successfully", result));
   }
 
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/chat")
   public ResponseEntity<ApiResponse<Page<AdoptionPostWithChatDto>>> searchByJoinedChats(
       @AuthenticationPrincipal CustomPrincipal principal,
-      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull Pageable pageable) {
+      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull
+          Pageable pageable) {
     Long uid = principal.getUserId();
 
     Page<AdoptionPostWithChatDto> result = adoptionPostService.searchByJoinedChats(uid, pageable);

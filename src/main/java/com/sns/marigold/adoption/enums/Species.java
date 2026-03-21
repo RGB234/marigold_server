@@ -17,6 +17,5 @@ public enum Species {
   OTHER("기타", "OTHER");
 
   private final String name;
-  @JsonValue
-  private final String value;
+  @JsonValue private final String value;
 }

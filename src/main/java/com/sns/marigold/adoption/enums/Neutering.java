@@ -12,6 +12,5 @@ public enum Neutering {
   UNKNOWN("불명", "UNKNOWN");
 
   private String name;
-  @JsonValue
-  private String value;
+  @JsonValue private String value;
 }

@@ -20,35 +20,42 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    @Override
-    public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
-                .withSockJS();
-    }
+  @Override
+  public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
+    registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS();
+  }
 
-    @Override
-    public void configureMessageBroker(@NonNull MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/sub");
-        config.setApplicationDestinationPrefixes("/pub");
-    }
+  @Override
+  public void configureMessageBroker(@NonNull MessageBrokerRegistry config) {
+    config.enableSimpleBroker("/sub");
+    config.setApplicationDestinationPrefixes("/pub");
+  }
 
-    @Override
-    public void configureClientInboundChannel(@NonNull ChannelRegistration registration) {
-        registration.interceptors(new ExecutorChannelInterceptor() {
-            @Override
-            public Message<?> beforeHandle(@NonNull Message<?> message, @NonNull MessageChannel channel, @NonNull MessageHandler handler) {
-                StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-                if (accessor != null && accessor.getUser() instanceof Authentication authentication) {
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                }
-                return message;
+  @Override
+  public void configureClientInboundChannel(@NonNull ChannelRegistration registration) {
+    registration.interceptors(
+        new ExecutorChannelInterceptor() {
+          @Override
+          public Message<?> beforeHandle(
+              @NonNull Message<?> message,
+              @NonNull MessageChannel channel,
+              @NonNull MessageHandler handler) {
+            StompHeaderAccessor accessor =
+                MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+            if (accessor != null && accessor.getUser() instanceof Authentication authentication) {
+              SecurityContextHolder.getContext().setAuthentication(authentication);
             }
+            return message;
+          }
 
-            @Override
-            public void afterMessageHandled(@NonNull Message<?> message, @NonNull MessageChannel channel, @NonNull MessageHandler handler, Exception ex) {
-                SecurityContextHolder.clearContext();
-            }
+          @Override
+          public void afterMessageHandled(
+              @NonNull Message<?> message,
+              @NonNull MessageChannel channel,
+              @NonNull MessageHandler handler,
+              Exception ex) {
+            SecurityContextHolder.clearContext();
+          }
         });
-    }
+  }
 }

@@ -3,13 +3,13 @@ package com.sns.marigold.adoption.specification;
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
-
 import org.springframework.data.jpa.domain.Specification;
 
 public class AdoptionPostSpecification {
 
   /**
    * 종(Species) 필터링
+   *
    * @param species 종 (null이면 필터링하지 않음 - 전체 검색)
    * @return Specification
    */
@@ -24,6 +24,7 @@ public class AdoptionPostSpecification {
 
   /**
    * 성별(Sex) 필터링
+   *
    * @param sex 성별 (null이면 필터링하지 않음 - 전체 검색)
    * @return Specification
    */
@@ -45,6 +46,7 @@ public class AdoptionPostSpecification {
     };
   }
   // public static Specification<AdoptionPost> hasWriterId(UUID writerId){
-  //   return (root, query, builder) -> writerId == null ? null : builder.equal(root.get("writerId"), writerId);
+  //   return (root, query, builder) -> writerId == null ? null :
+  // builder.equal(root.get("writerId"), writerId);
   // }
 }

@@ -28,11 +28,12 @@ public class ChatRoomDto {
   @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
   @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
   private Long user1Id;
+
   private String user1Nickname;
 
   @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
   @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
   private Long user2Id;
-  private String user2Nickname;
 
+  private String user2Nickname;
 }

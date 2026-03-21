@@ -1,7 +1,6 @@
 package com.sns.marigold.auth.oauth2.handler;
 
 import java.util.Objects;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;

@@ -1,14 +1,14 @@
 package com.sns.marigold.auth.oauth2;
 
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-
 import java.util.Map;
 
 public class KakaoOAuth2UserInfo extends OAuth2UserInfo {
 
   private final String id;
   private final String email;
-//  private final ProviderInfo providerInfo = ProviderInfo.KAKAO;
+
+  //  private final ProviderInfo providerInfo = ProviderInfo.KAKAO;
 
   KakaoOAuth2UserInfo(Map<String, Object> attributes) {
     super(attributes, ProviderInfo.KAKAO);

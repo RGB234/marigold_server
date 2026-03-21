@@ -1,21 +1,24 @@
 package com.sns.marigold.auth.common.controller;
 
-import com.sns.marigold.global.UrlConstants;
+import com.sns.marigold.auth.common.dto.LocalLoginDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.service.AuthService;
+import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.dto.ApiResponse;
-
+import com.sns.marigold.user.dto.create.LocalSignupDto;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
 
 // OAuth2 로그인은 Spring security가 처리
 // SecurityConfig 및 관련 코드 참조
@@ -31,6 +34,23 @@ public class AuthController {
 
   private final AuthService authService;
 
+  @PreAuthorize("permitAll()")
+  @PostMapping("/signup")
+  public ResponseEntity<ApiResponse<Void>> localSignup(@Valid @RequestBody LocalSignupDto dto) {
+    authService.localSignup(dto);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponse.success(HttpStatus.CREATED, "local signup successfully", null));
+  }
+
+  @PreAuthorize("permitAll()")
+  @PostMapping("/login")
+  public ResponseEntity<ApiResponse<Void>> localLogin(
+      @Valid @RequestBody LocalLoginDto dto, HttpServletResponse response) {
+    authService.localLogin(dto, response);
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(ApiResponse.success(HttpStatus.OK, "local login successfully", null));
+  }
+
   /*
    * HttpOnly Cookie를 사용하여 인증 상태 관리
    * 프론트엔드 UI 업데이트를 위한 최소한의 인증 정보 전달 > 로그인 유무 및 권한
@@ -38,9 +58,14 @@ public class AuthController {
    */
   @PreAuthorize("permitAll()")
   @GetMapping("/status")
-  public ResponseEntity<ApiResponse<UserAuthStatusDto>> getAuthStatus(Authentication authentication) {
-    return ResponseEntity.status(HttpStatus.OK).body(
-        ApiResponse.success(HttpStatus.OK, "get auth status successfully", authService.getAuthStatus(authentication)));
+  public ResponseEntity<ApiResponse<UserAuthStatusDto>> getAuthStatus(
+      Authentication authentication) {
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(
+            ApiResponse.success(
+                HttpStatus.OK,
+                "get auth status successfully",
+                authService.getAuthStatus(authentication)));
   }
 
   // @GetMapping("/reissue")
