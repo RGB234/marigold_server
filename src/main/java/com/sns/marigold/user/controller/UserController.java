@@ -54,6 +54,9 @@ public class UserController {
       @AuthenticationPrincipal CustomPrincipal principal,
       @ModelAttribute @Valid UserUpdateDto dto) {
     Long userId = principal.getUserId();
+    if (userId == null) {
+      throw com.sns.marigold.auth.exception.AuthException.forUnauthorized();
+    }
     userService.updateUser(userId, dto);
     return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "User updated successfully"));
   }
@@ -92,6 +95,9 @@ public class UserController {
   public ResponseEntity<ApiResponse<Void>> deletePerson(
       @AuthenticationPrincipal CustomPrincipal principal) {
     Long userId = principal.getUserId();
+    if (userId == null) {
+      throw com.sns.marigold.auth.exception.AuthException.forUnauthorized();
+    }
     userService.deleteUser(userId);
     return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "User deleted successfully"));
   }

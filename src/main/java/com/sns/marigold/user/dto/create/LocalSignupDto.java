@@ -13,7 +13,9 @@ public class LocalSignupDto {
   @NotBlank(message = "이메일은 필수입니다.")
   private String email;
 
-  @Pattern(regexp = "/^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d]{8,}$/", message = "비밀번호 영어 대소문자, 숫자 조합 8자 이상이여야 합니다.")
+  @Pattern(
+      regexp = "/^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d]{8,}$/",
+      message = "비밀번호 영어 대소문자, 숫자 조합 8자 이상이여야 합니다.")
   @NotBlank(message = "비밀번호는 필수입니다.")
   private String password;
 

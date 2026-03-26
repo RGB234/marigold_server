@@ -4,7 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.Collections;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -20,7 +20,8 @@ public class CustomCorsConfigurationSource implements CorsConfigurationSource {
   }
 
   @Override
-  public CorsConfiguration getCorsConfiguration(@NonNull HttpServletRequest request) {
+  @Nullable
+  public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
     CorsConfiguration config = new CorsConfiguration();
     config.setAllowedOrigins(Collections.singletonList(ALLOWED_ORIGIN));
     config.setAllowedMethods(ALLOWED_METHODS);

@@ -33,7 +33,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -52,13 +51,13 @@ public class AdoptionPostService {
   private final ApplicationEventPublisher eventPublisher;
 
   @Transactional(readOnly = true)
-  public AdoptionPost findEntityById(@NonNull Long id) {
+  public AdoptionPost findEntityById(Long id) {
     return adoptionPostRepository
         .findById(id)
         .orElseThrow(AdoptionPostException::forAdoptionPostNotExists);
   }
 
-  public Long create(AdoptionPostCreateDto dto, @NonNull Long writerId) {
+  public Long create(AdoptionPostCreateDto dto, Long writerId) {
     List<MultipartFile> images =
         dto.getImages() != null ? dto.getImages() : Collections.emptyList();
     List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(images);
@@ -98,8 +97,7 @@ public class AdoptionPostService {
     }
   }
 
-  public void update(
-      @NonNull Long postId, @NonNull Long userId, @NonNull AdoptionPostUpdateDto dto) {
+  public void update(Long postId, Long userId, AdoptionPostUpdateDto dto) {
     AdoptionPost adoptionPost = findEntityById(postId);
 
     validateWriter(adoptionPost, userId);
@@ -179,7 +177,7 @@ public class AdoptionPostService {
 
   // 검색
   @Transactional(readOnly = true)
-  public Page<AdoptionPostDto> search(AdoptionPostSearchFilterDto dto, @NonNull Pageable pageable) {
+  public Page<AdoptionPostDto> search(AdoptionPostSearchFilterDto dto, Pageable pageable) {
 
     Page<AdoptionPost> resultPage =
         adoptionPostRepository.findAll(
@@ -192,14 +190,14 @@ public class AdoptionPostService {
   }
 
   @Transactional(readOnly = true)
-  public Page<AdoptionPostDto> searchByWriter(Long writerId, @NonNull Pageable pageable) {
+  public Page<AdoptionPostDto> searchByWriter(Long writerId, Pageable pageable) {
     Page<AdoptionPost> resultPage = adoptionPostRepository.findByWriter_Id(writerId, pageable);
     return resultPage.map(AdoptionPostDto::from);
   }
 
   // 상세
   @Transactional(readOnly = true)
-  public AdoptionPostDetailDto getDetail(@NonNull Long id) {
+  public AdoptionPostDetailDto getDetail(Long id) {
     AdoptionPost info = findEntityById(id);
     AdoptionPostDetailDto detailResponseDto = AdoptionPostDetailDto.from(info);
 
@@ -213,8 +211,7 @@ public class AdoptionPostService {
     return detailResponseDto;
   }
 
-  public Page<AdoptionPostWithChatDto> searchByJoinedChats(
-      @NonNull Long uid, @NonNull Pageable pageable) {
+  public Page<AdoptionPostWithChatDto> searchByJoinedChats(Long uid, Pageable pageable) {
     Page<ChatRoomDto> rooms = chatService.getUserRooms(uid, pageable);
     return rooms.map(
         room -> {
@@ -237,14 +234,13 @@ public class AdoptionPostService {
   }
 
   @Transactional
-  public void updateStatus(
-      @NonNull Long id, @NonNull AdoptionPostStatus status, @NonNull Long userId) {
+  public void updateStatus(Long id, AdoptionPostStatus status, Long userId) {
     AdoptionPost info = findEntityById(id);
     validateWriter(info, userId);
     info.updateStatus(status);
   }
 
-  public void delete(@NonNull Long id, @NonNull Long userId) {
+  public void delete(Long id, Long userId) {
     // User user = userService.findEntityById(userId);
     List<ImageUploadDto> images;
 

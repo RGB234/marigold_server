@@ -18,7 +18,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +32,7 @@ public class ChatService {
   private final AdoptionPostRepository adoptionPostRepository;
   private final RoomParticipantRepository participantRepository;
 
-  public ChatRoomDto getRoom(@NonNull Long roomId) {
+  public ChatRoomDto getRoom(Long roomId) {
     ChatRoom chatRoom =
         chatRoomRepository
             .findById(roomId)
@@ -42,8 +41,7 @@ public class ChatService {
   }
 
   @Transactional
-  public ChatRoomDto createRoom(
-      @NonNull Long user1Id, @NonNull Long user2Id, @NonNull Long postId) {
+  public ChatRoomDto createRoom(Long user1Id, Long user2Id, Long postId) {
     User user1 =
         userRepository
             .findById(user1Id)
@@ -83,7 +81,7 @@ public class ChatService {
                     RoomParticipant.builder().chatRoom(chatRoom).user(user).build()));
   }
 
-  public Page<ChatRoomDto> getUserRooms(@NonNull Long userId, @NonNull Pageable pageable) {
+  public Page<ChatRoomDto> getUserRooms(Long userId, Pageable pageable) {
     User user =
         userRepository
             .findById(userId)
@@ -91,7 +89,7 @@ public class ChatService {
     return chatRoomRepository.findAllActiveByUser(user, pageable).map(this::convertToRoomDto);
   }
 
-  public List<ChatMessageDto> getRoomMessages(@NonNull Long roomId) {
+  public List<ChatMessageDto> getRoomMessages(Long roomId) {
     ChatRoom chatRoom =
         chatRoomRepository
             .findById(roomId)
@@ -133,7 +131,7 @@ public class ChatService {
   }
 
   @Transactional
-  public void leaveRoom(@NonNull Long roomId, @NonNull Long userId) {
+  public void leaveRoom(Long roomId, Long userId) {
     ChatRoom chatRoom =
         chatRoomRepository
             .findById(roomId)
@@ -146,7 +144,7 @@ public class ChatService {
     participantRepository.findByChatRoomAndUser(chatRoom, user).ifPresent(RoomParticipant::leave);
   }
 
-  private ChatRoomDto convertToRoomDto(@NonNull ChatRoom chatRoom) {
+  private ChatRoomDto convertToRoomDto(ChatRoom chatRoom) {
     return ChatRoomDto.builder()
         .id(chatRoom.getId())
         .postId(chatRoom.getAdoptionPost().getId())

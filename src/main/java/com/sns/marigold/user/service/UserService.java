@@ -13,7 +13,6 @@ import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.entity.UserImage;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
-import io.micrometer.common.lang.NonNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -39,14 +38,13 @@ public class UserService {
   private final ApplicationEventPublisher eventPublisher;
 
   @Transactional(readOnly = true)
-  public boolean existsByProviderInfoAndProviderId(
-      @NonNull ProviderInfo providerInfo, @NonNull String providerId) {
+  public boolean existsByProviderInfoAndProviderId(ProviderInfo providerInfo, String providerId) {
     return userRepository.existsByProviderInfoAndProviderId(providerInfo, providerId);
   }
 
   @Transactional(readOnly = true)
   public Optional<User> findEntityByProviderInfoAndProviderId(
-      @NonNull ProviderInfo providerInfo, @NonNull String providerId) {
+      ProviderInfo providerInfo, String providerId) {
     return userRepository.findByProviderInfoAndProviderId(providerInfo, providerId);
   }
 

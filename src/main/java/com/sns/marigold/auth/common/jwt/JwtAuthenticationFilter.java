@@ -12,6 +12,7 @@ import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -62,7 +63,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   }
 
   /** 요청 쿠키에서 JWT 토큰 추출 */
-  private String resolveToken(@NonNull HttpServletRequest request, @NonNull String cookieName) {
+  @Nullable
+  private String resolveToken(HttpServletRequest request, String cookieName) {
     Cookie cookie = WebUtils.getCookie(request, cookieName);
     return (cookie != null) ? cookie.getValue() : null;
   }
