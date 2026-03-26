@@ -2,6 +2,7 @@ package com.sns.marigold.auth.oauth2.service;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.Role;
+import com.sns.marigold.auth.common.service.AuthService;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
   private final UserService userService;
+  private final AuthService authService;
 
   @Override
   public OAuth2User loadUser(OAuth2UserRequest userRequest) {
@@ -45,6 +47,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         userService.findEntityByProviderInfoAndProviderId(providerInfo, providerId);
     if (userOptional.isPresent()) { // 이미 존재하는 사용자라면 로그인처리
       User user = userOptional.get();
+      authService.checkUserStatus(user);
       Collection<SimpleGrantedAuthority> authorities =
           List.of(new SimpleGrantedAuthority(user.getRole().name()));
       return new CustomPrincipal(user.getId(), authorities, attributes);

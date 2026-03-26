@@ -19,4 +19,16 @@ public class UserException extends BusinessException {
   public static UserException forUserNicknameAlreadyExists() {
     return new UserException(ErrorCode.USER_NICKNAME_ALREADY_EXISTS);
   }
+
+  public static UserException forUserDeleted() {
+    return new UserException(ErrorCode.USER_DELETED);
+  }
+
+  public static UserException forUserBanned() {
+    return new UserException(ErrorCode.USER_BANNED);
+  }
+
+  public static UserException forUserSleeping() {
+    return new UserException(ErrorCode.USER_SLEEPING);
+  }
 }
