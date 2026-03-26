@@ -81,6 +81,8 @@ public class AuthService {
       throw AuthException.forInvalidCredentials(); // 비밀번호 불일치
     }
 
+    checkUserStatus(user);
+
     CustomPrincipal principal =
         new CustomPrincipal(
             user.getId(), List.of(new SimpleGrantedAuthority(user.getRole().name())), null);
@@ -98,5 +100,14 @@ public class AuthService {
         cookieManager.REFRESH_TOKEN_NAME,
         refreshToken,
         jwtManager.getRefreshTokenValidityInSeconds());
+  }
+
+  public void checkUserStatus(User user) {
+    switch (user.getStatus()) {
+      case DELETED -> throw UserException.forUserDeleted();
+      case BANNED -> throw UserException.forUserBanned();
+      case SLEEP -> throw UserException.forUserSleeping();
+      default -> {}
+    }
   }
 }

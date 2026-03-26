@@ -2,6 +2,7 @@ package com.sns.marigold.user.entity;
 
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+import com.sns.marigold.user.enums.UserStatus;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -59,6 +60,11 @@ public class User {
   @JoinColumn(name = "image_id", nullable = true)
   private UserImage image;
 
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  @Builder.Default
+  private UserStatus status = UserStatus.ACTIVE;
+
   @Column(nullable = true)
   private LocalDateTime deletedAt; // soft delete timestamp
 
@@ -92,7 +98,23 @@ public class User {
     this.image = null;
     this.providerInfo = null;
     this.providerId = null;
-    // this.role = null;
+    this.status = UserStatus.DELETED;
     this.deletedAt = LocalDateTime.now();
+  }
+
+  public void ban() {
+    this.status = UserStatus.BANNED;
+  }
+
+  public void sleep() {
+    this.status = UserStatus.SLEEP;
+  }
+
+  public void activate() {
+    this.status = UserStatus.ACTIVE;
+  }
+
+  public boolean isActive() {
+    return this.status == UserStatus.ACTIVE;
   }
 }

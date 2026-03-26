@@ -44,6 +44,9 @@ public enum ErrorCode {
   USER_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_ALREADY_EXISTS", "이미 존재하는 사용자입니다."),
   USER_NICKNAME_ALREADY_EXISTS(
       HttpStatus.CONFLICT, "USER_NICKNAME_ALREADY_EXISTS", "이미 존재하는 닉네임입니다."),
+  USER_DELETED(HttpStatus.FORBIDDEN, "USER_DELETED", "탈퇴한 사용자입니다."),
+  USER_BANNED(HttpStatus.FORBIDDEN, "USER_BANNED", "이용이 제한된 사용자입니다."),
+  USER_SLEEPING(HttpStatus.FORBIDDEN, "USER_SLEEPING", "휴면 상태인 사용자입니다."),
   // AdoptionPost
   ADOPTION_POST_NOT_FOUND(HttpStatus.NOT_FOUND, "ADOPTION_POST_NOT_FOUND", "존재하지 않는 입양 게시글입니다."),
   ADOPTION_POST_COMPLETED(
