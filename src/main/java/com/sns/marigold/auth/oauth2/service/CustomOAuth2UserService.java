@@ -37,20 +37,27 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     // OAuth2 인증 provider 정보 추출
     String providerCode = userRequest.getClientRegistration().getRegistrationId();
+    
     ProviderInfo providerInfo = ProviderInfo.fromString(providerCode);
     // 해당 provider에서 제공하는 사용자 정보
     OAuth2UserInfo oAuth2UserInfo =
         OAuth2UserInfoFactory.getOAuth2UserInfo(providerInfo, attributes);
+
     String providerId = oAuth2UserInfo.getName();
 
     Optional<User> userOptional =
         userService.findEntityByProviderInfoAndProviderId(providerInfo, providerId);
     if (userOptional.isPresent()) { // 이미 존재하는 사용자라면 로그인처리
+
+      authService.checkUserStatus(userOptional.get());
+
       User user = userOptional.get();
-      authService.checkUserStatus(user);
+
       Collection<SimpleGrantedAuthority> authorities =
           List.of(new SimpleGrantedAuthority(user.getRole().name()));
+
       return new CustomPrincipal(user.getId(), authorities, attributes);
+
     } else { // 존재하지 않는 사용자라면 회원가입 처리
       OAuth2SignupDto oAuth2SignupDto =
           OAuth2SignupDto.builder()
@@ -58,9 +65,12 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
               .providerId(providerId)
               .role(Role.ROLE_PERSON) // 기본 권한은 일반 사용자로 설정
               .build();
+
       Long userId = userService.createUser(oAuth2SignupDto);
+
       Collection<SimpleGrantedAuthority> authorities =
           List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
+
       return new CustomPrincipal(userId, authorities, attributes);
     }
   }
