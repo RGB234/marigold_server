@@ -7,6 +7,8 @@ import com.sns.marigold.chat.dto.NewChatDto;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.annotation.TsidType;
+
+import io.hypersistence.tsid.TSID;
 import jakarta.validation.groups.Default;
 import java.util.List;
 import java.util.Objects;
@@ -60,10 +62,19 @@ public class ChatRoomController {
         chatService.getUserRooms(Objects.requireNonNull(principal.getUserId()), pageable));
   }
 
+  // DEBUGGING
+  // @PreAuthorize("isAuthenticated()")
+  // @GetMapping("/rooms/{roomId}/messages")
+  // public ResponseEntity<List<ChatMessageDto>> getRoomMessages(
+  //     @PathVariable("roomId") @TsidType String roomId) {
+  //   Long longRoomId = TSID.from(roomId).toLong();
+  //   return ResponseEntity.ok(chatService.getRoomMessages(longRoomId));
+  // }
+
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/rooms/{roomId}/messages")
   public ResponseEntity<List<ChatMessageDto>> getRoomMessages(
-      @PathVariable("roomId") @TsidType Long roomId) {
+        @PathVariable("roomId") @TsidType Long roomId) {
     return ResponseEntity.ok(chatService.getRoomMessages(roomId));
   }
 
