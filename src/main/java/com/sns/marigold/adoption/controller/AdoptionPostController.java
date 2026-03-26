@@ -24,7 +24,6 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -52,10 +51,10 @@ public class AdoptionPostController {
       @ModelAttribute @Validated({Default.class}) AdoptionPostCreateDto dto,
       @AuthenticationPrincipal CustomPrincipal principal) {
     // Defensive Coding
-    if (principal == null) {
+    Long userId = principal.getUserId();
+    if (userId == null) {
       throw AuthException.forUnauthorized();
     }
-    Long userId = Objects.requireNonNull(principal.getUserId());
     Long adoptionPostId = adoptionPostService.create(dto, userId);
 
     return ResponseEntity.status(HttpStatus.CREATED)
@@ -75,7 +74,7 @@ public class AdoptionPostController {
   @GetMapping("")
   public ResponseEntity<ApiResponse<Page<AdoptionPostDto>>> search(
       @ModelAttribute AdoptionPostSearchFilterDto dto,
-      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull
+      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
           Pageable pageable) {
     Page<AdoptionPostDto> result = adoptionPostService.search(dto, pageable);
     return ResponseEntity.status(HttpStatus.OK)
@@ -86,7 +85,7 @@ public class AdoptionPostController {
   @GetMapping("/writer/{userId}")
   public ResponseEntity<ApiResponse<Page<AdoptionPostDto>>> searchByWriter(
       @PathVariable("userId") @TsidType Long userId,
-      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull
+      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
           Pageable pageable) {
     Page<AdoptionPostDto> result = adoptionPostService.searchByWriter(userId, pageable);
     return ResponseEntity.status(HttpStatus.OK)
@@ -99,9 +98,12 @@ public class AdoptionPostController {
   @GetMapping("/chat")
   public ResponseEntity<ApiResponse<Page<AdoptionPostWithChatDto>>> searchByJoinedChats(
       @AuthenticationPrincipal CustomPrincipal principal,
-      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull
+      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
           Pageable pageable) {
     Long uid = principal.getUserId();
+    if (uid == null) {
+      throw AuthException.forUnauthorized();
+    }
 
     Page<AdoptionPostWithChatDto> result = adoptionPostService.searchByJoinedChats(uid, pageable);
     return ResponseEntity.status(HttpStatus.OK)
@@ -110,8 +112,7 @@ public class AdoptionPostController {
 
   @PreAuthorize("permitAll()")
   @GetMapping("/{id}")
-  public ResponseEntity<ApiResponse<AdoptionPostDetailDto>> getDetail(
-      @PathVariable("id") @NonNull Long id) {
+  public ResponseEntity<ApiResponse<AdoptionPostDetailDto>> getDetail(@PathVariable("id") Long id) {
     AdoptionPostDetailDto result = adoptionPostService.getDetail(id);
     return ResponseEntity.status(HttpStatus.OK)
         .body(ApiResponse.success(HttpStatus.OK, "Adoption post detail successfully", result));
@@ -120,8 +121,8 @@ public class AdoptionPostController {
   @PreAuthorize("isAuthenticated()")
   @PatchMapping("/{id}")
   public ResponseEntity<ApiResponse<?>> update(
-      @NonNull @AuthenticationPrincipal CustomPrincipal principal,
-      @NonNull @PathVariable("id") Long id,
+      @AuthenticationPrincipal CustomPrincipal principal,
+      @PathVariable("id") Long id,
       @Validated({Default.class}) @ModelAttribute AdoptionPostUpdateDto dto) {
     Long userId = principal.getUserId();
     if (userId == null) {
@@ -138,9 +139,9 @@ public class AdoptionPostController {
   @PreAuthorize("isAuthenticated()")
   @PatchMapping("/{id}/status")
   public ResponseEntity<ApiResponse<?>> updateStatus(
-      @NonNull @AuthenticationPrincipal CustomPrincipal principal,
-      @NonNull @PathVariable("id") Long id,
-      @NonNull @RequestParam("status") AdoptionPostStatus status) {
+      @AuthenticationPrincipal CustomPrincipal principal,
+      @PathVariable("id") Long id,
+      @RequestParam("status") AdoptionPostStatus status) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw AuthException.forUnauthorized();
@@ -153,8 +154,7 @@ public class AdoptionPostController {
   @PreAuthorize("isAuthenticated()")
   @DeleteMapping("/{id}")
   public ResponseEntity<ApiResponse<?>> delete(
-      @NonNull @AuthenticationPrincipal CustomPrincipal principal,
-      @NonNull @PathVariable("id") Long id) {
+      @AuthenticationPrincipal CustomPrincipal principal, @PathVariable("id") Long id) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw AuthException.forUnauthorized();

@@ -16,7 +16,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -47,15 +46,15 @@ public class ChatRoomController {
     return ResponseEntity.ok(
         chatService.createRoom(
             Objects.requireNonNull(principal.getUserId()),
-            newChatDto.getReceiverId(),
-            newChatDto.getAdoptionPostId()));
+            Objects.requireNonNull(newChatDto.getReceiverId()),
+            Objects.requireNonNull(newChatDto.getAdoptionPostId())));
   }
 
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/rooms")
   public ResponseEntity<Page<ChatRoomDto>> getMyRooms(
       @AuthenticationPrincipal CustomPrincipal principal,
-      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull
+      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
           Pageable pageable) {
     return ResponseEntity.ok(
         chatService.getUserRooms(Objects.requireNonNull(principal.getUserId()), pageable));
@@ -64,7 +63,7 @@ public class ChatRoomController {
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/rooms/{roomId}/messages")
   public ResponseEntity<List<ChatMessageDto>> getRoomMessages(
-      @NonNull @PathVariable("roomId") @TsidType Long roomId) {
+      @PathVariable("roomId") @TsidType Long roomId) {
     return ResponseEntity.ok(chatService.getRoomMessages(roomId));
   }
 
@@ -72,7 +71,7 @@ public class ChatRoomController {
   @DeleteMapping("/rooms/{roomId}")
   public ResponseEntity<Void> deleteRoom(
       @AuthenticationPrincipal CustomPrincipal principal,
-      @NonNull @PathVariable("roomId") @TsidType Long roomId) {
+      @PathVariable("roomId") @TsidType Long roomId) {
     chatService.leaveRoom(roomId, Objects.requireNonNull(principal.getUserId()));
     return ResponseEntity.ok().build();
   }

@@ -1,7 +1,6 @@
 package com.sns.marigold.auth.common;
 
 import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
-import com.sns.marigold.auth.common.jwt.JwtAuthenticationFilter;
 import com.sns.marigold.auth.oauth2.handler.OAuth2SignupFailureHandler;
 import com.sns.marigold.auth.oauth2.handler.OAuth2SignupSuccessHandler;
 import com.sns.marigold.auth.oauth2.service.CustomOAuth2UserService;
@@ -31,7 +30,6 @@ public class SignupSecurityConfig {
   private final OAuth2SignupSuccessHandler oAuth2SignupSuccessHandler;
   private final OAuth2SignupFailureHandler oAuth2SignupFailureHandler;
   private final CustomAccessDeniedHandler customAccessDeniedHandler;
-  private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
   private final UrlProperties urlProperties;
 
@@ -50,9 +48,6 @@ public class SignupSecurityConfig {
         .cors(corsCustomizer -> corsCustomizer.configurationSource(customCorsConfigurationSource))
         .csrf(AbstractHttpConfigurer::disable)
         .httpBasic(AbstractHttpConfigurer::disable)
-        // JWT 인증 필터
-        //        .addFilterBefore(jwtAuthenticationFilter,
-        // UsernamePasswordAuthenticationFilter.class)
         .authorizeHttpRequests(
             auth ->
                 auth.requestMatchers(CorsUtils::isPreFlightRequest)

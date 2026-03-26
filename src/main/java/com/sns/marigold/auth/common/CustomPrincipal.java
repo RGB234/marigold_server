@@ -3,6 +3,7 @@ package com.sns.marigold.auth.common;
 import java.util.Collection;
 import java.util.Map;
 import lombok.Getter;
+import org.springframework.lang.NonNull;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
@@ -20,11 +21,13 @@ public class CustomPrincipal implements OAuth2User {
   }
 
   @Override
+  @NonNull
   public Map<String, Object> getAttributes() {
-    return attributes;
+    return attributes != null ? attributes : Map.of();
   }
 
   @Override
+  @NonNull
   public String getName() {
     return userId != null ? userId.toString() : "";
   }

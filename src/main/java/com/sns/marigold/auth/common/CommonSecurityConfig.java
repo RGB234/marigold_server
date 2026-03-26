@@ -3,7 +3,6 @@ package com.sns.marigold.auth.common;
 import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutSuccessHandler;
-import com.sns.marigold.auth.common.jwt.JwtAuthenticationFilter;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.config.UrlProperties;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +29,6 @@ public class CommonSecurityConfig {
   private final CustomAccessDeniedHandler customAccessDeniedHandler;
   private final CustomLogoutHandler customLogoutHandler;
   private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
-  private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
   private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
   private final UrlProperties urlProperties;
@@ -52,11 +50,6 @@ public class CommonSecurityConfig {
         .cors(corsCustomizer -> corsCustomizer.configurationSource(customCorsConfigurationSource))
         .csrf(AbstractHttpConfigurer::disable)
         .httpBasic(AbstractHttpConfigurer::disable)
-        // JWT 인증 필터
-        // formLogin 비활성화 시 UsernamePasswordAuthenticationFilter가 없기도 하고,
-        // 이미 @Component로 전역으로 등록 설정함.
-        //        .addFilterBefore(jwtAuthenticationFilter,
-        // UsernamePasswordAuthenticationFilter.class)
         .authorizeHttpRequests(
             auth ->
                 auth.requestMatchers(CorsUtils::isPreFlightRequest)

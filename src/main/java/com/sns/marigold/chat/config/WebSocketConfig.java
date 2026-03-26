@@ -2,6 +2,7 @@ package com.sns.marigold.chat.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
@@ -36,6 +37,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     registration.interceptors(
         new ExecutorChannelInterceptor() {
           @Override
+          @Nullable
           public Message<?> beforeHandle(
               @NonNull Message<?> message,
               @NonNull MessageChannel channel,
@@ -53,7 +55,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
               @NonNull Message<?> message,
               @NonNull MessageChannel channel,
               @NonNull MessageHandler handler,
-              Exception ex) {
+              @Nullable Exception ex) {
             SecurityContextHolder.clearContext();
           }
         });
