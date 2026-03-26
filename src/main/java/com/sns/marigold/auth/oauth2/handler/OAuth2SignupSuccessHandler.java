@@ -30,8 +30,6 @@ public class OAuth2SignupSuccessHandler extends SimpleUrlAuthenticationSuccessHa
       throws IOException, ServletException {
     CustomPrincipal principal = (CustomPrincipal) authentication.getPrincipal();
 
-    log.info("회원가입 성공 - UserId: {}", principal.getUserId());
-
     String callbackUrl = urlProperties.frontend().auth().callback();
     Objects.requireNonNull(callbackUrl, "url.frontend.auth.callback is not configured");
 
