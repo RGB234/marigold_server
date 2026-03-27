@@ -11,4 +11,12 @@ public class AdoptionPostException extends BusinessException {
   public static AdoptionPostException forAdoptionPostNotExists() {
     return new AdoptionPostException(ErrorCode.ADOPTION_POST_NOT_FOUND);
   }
+
+  public static AdoptionPostException forAdoptionPostAlreadyCompleted() {
+    return new AdoptionPostException(ErrorCode.ADOPTION_POST_ALREADY_COMPLETED);
+  }
+
+  public static AdoptionPostException forAdoptionPostNotCompleted() {
+    return new AdoptionPostException(ErrorCode.ADOPTION_POST_NOT_COMPLETED);
+  }
 }

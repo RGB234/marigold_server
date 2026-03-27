@@ -81,12 +81,6 @@ public class AdoptionPost {
   @Column(nullable = false)
   private AdoptionPostStatus status;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "adopter_id") // nullable = true (기본값). 입양 전엔 null이어야 하므로 nullable = true
-  private User adopter;
-
-  @Column() private LocalDateTime adoptedAt;
-
   // 이미지
 
   // 1:N 관계 설정
@@ -147,10 +141,6 @@ public class AdoptionPost {
   // 입양 상태 변경 (예약 등)
   public void updateStatus(AdoptionPostStatus status) {
     this.status = status;
-    if (status != AdoptionPostStatus.COMPLETED) {
-      this.adopter = null;
-      this.adoptedAt = null;
-    }
   }
 
   // // 입양 취소 처리 (필요시)

@@ -1,8 +1,9 @@
-package com.sns.marigold.auth.common;
+package com.sns.marigold.auth.oauth2;
 
+import com.sns.marigold.auth.common.CustomCorsConfigurationSource;
 import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
-import com.sns.marigold.auth.oauth2.handler.OAuth2SignupFailureHandler;
-import com.sns.marigold.auth.oauth2.handler.OAuth2SignupSuccessHandler;
+import com.sns.marigold.auth.oauth2.handler.OAuth2FailureHandler;
+import com.sns.marigold.auth.oauth2.handler.OAuth2SuccessHandler;
 import com.sns.marigold.auth.oauth2.service.CustomOAuth2UserService;
 import com.sns.marigold.global.config.UrlProperties;
 import lombok.RequiredArgsConstructor;
@@ -17,31 +18,30 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.web.cors.CorsUtils;
 
-/** 회원가입 전용 SecurityFilterChain /oauth2/signup/** 경로에 적용됩니다. */
+/** 통합 OAuth2 SecurityFilterChain /oauth2/** 경로에 적용됩니다. */
 @Configuration
 @RequiredArgsConstructor
-@Order(2) // 로그인 다음에 적용
-public class SignupSecurityConfig {
+@Order(1) // 우선 적용
+public class OAuth2SecurityConfig {
 
   private final CustomCorsConfigurationSource customCorsConfigurationSource;
 
-  //  private final OAuth2UserServiceForSignup oAuth2UserServiceForSignup;
   private final CustomOAuth2UserService customOAuth2UserService;
-  private final OAuth2SignupSuccessHandler oAuth2SignupSuccessHandler;
-  private final OAuth2SignupFailureHandler oAuth2SignupFailureHandler;
+  private final OAuth2SuccessHandler oAuth2SuccessHandler;
+  private final OAuth2FailureHandler oAuth2FailureHandler;
   private final CustomAccessDeniedHandler customAccessDeniedHandler;
 
   private final UrlProperties urlProperties;
 
   @Bean
-  public SecurityFilterChain signupSecurityFilterChain(HttpSecurity http) throws Exception {
-    String signupBaseUrl = urlProperties.backend().auth().signup().base();
-    String signupEndpointBaseUrl = urlProperties.backend().auth().signup().endpoint().base();
-    String signupRedirectionUrl = urlProperties.backend().auth().signup().redirection();
+  public SecurityFilterChain oauth2SecurityFilterChain(HttpSecurity http) throws Exception {
+    String oauth2BaseUrl = urlProperties.backend().auth().oauth2().base();
+    String oauth2EndpointBaseUrl = urlProperties.backend().auth().oauth2().endpoint().base();
+    String oauth2RedirectionUrl = urlProperties.backend().auth().oauth2().redirection();
 
     http
-        // 회원가입 경로에만 적용
-        .securityMatcher(signupBaseUrl + "/**")
+        // OAuth2 경로에만 적용
+        .securityMatcher(oauth2BaseUrl + "/**")
         // 세션 비활성화 (JWT 사용)
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -53,19 +53,17 @@ public class SignupSecurityConfig {
                 auth.requestMatchers(CorsUtils::isPreFlightRequest)
                     .permitAll()
                     .anyRequest()
-                    .permitAll() // 회원가입 경로 모두 허용
+                    .permitAll() // OAuth2 경로는 모두 허용 (인증은 소셜 로그인 창에서 이루어짐)
             )
         .formLogin(AbstractHttpConfigurer::disable)
-        // 회원가입 전용 OAuth2 설정
+        // 통합 OAuth2 설정
         .oauth2Login(
             oauth2 ->
                 oauth2
-                    .authorizationEndpoint(endpoint -> endpoint.baseUri(signupEndpointBaseUrl))
-                    .redirectionEndpoint(endpoint -> endpoint.baseUri(signupRedirectionUrl))
-                    .successHandler(oAuth2SignupSuccessHandler)
-                    .failureHandler(oAuth2SignupFailureHandler)
-                    //                .userInfoEndpoint(userInfo ->
-                    // userInfo.userService(oAuth2UserServiceForSignup)))
+                    .authorizationEndpoint(endpoint -> endpoint.baseUri(oauth2EndpointBaseUrl))
+                    .redirectionEndpoint(endpoint -> endpoint.baseUri(oauth2RedirectionUrl))
+                    .successHandler(oAuth2SuccessHandler)
+                    .failureHandler(oAuth2FailureHandler)
                     .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService)))
         // 예외처리
         .exceptionHandling(

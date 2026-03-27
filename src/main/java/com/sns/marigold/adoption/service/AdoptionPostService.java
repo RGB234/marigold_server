@@ -16,6 +16,12 @@ import com.sns.marigold.adoption.specification.AdoptionPostSpecification;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.service.ChatService;
+import com.sns.marigold.chat.repository.ChatRoomRepository;
+import com.sns.marigold.adoption.repository.AdoptionAdopterRepository;
+import com.sns.marigold.adoption.entity.AdoptionAdopter;
+import com.sns.marigold.adoption.dto.AdoptionCandidateDto;
+import com.sns.marigold.chat.entity.ChatRoom;
+import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.global.error.exception.BusinessException;
 import com.sns.marigold.global.error.exception.InternalServerException;
 import com.sns.marigold.storage.dto.ImageUploadDto;
@@ -46,6 +52,8 @@ public class AdoptionPostService {
   private final UserService userService;
   private final AdoptionPostRepository adoptionPostRepository;
   private final ChatService chatService;
+  private final ChatRoomRepository chatRoomRepository;
+  private final AdoptionAdopterRepository adoptionAdopterRepository;
   private final S3Service s3Service;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
@@ -208,6 +216,13 @@ public class AdoptionPostService {
 
     detailResponseDto.setImageUrls(imageUrls);
 
+    if (info.getStatus() == AdoptionPostStatus.COMPLETED) {
+      adoptionAdopterRepository.findByAdoptionPostId(id).ifPresent(adopterMapping -> {
+        UserInfoDto adopterDto = UserInfoDto.from(adopterMapping.getAdopter());
+        detailResponseDto.setAdopter(adopterDto);
+      });
+    }
+
     return detailResponseDto;
   }
 
@@ -272,5 +287,56 @@ public class AdoptionPostService {
     if (!info.getWriter().getId().equals(userId)) {
       throw AuthException.forAccessDenied();
     }
+  }
+
+  @Transactional(readOnly = true)
+  public List<AdoptionCandidateDto> getCandidates(Long id, Long userId) {
+    AdoptionPost info = findEntityById(id);
+    validateWriter(info, userId);
+
+    List<ChatRoom> chatRooms = chatRoomRepository.findAllByAdoptionPostId(id);
+    return chatRooms.stream()
+        .map(room -> {
+          User otherUser = room.getUser1().getId().equals(userId) ? room.getUser2() : room.getUser1();
+          String imageUrl = null;
+          if (otherUser.getImage() != null) {
+            imageUrl = s3Service.getPresignedGetUrl(otherUser.getImage().getStoredFileName());
+          }
+          return AdoptionCandidateDto.from(otherUser, imageUrl);
+        })
+        .collect(Collectors.toList());
+  }
+
+  @Transactional
+  public void completeAdoption(Long id, Long adopterId, Long userId) {
+    AdoptionPost info = findEntityById(id);
+    validateWriter(info, userId);
+
+    if (info.getStatus() == AdoptionPostStatus.COMPLETED) {
+      throw AdoptionPostException.forAdoptionPostAlreadyCompleted();
+    }
+
+    User adopter = userService.findEntityById(adopterId);
+
+    info.updateStatus(AdoptionPostStatus.COMPLETED);
+
+    AdoptionAdopter adoptionAdopter = AdoptionAdopter.builder()
+        .adoptionPost(info)
+        .adopter(adopter)
+        .build();
+    adoptionAdopterRepository.save(adoptionAdopter);
+  }
+
+  @Transactional
+  public void cancelAdoption(Long id, Long userId) {
+    AdoptionPost info = findEntityById(id);
+    validateWriter(info, userId);
+
+    if (info.getStatus() != AdoptionPostStatus.COMPLETED) {
+      throw AdoptionPostException.forAdoptionPostNotCompleted();
+    }
+
+    info.updateStatus(AdoptionPostStatus.PROCEEDING);
+    adoptionAdopterRepository.deleteByAdoptionPostId(id);
   }
 }

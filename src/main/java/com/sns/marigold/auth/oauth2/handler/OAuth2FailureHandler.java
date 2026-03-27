@@ -18,11 +18,11 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationFa
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
-/** 로그인 전용 OAuth2 실패 Handler 로그인 실패 시 에러 정보를 포함하여 프론트엔드로 리다이렉트합니다. */
+/** 통합 OAuth2 실패 Handler 인증 실패 시 에러 정보를 포함하여 프론트엔드로 리다이렉트합니다. */
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class OAuth2LoginFailureHandler extends SimpleUrlAuthenticationFailureHandler {
+public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
   private final UrlProperties urlProperties;
 
@@ -33,7 +33,7 @@ public class OAuth2LoginFailureHandler extends SimpleUrlAuthenticationFailureHan
 
     String errorCode = ErrorCode.AUTH_OAUTH2_LOGIN_FAILURE.getCode();
     String errorMessage = exception.getMessage();
-    // 로그인 콜백 URL로 에러 정보와 함께 리다이렉트
+    // 콜백 URL로 에러 정보와 함께 리다이렉트
 
     String callbackUrl = urlProperties.frontend().auth().callback();
     Objects.requireNonNull(callbackUrl, "url.frontend.auth.callback is not configured");
@@ -54,7 +54,7 @@ public class OAuth2LoginFailureHandler extends SimpleUrlAuthenticationFailureHan
             .build()
             .toUriString();
 
-    log.info("로그인 실패: errorCode - {}, errorMessage - {}", errorCode, errorMessage);
+    log.info("OAuth2 인증 실패: errorCode - {}, errorMessage - {}", errorCode, errorMessage);
 
     if (response.isCommitted()) {
       log.debug("응답이 이미 커밋되어 리다이렉트 할 수 없습니다. URL: {}", redirectUrl);

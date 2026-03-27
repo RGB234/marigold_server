@@ -16,14 +16,9 @@ public record UrlProperties(Frontend frontend, Backend backend) {
   // 2. 백엔드 설정
   public record Backend(String apiPrefix, Auth auth) {
 
-    public record Auth(Login login, Signup signup) {
+    public record Auth(OAuth2 oauth2) {
 
-      public record Login(String base, Endpoint endpoint, String redirection) {
-
-        public record Endpoint(String base, String naver, String kakao) {}
-      }
-
-      public record Signup(String base, Endpoint endpoint, String redirection) {
+      public record OAuth2(String base, Endpoint endpoint, String redirection) {
 
         public record Endpoint(String base, String naver, String kakao) {}
       }

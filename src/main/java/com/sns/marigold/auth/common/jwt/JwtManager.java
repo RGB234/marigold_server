@@ -1,6 +1,7 @@
 package com.sns.marigold.auth.common.jwt;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -47,7 +48,7 @@ public class JwtManager {
     Long userId = getUserId(claims);
     List<SimpleGrantedAuthority> authorities = getAuthorities(claims);
     return new UsernamePasswordAuthenticationToken(
-        new CustomPrincipal(userId, authorities, null), "", authorities);
+        new CustomPrincipal(userId, authorities, null, null), "", authorities);
   }
 
   /** Access Token 생성 */
