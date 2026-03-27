@@ -8,7 +8,6 @@ import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.annotation.TsidType;
 
-import io.hypersistence.tsid.TSID;
 import jakarta.validation.groups.Default;
 import java.util.List;
 import java.util.Objects;

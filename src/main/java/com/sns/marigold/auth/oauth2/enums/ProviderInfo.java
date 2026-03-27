@@ -17,8 +17,7 @@ public enum ProviderInfo {
   //  private final String providerId; // 소셜 로그인 사용자 정보 ID
 
   public static ProviderInfo fromString(String providerCode) {
-    // registrationId에서 suffix (-login, -signup) 제거
-    String cleanedProviderCode = providerCode.replaceAll("-(login|signup)$", "").toUpperCase();
+    String cleanedProviderCode = providerCode.toUpperCase();
 
     return Arrays.stream(ProviderInfo.values())
         .filter(p -> p.name().equals(cleanedProviderCode))

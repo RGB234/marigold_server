@@ -78,18 +78,4 @@ public class AdoptionPostUpdateDto implements ImageCountValidatable {
   public List<MultipartFile> getImages() {
     return images != null ? images : java.util.Collections.emptyList();
   }
-
-  // public AdoptionPost toEntity(User writer) {
-  //   return AdoptionPost.builder()
-  //       .writer(writer)
-  //       .species(this.species)
-  //       .title(this.title)
-  //       .age(this.age)
-  //       .sex(this.sex)
-  //       .area(this.area)
-  //       .weight(this.weight)
-  //       .neutering(this.neutering)
-  //       .features(this.features)
-  //       .build();
-  // }
 }

@@ -1,13 +1,14 @@
 package com.sns.marigold.auth.oauth2.service;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.enums.Role;
-import com.sns.marigold.auth.common.service.AuthService;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.user.dto.create.OAuth2SignupDto;
 import com.sns.marigold.user.entity.User;
+import com.sns.marigold.user.enums.UserStatus;
 import com.sns.marigold.user.service.UserService;
 import java.util.Collection;
 import java.util.List;
@@ -26,7 +27,6 @@ import org.springframework.stereotype.Service;
 public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
   private final UserService userService;
-  private final AuthService authService;
 
   @Override
   public OAuth2User loadUser(OAuth2UserRequest userRequest) {
@@ -49,14 +49,18 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         userService.findEntityByProviderInfoAndProviderId(providerInfo, providerId);
     if (userOptional.isPresent()) { // 이미 존재하는 사용자라면 로그인처리
 
-      authService.checkUserStatus(userOptional.get());
+      // 예외 발생 대신 상태값을 리턴하여 핸들러에서 처리하도록 변경
+      // authService.checkUserStatus(userOptional.get());
 
       User user = userOptional.get();
 
       Collection<SimpleGrantedAuthority> authorities =
           List.of(new SimpleGrantedAuthority(user.getRole().name()));
 
-      return new CustomPrincipal(user.getId(), authorities, attributes);
+      AuthStatus authStatus;
+      authStatus = user.getStatus().toAuthStatus();
+
+      return new CustomPrincipal(user.getId(), authorities, attributes, authStatus);
 
     } else { // 존재하지 않는 사용자라면 회원가입 처리
       OAuth2SignupDto oAuth2SignupDto =
@@ -71,7 +75,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
       Collection<SimpleGrantedAuthority> authorities =
           List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
 
-      return new CustomPrincipal(userId, authorities, attributes);
+      return new CustomPrincipal(userId, authorities, attributes, AuthStatus.SIGNUP_SUCCESS);
     }
   }
 }

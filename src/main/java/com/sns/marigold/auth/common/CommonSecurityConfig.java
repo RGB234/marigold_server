@@ -22,7 +22,7 @@ import org.springframework.web.cors.CorsUtils;
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
-@Order(3) // SecurityConfig중에서 가장 마지막에 적용 (fallback)
+@Order(2) // SecurityConfig중에서 두번째로 적용 (fallback)
 public class CommonSecurityConfig {
 
   private final CustomCorsConfigurationSource customCorsConfigurationSource;
@@ -35,14 +35,13 @@ public class CommonSecurityConfig {
 
   @Bean
   public SecurityFilterChain commonSecurityFilterChain(HttpSecurity http) throws Exception {
-    String loginBaseUrl = urlProperties.backend().auth().login().base();
-    String signupBaseUrl = urlProperties.backend().auth().signup().base();
+    String oAuth2BaseUrl = urlProperties.backend().auth().oauth2().base();
 
     http.securityMatcher(
             request -> {
               String path = request.getRequestURI();
               // OAuth2 로그인/회원가입 경로는 제외
-              return !path.startsWith(loginBaseUrl) && !path.startsWith(signupBaseUrl);
+              return !path.startsWith(oAuth2BaseUrl);
             })
         // 세션 비활성화 (JWT 사용)
         .sessionManagement(

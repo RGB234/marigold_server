@@ -48,6 +48,8 @@ public class AdoptionPostDetailDto {
 
   private AdoptionPostStatus status;
 
+  @Setter private UserInfoDto adopter;
+
   public static AdoptionPostDetailDto from(AdoptionPost adoptionPost) {
 
     List<String> imageFileNames =

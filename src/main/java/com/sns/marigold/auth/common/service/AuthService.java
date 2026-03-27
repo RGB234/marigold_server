@@ -3,6 +3,7 @@ package com.sns.marigold.auth.common.service;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.dto.LocalLoginDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
+import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.auth.exception.AuthException;
@@ -83,9 +84,10 @@ public class AuthService {
 
     checkUserStatus(user);
 
+    // 방금 회원가입한 유저
     CustomPrincipal principal =
         new CustomPrincipal(
-            user.getId(), List.of(new SimpleGrantedAuthority(user.getRole().name())), null);
+            user.getId(), List.of(new SimpleGrantedAuthority(user.getRole().name())), null, AuthStatus.LOGIN_SUCCESS);
 
     String accessToken = jwtManager.createAccessToken(principal);
     String refreshToken = jwtManager.createRefreshToken(principal);

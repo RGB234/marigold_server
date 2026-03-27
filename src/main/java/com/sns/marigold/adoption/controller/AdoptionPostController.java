@@ -14,6 +14,9 @@ import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.annotation.TsidType;
 import com.sns.marigold.global.dto.ApiResponse;
 import jakarta.validation.groups.Default;
+import com.sns.marigold.adoption.dto.CompleteAdoptionRequestDto;
+import com.sns.marigold.adoption.dto.AdoptionCandidateDto;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +38,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -162,5 +166,47 @@ public class AdoptionPostController {
     adoptionPostService.delete(id, userId);
     return ResponseEntity.status(HttpStatus.OK)
         .body(ApiResponse.success(HttpStatus.OK, "Adoption post deleted successfully"));
+  }
+
+  @PreAuthorize("isAuthenticated()")
+  @GetMapping("/{id}/candidates")
+  public ResponseEntity<ApiResponse<List<AdoptionCandidateDto>>> getCandidates(
+      @AuthenticationPrincipal CustomPrincipal principal, @PathVariable("id") Long id) {
+    Long userId = principal.getUserId();
+    if (userId == null) {
+      throw AuthException.forUnauthorized();
+    }
+    List<AdoptionCandidateDto> candidates = adoptionPostService.getCandidates(id, userId);
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption candidates fetched successfully", candidates));
+  }
+
+  @PreAuthorize("isAuthenticated()")
+  @PostMapping("/{id}/complete")
+  public ResponseEntity<ApiResponse<?>> completeAdoption(
+      @AuthenticationPrincipal CustomPrincipal principal,
+      @PathVariable("id") Long id,
+      @RequestBody @Validated CompleteAdoptionRequestDto request) {
+    Long userId = principal.getUserId();
+    if (userId == null) {
+      throw AuthException.forUnauthorized();
+    }
+    adoptionPostService.completeAdoption(id, request.getAdopterId(), userId);
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption completed successfully"));
+  }
+
+  @PreAuthorize("isAuthenticated()")
+  @PostMapping("/{id}/cancel-complete")
+  public ResponseEntity<ApiResponse<?>> cancelAdoption(
+      @AuthenticationPrincipal CustomPrincipal principal,
+      @PathVariable("id") Long id) {
+    Long userId = principal.getUserId();
+    if (userId == null) {
+      throw AuthException.forUnauthorized();
+    }
+    adoptionPostService.cancelAdoption(id, userId);
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption canceled successfully"));
   }
 }

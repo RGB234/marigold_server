@@ -2,6 +2,7 @@ package com.sns.marigold.chat.repository;
 
 import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.user.entity.User;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,4 +23,7 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
   @Query(
       "SELECT cr FROM ChatRoom cr JOIN RoomParticipant rp ON cr = rp.chatRoom WHERE rp.user = :user AND rp.isDeleted = false ORDER BY cr.createdAt DESC")
   Page<ChatRoom> findAllActiveByUser(@Param("user") User user, Pageable pageable);
+
+  @Query("SELECT cr FROM ChatRoom cr WHERE cr.adoptionPost.id = :postId")
+  List<ChatRoom> findAllByAdoptionPostId(@Param("postId") Long postId);
 }
