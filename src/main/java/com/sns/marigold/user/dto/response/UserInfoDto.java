@@ -4,12 +4,16 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.sns.marigold.global.util.TsidJacksonConfig;
 import com.sns.marigold.user.entity.User;
+
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Builder
+@AllArgsConstructor
 @RequiredArgsConstructor
 public class UserInfoDto {
   @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
@@ -17,7 +21,9 @@ public class UserInfoDto {
   private final Long id;
 
   private final String nickname;
-  private final String imageUrl;
+
+  @Setter
+  private String imageUrl;
 
   public static UserInfoDto from(User user) {
     if (user == null) return emptyDto();

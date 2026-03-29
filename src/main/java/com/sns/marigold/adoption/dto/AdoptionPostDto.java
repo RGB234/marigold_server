@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Builder
@@ -29,6 +30,8 @@ public class AdoptionPostDto {
 
   private String area;
 
+  @Setter
+  @Getter
   private String imageUrl;
 
   private AdoptionPostStatus status;

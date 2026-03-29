@@ -194,13 +194,25 @@ public class AdoptionPostService {
                 AdoptionPostSpecification.hasSex(dto.getSex())),
             pageable);
 
-    return resultPage.map(AdoptionPostDto::from);
+    return resultPage.map(post -> {
+      AdoptionPostDto postDto = AdoptionPostDto.from(post);
+      if (postDto.getImageUrl() != null) {
+        postDto.setImageUrl(s3Service.getPresignedGetUrl(postDto.getImageUrl()));
+      }
+      return postDto;
+    });
   }
 
   @Transactional(readOnly = true)
   public Page<AdoptionPostDto> searchByWriter(Long writerId, Pageable pageable) {
     Page<AdoptionPost> resultPage = adoptionPostRepository.findByWriter_Id(writerId, pageable);
-    return resultPage.map(AdoptionPostDto::from);
+    return resultPage.map(post -> {
+      AdoptionPostDto postDto = AdoptionPostDto.from(post);
+      if (postDto.getImageUrl() != null) {
+        postDto.setImageUrl(s3Service.getPresignedGetUrl(postDto.getImageUrl()));
+      }
+      return postDto;
+    });
   }
 
   // 상세
@@ -208,6 +220,10 @@ public class AdoptionPostService {
   public AdoptionPostDetailDto getDetail(Long id) {
     AdoptionPost info = findEntityById(id);
     AdoptionPostDetailDto detailResponseDto = AdoptionPostDetailDto.from(info);
+
+    if (detailResponseDto.getWriter() != null && detailResponseDto.getWriter().getImageUrl() != null) {
+      detailResponseDto.getWriter().setImageUrl(s3Service.getPresignedGetUrl(detailResponseDto.getWriter().getImageUrl()));
+    }
 
     List<String> imageUrls =
         info.getImages().stream()
@@ -219,6 +235,9 @@ public class AdoptionPostService {
     if (info.getStatus() == AdoptionPostStatus.COMPLETED) {
       adoptionAdopterRepository.findByAdoptionPostId(id).ifPresent(adopterMapping -> {
         UserInfoDto adopterDto = UserInfoDto.from(adopterMapping.getAdopter());
+        if (adopterDto.getImageUrl() != null) {
+          adopterDto.setImageUrl(s3Service.getPresignedGetUrl(adopterDto.getImageUrl()));
+        }
         detailResponseDto.setAdopter(adopterDto);
       });
     }
@@ -233,6 +252,10 @@ public class AdoptionPostService {
           Long postId = room.getPostId();
           AdoptionPost adoptionPost = findEntityById(postId);
           AdoptionPostDto infoDto = AdoptionPostDto.from(adoptionPost);
+
+          if (infoDto.getImageUrl() != null) {
+            infoDto.setImageUrl(s3Service.getPresignedGetUrl(infoDto.getImageUrl()));
+          }
 
           Long receiverId = room.getUser1Id().equals(uid) ? room.getUser2Id() : room.getUser1Id();
           String receiverNickname =
@@ -252,6 +275,11 @@ public class AdoptionPostService {
   public void updateStatus(Long id, AdoptionPostStatus status, Long userId) {
     AdoptionPost info = findEntityById(id);
     validateWriter(info, userId);
+    
+    if (info.getStatus() == AdoptionPostStatus.COMPLETED) {
+      throw AdoptionPostException.forAdoptionPostAlreadyCompleted();
+    }
+    
     info.updateStatus(status);
   }
 
