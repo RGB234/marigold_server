@@ -57,13 +57,23 @@ public class UserService {
   @Transactional(readOnly = true)
   public UserInfoDto getUserById(Long uid) throws UsernameNotFoundException {
     User user = findEntityById(uid);
-    return UserInfoDto.from(user);
+    UserInfoDto dto = UserInfoDto.from(user);
+    if (dto.getImageUrl() != null) {
+      dto.setImageUrl(s3Service.getPresignedGetUrl(dto.getImageUrl()));
+    }
+    return dto;
   }
 
   @Transactional(readOnly = true)
   public List<UserInfoDto> getUserByNickname(String nickname) {
     List<User> users = userRepository.findPersonalUsersByNickname(nickname);
-    return users.stream().map(UserInfoDto::from).toList();
+    return users.stream().map(user -> {
+      UserInfoDto dto = UserInfoDto.from(user);
+      if (dto.getImageUrl() != null) {
+        dto.setImageUrl(s3Service.getPresignedGetUrl(dto.getImageUrl()));
+      }
+      return dto;
+    }).toList();
   }
 
   @Transactional
