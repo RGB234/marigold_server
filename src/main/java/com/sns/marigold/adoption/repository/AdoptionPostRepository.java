@@ -13,19 +13,12 @@ import org.springframework.data.repository.query.Param;
 public interface AdoptionPostRepository
     extends JpaRepository<AdoptionPost, Long>, JpaSpecificationExecutor<AdoptionPost> {
 
-  // @Query("SELECT a FROM AdoptionPost a WHERE a.writer.id = :writerId")
   Page<AdoptionPost> findByWriter_Id(@Param("writerId") Long writerId, Pageable pageable);
 
   // clearAutomatically = true : 벌크 연산 후 영속성 컨텍스트 초기화 (권장)
   @Modifying(clearAutomatically = true)
   @Query("DELETE FROM AdoptionPost a WHERE a.writer.id = :writerId")
   void deleteByWriter(@Param("writerId") Long writerId);
-
-  // @Modifying(clearAutomatically = true)
-  // @Query("DELETE FROM AdoptionImage a WHERE a.adoptionPost.writer.id =
-  // :writerId AND a.adoptionPost.completed = false")
-  // void deleteImagesByWriterAndCompletedIsFalse(@Param("writerId") UUID
-  // writerId);
 
   @Modifying(clearAutomatically = true)
   @Query(
