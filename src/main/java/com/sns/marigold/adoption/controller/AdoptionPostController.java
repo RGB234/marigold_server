@@ -99,6 +99,25 @@ public class AdoptionPostController {
   }
 
   @PreAuthorize("isAuthenticated()")
+  @GetMapping("/adopter/{userId}")
+  public ResponseEntity<ApiResponse<Page<AdoptionPostDto>>> searchByAdopter(
+      @AuthenticationPrincipal CustomPrincipal principal,
+      @PathVariable("userId") @TsidType Long userId,
+      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
+          Pageable pageable) {
+    Long loggedInUserId = principal.getUserId();
+    if (loggedInUserId == null || !loggedInUserId.equals(userId)) {
+        throw AuthException.forAccessDenied();
+    }
+    
+    Page<AdoptionPostDto> result = adoptionPostService.searchByAdopter(userId, pageable);
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(
+            ApiResponse.success(
+                HttpStatus.OK, "Adoption post search by adopter successfully", result));
+  }
+
+  @PreAuthorize("isAuthenticated()")
   @GetMapping("/chat")
   public ResponseEntity<ApiResponse<Page<AdoptionPostWithChatDto>>> searchByJoinedChats(
       @AuthenticationPrincipal CustomPrincipal principal,

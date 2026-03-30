@@ -39,17 +39,17 @@ public class UserController {
 
   // ** create **
 
-  @PreAuthorize("permitAll()")
-  @PostMapping("/create")
-  public ResponseEntity<ApiResponse<Long>> create(@RequestBody @Valid OAuth2SignupDto dto) {
-    Long userId = userService.createUser(dto);
-    return ResponseEntity.ok(
-        ApiResponse.success(HttpStatus.CREATED, "User created successfully", userId));
-  }
+  // @PreAuthorize("permitAll()")
+  // @PostMapping("")
+  // public ResponseEntity<ApiResponse<Long>> create(@RequestBody @Valid OAuth2SignupDto dto) {
+  //   Long userId = userService.createUser(dto);
+  //   return ResponseEntity.ok(
+  //       ApiResponse.success(HttpStatus.CREATED, "User created successfully", userId));
+  // }
 
   // ** update **
   @PreAuthorize("isAuthenticated()")
-  @PatchMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PatchMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<ApiResponse<Void>> update(
       @AuthenticationPrincipal CustomPrincipal principal,
       @ModelAttribute @Valid UserUpdateDto dto) {

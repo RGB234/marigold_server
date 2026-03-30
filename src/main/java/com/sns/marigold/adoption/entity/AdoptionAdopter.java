@@ -45,5 +45,5 @@ public class AdoptionAdopter {
 
   @CreatedDate
   @Column(updatable = false)
-  private LocalDateTime adoptedAt;
+  private LocalDateTime createdAt;
 }
