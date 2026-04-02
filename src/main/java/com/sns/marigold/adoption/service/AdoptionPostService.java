@@ -13,7 +13,6 @@ import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.adoption.specification.AdoptionPostSpecification;
 import com.sns.marigold.auth.exception.AuthException;
-import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.adoption.repository.AdoptionAdopterRepository;
 import com.sns.marigold.adoption.entity.AdoptionAdopter;
@@ -48,7 +47,6 @@ import org.springframework.web.multipart.MultipartFile;
 public class AdoptionPostService {
 
   private final UserService userService;
-  private final ChatService chatService;
   private final S3Service s3Service;
   private final AdoptionPostRepository adoptionPostRepository;
   private final AdoptionAdopterRepository adoptionAdopterRepository;
@@ -215,6 +213,16 @@ public class AdoptionPostService {
       }
       return postDto;
     });
+  }
+
+  @Transactional(readOnly = true)
+  public AdoptionPostDto getSummary(Long id) {
+    AdoptionPost info = findEntityById(id);
+    AdoptionPostDto postDto = AdoptionPostDto.from(info);
+    if (postDto.getImageUrl() != null) {
+      postDto.setImageUrl(s3Service.getPresignedGetUrl(postDto.getImageUrl()));
+    }
+    return postDto;
   }
 
   // 상세

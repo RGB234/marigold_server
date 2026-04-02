@@ -69,11 +69,18 @@ public class ChatService {
                 RoomParticipant.builder().chatRoom(chatRoom).user(user).build()));
   }
 
-  public Page<ChatRoomDto> getUserRooms(Long userId, Pageable pageable) {
+  public Page<ChatRoomDto> getUserRooms(Long userId, String type, Pageable pageable) {
     User user = userRepository
         .findById(userId)
         .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-    return chatRoomRepository.findAllActiveByUser(user, pageable).map(this::convertToRoomDto);
+
+    if ("writer".equalsIgnoreCase(type)) {
+      return chatRoomRepository.findAllActiveByUserAsWriter(user, pageable).map(this::convertToRoomDto);
+    } else if ("inquirer".equalsIgnoreCase(type)) {
+      return chatRoomRepository.findAllActiveByUserAsInquirer(user, pageable).map(this::convertToRoomDto);
+    } else {
+      return chatRoomRepository.findAllActiveByUser(user, pageable).map(this::convertToRoomDto);
+    }
   }
 
   public List<ChatMessageDto> getRoomMessages(Long roomId) {

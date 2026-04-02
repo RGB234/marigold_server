@@ -117,6 +117,14 @@ public class AdoptionPostController {
   }
 
   @PreAuthorize("permitAll()")
+  @GetMapping("/{id}/summary")
+  public ResponseEntity<ApiResponse<AdoptionPostDto>> getSummary(@PathVariable("id") Long id) {
+    AdoptionPostDto result = adoptionPostService.getSummary(id);
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(ApiResponse.success(HttpStatus.OK, "Adoption post successfully", result));
+  }
+
+  @PreAuthorize("permitAll()")
   @GetMapping("/{id}")
   public ResponseEntity<ApiResponse<AdoptionPostDetailDto>> getDetail(@PathVariable("id") Long id) {
     AdoptionPostDetailDto result = adoptionPostService.getDetail(id);
