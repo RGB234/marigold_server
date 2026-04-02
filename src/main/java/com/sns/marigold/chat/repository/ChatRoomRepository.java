@@ -42,6 +42,26 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
       """)
   Page<ChatRoom> findAllActiveByUser(@Param("user") User user, Pageable pageable);
 
+  @Query(
+      """
+      SELECT cr FROM ChatRoom cr 
+      JOIN RoomParticipant rp ON cr = rp.chatRoom 
+      WHERE rp.user = :user AND rp.isDeleted = false 
+      AND cr.adoptionPost.writer = :user 
+      ORDER BY cr.createdAt DESC
+      """)
+  Page<ChatRoom> findAllActiveByUserAsWriter(@Param("user") User user, Pageable pageable);
+
+  @Query(
+      """
+      SELECT cr FROM ChatRoom cr 
+      JOIN RoomParticipant rp ON cr = rp.chatRoom 
+      WHERE rp.user = :user AND rp.isDeleted = false 
+      AND cr.adoptionPost.writer != :user 
+      ORDER BY cr.createdAt DESC
+      """)
+  Page<ChatRoom> findAllActiveByUserAsInquirer(@Param("user") User user, Pageable pageable);
+
   @Query("SELECT cr FROM ChatRoom cr WHERE cr.adoptionPost.id = :postId")
   List<ChatRoom> findAllByAdoptionPostId(@Param("postId") Long postId);
 

@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -55,6 +56,7 @@ public class ChatRoomController { // HTTP REST API
   @PreAuthorize("isAuthenticated()")
   @GetMapping("")
   public ResponseEntity<ApiResponse<Page<ChatRoomDto>>> getMyRooms(
+      @RequestParam(name = "type", required = false) String type,
       @AuthenticationPrincipal CustomPrincipal principal,
       @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
           Pageable pageable) {
@@ -62,7 +64,18 @@ public class ChatRoomController { // HTTP REST API
         ApiResponse.success(
             HttpStatus.OK,
             "fetched successfully",
-            chatService.getUserRooms(Objects.requireNonNull(principal.getUserId()), pageable)));
+            chatService.getUserRooms(Objects.requireNonNull(principal.getUserId()), type, pageable)));
+  }
+
+  @PreAuthorize("isAuthenticated()")
+  @GetMapping("/{roomId}")
+  public ResponseEntity<ApiResponse<ChatRoomDto>> getChatRoom(
+      @PathVariable("roomId") @TsidType Long roomId) {
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK,
+            "fetched successfully",
+            chatService.getChatRoom(roomId)));
   }
 
   @PreAuthorize("isAuthenticated()")
