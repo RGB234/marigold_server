@@ -19,7 +19,7 @@ public class ChatController {
   private final ChatService chatService;
 
   @PreAuthorize("isAuthenticated()")
-  @MessageMapping("/chat/message")
+  @MessageMapping("/chat/message") // 웹소켓
   public void message(ChatMessageDto messageDto) {
     log.info("Received message: {}", messageDto);
     ChatMessageDto savedMessage = chatService.saveMessage(messageDto);

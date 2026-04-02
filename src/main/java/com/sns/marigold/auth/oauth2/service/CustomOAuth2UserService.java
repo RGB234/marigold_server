@@ -8,7 +8,6 @@ import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.user.dto.create.OAuth2SignupDto;
 import com.sns.marigold.user.entity.User;
-import com.sns.marigold.user.enums.UserStatus;
 import com.sns.marigold.user.service.UserService;
 import java.util.Collection;
 import java.util.List;
