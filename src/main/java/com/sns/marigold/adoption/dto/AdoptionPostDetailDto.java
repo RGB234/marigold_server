@@ -50,6 +50,8 @@ public class AdoptionPostDetailDto {
 
   @Setter private UserInfoDto adopter;
 
+  @Setter private Integer chatRoomCount;
+
   public static AdoptionPostDetailDto from(AdoptionPost adoptionPost) {
 
     List<String> imageFileNames =

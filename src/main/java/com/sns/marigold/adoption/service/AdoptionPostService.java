@@ -5,7 +5,6 @@ import com.sns.marigold.adoption.dto.AdoptionPostDetailDto;
 import com.sns.marigold.adoption.dto.AdoptionPostDto;
 import com.sns.marigold.adoption.dto.AdoptionPostSearchFilterDto;
 import com.sns.marigold.adoption.dto.AdoptionPostUpdateDto;
-import com.sns.marigold.adoption.dto.AdoptionPostWithChatDto;
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.entity.AdoptionPostEditor;
 import com.sns.marigold.adoption.entity.AdoptionPostImage;
@@ -14,7 +13,6 @@ import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.adoption.specification.AdoptionPostSpecification;
 import com.sns.marigold.auth.exception.AuthException;
-import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.adoption.repository.AdoptionAdopterRepository;
@@ -246,33 +244,11 @@ public class AdoptionPostService {
       });
     }
 
+    detailResponseDto.setChatRoomCount(chatRoomRepository.countByAdoptionPostId(id));
+
     return detailResponseDto;
   }
 
-  public Page<AdoptionPostWithChatDto> searchByJoinedChats(Long uid, Pageable pageable) {
-    Page<ChatRoomDto> rooms = chatService.getUserRooms(uid, pageable);
-    return rooms.map(
-        room -> {
-          Long postId = room.getPostId();
-          AdoptionPost adoptionPost = findEntityById(postId);
-          AdoptionPostDto infoDto = AdoptionPostDto.from(adoptionPost);
-
-          if (infoDto.getImageUrl() != null) {
-            infoDto.setImageUrl(s3Service.getPresignedGetUrl(infoDto.getImageUrl()));
-          }
-
-          Long receiverId = room.getUser1Id().equals(uid) ? room.getUser2Id() : room.getUser1Id();
-          String receiverNickname = room.getUser1Id().equals(uid) ? room.getUser2Nickname() : room.getUser1Nickname();
-
-          return AdoptionPostWithChatDto.builder()
-              .adoptionPost(infoDto)
-              .chatRoomId(room.getId())
-              .receiverId(receiverId)
-              .receiverNickname(receiverNickname)
-              .chatCreatedAt(room.getCreatedAt())
-              .build();
-        });
-  }
 
   @Transactional
   public void updateStatus(Long id, AdoptionPostStatus status, Long userId) {

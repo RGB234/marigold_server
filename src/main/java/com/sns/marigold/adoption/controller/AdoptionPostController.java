@@ -5,7 +5,6 @@ import com.sns.marigold.adoption.dto.AdoptionPostDetailDto;
 import com.sns.marigold.adoption.dto.AdoptionPostDto;
 import com.sns.marigold.adoption.dto.AdoptionPostSearchFilterDto;
 import com.sns.marigold.adoption.dto.AdoptionPostUpdateDto;
-import com.sns.marigold.adoption.dto.AdoptionPostWithChatDto;
 import com.sns.marigold.adoption.enums.AdoptionPostStatus;
 import com.sns.marigold.adoption.service.AdoptionPostService;
 import com.sns.marigold.auth.common.CustomPrincipal;
@@ -115,22 +114,6 @@ public class AdoptionPostController {
         .body(
             ApiResponse.success(
                 HttpStatus.OK, "Adoption post search by adopter successfully", result));
-  }
-
-  @PreAuthorize("isAuthenticated()")
-  @GetMapping("/chat")
-  public ResponseEntity<ApiResponse<Page<AdoptionPostWithChatDto>>> searchByJoinedChats(
-      @AuthenticationPrincipal CustomPrincipal principal,
-      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
-          Pageable pageable) {
-    Long uid = principal.getUserId();
-    if (uid == null) {
-      throw AuthException.forUnauthorized();
-    }
-
-    Page<AdoptionPostWithChatDto> result = adoptionPostService.searchByJoinedChats(uid, pageable);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResponse.success(HttpStatus.OK, "SUCCESS", result));
   }
 
   @PreAuthorize("permitAll()")

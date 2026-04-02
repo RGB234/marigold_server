@@ -30,7 +30,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @EntityListeners(AuditingEntityListener.class)
 @Table(
     name = "chat_rooms",
-    uniqueConstraints = {@UniqueConstraint(columnNames = {"user1_id", "user2_id"})})
+    uniqueConstraints = {@UniqueConstraint(columnNames = {"user1_id", "user2_id", "adoption_post_id"})})
 public class ChatRoom {
 
   @Id
