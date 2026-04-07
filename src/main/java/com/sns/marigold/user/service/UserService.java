@@ -3,6 +3,8 @@ package com.sns.marigold.user.service;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.oauth2.RandomUsernameGenerator;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+import com.sns.marigold.chat.entity.ChatRoom;
+import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.service.S3Service;
@@ -20,6 +22,8 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +36,7 @@ public class UserService {
 
   private final UserRepository userRepository;
   private final AdoptionPostRepository adoptionPostRepository;
+  private final ChatRoomRepository chatRoomRepository;
   private final RandomUsernameGenerator randomUsernameGenerator;
   private final S3Service s3Service;
   private final TransactionTemplate transactionTemplate;
@@ -59,7 +64,7 @@ public class UserService {
     User user = findEntityById(uid);
     UserInfoDto dto = UserInfoDto.from(user);
     if (dto.getImageUrl() != null) {
-      dto.setImageUrl(s3Service.getPresignedGetUrl(dto.getImageUrl()));
+      dto.setImageUrl(s3Service.getPresignedGetObject(dto.getImageUrl()));
     }
     return dto;
   }
@@ -67,13 +72,16 @@ public class UserService {
   @Transactional(readOnly = true)
   public List<UserInfoDto> getUserByNickname(String nickname) {
     List<User> users = userRepository.findPersonalUsersByNickname(nickname);
-    return users.stream().map(user -> {
-      UserInfoDto dto = UserInfoDto.from(user);
-      if (dto.getImageUrl() != null) {
-        dto.setImageUrl(s3Service.getPresignedGetUrl(dto.getImageUrl()));
-      }
-      return dto;
-    }).toList();
+    return users.stream()
+        .map(
+            user -> {
+              UserInfoDto dto = UserInfoDto.from(user);
+              if (dto.getImageUrl() != null) {
+                dto.setImageUrl(s3Service.getPresignedGetObject(dto.getImageUrl()));
+              }
+              return dto;
+            })
+        .toList();
   }
 
   @Transactional
@@ -188,19 +196,20 @@ public class UserService {
   public void deleteUser(Long uid) {
     User user = findEntityById(uid);
     List<String> imageUrls = new ArrayList<>();
-    // 사용자 프로필 이미지 url 주소 백업
+    // 사용자 프로필 이미지 url 주소 임시 백업
     if (user.getImage() != null) {
       imageUrls.add(user.getImage().getStoredFileName());
     }
 
-    // 작성자 게시글 이미지 스토리지 저장 파일명 조회 및 백업
-    adoptionPostRepository.findStoredFileNamesByWriter(uid).forEach(imageUrls::add);
-    // 작성자 게시글의 이미지부터 삭제
+    // 작성자 게시글 논리적 삭제 (Soft Delete)
     // 여기서 clearAutomatically=true 발동 -> 영속성 컨텍스트 초기화됨
-    adoptionPostRepository.deleteImagesByWriter(uid);
-    // 작성자 게시글 삭제
-    // 여기서 clearAutomatically=true 발동 -> 영속성 컨텍스트 초기화됨
-    adoptionPostRepository.deleteByWriter(uid);
+    adoptionPostRepository.softDeleteByWriter(uid);
+
+    // 탈퇴하는 유저가 참여 중인 모든 채팅방(ChatRoom)을 조회하여 비활성화(CLOSED) 처리
+    Page<ChatRoom> userRooms = chatRoomRepository.findAllByUser(user, Pageable.unpaged());
+    for (ChatRoom room : userRooms) {
+      room.close();
+    }
 
     // soft delete
     user.softDelete();

@@ -1,7 +1,6 @@
 package com.sns.marigold.auth.common.jwt;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
-
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;

@@ -54,7 +54,8 @@ public enum ErrorCode {
   ADOPTION_POST_ALREADY_COMPLETED(
       HttpStatus.BAD_REQUEST, "ADOPTION_POST_ALREADY_COMPLETED", "이미 입양 완료된 게시글입니다."),
   ADOPTION_POST_NOT_COMPLETED(
-      HttpStatus.BAD_REQUEST, "ADOPTION_POST_NOT_COMPLETED", "입양 완료 상태가 아닙니다.");
+      HttpStatus.BAD_REQUEST, "ADOPTION_POST_NOT_COMPLETED", "입양 완료 상태가 아닙니다."),
+  ADOPTION_POST_DELETED(HttpStatus.BAD_REQUEST, "ADOPTION_POST_DELETED", "삭제된 게시글입니다.");
 
   private final HttpStatus status;
   private final String code;

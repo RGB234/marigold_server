@@ -8,7 +8,6 @@ import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.annotation.TsidType;
 import com.sns.marigold.global.dto.ApiResponse;
-
 import jakarta.validation.groups.Default;
 import java.util.List;
 import java.util.Objects;
@@ -64,7 +63,8 @@ public class ChatRoomController { // HTTP REST API
         ApiResponse.success(
             HttpStatus.OK,
             "fetched successfully",
-            chatService.getUserRooms(Objects.requireNonNull(principal.getUserId()), type, pageable)));
+            chatService.getUserRooms(
+                Objects.requireNonNull(principal.getUserId()), type, pageable)));
   }
 
   @PreAuthorize("isAuthenticated()")
@@ -73,31 +73,24 @@ public class ChatRoomController { // HTTP REST API
       @PathVariable("roomId") @TsidType Long roomId) {
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK,
-            "fetched successfully",
-            chatService.getChatRoom(roomId)));
+            HttpStatus.OK, "fetched successfully", chatService.getChatRoom(roomId)));
   }
 
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/{roomId}/messages")
   public ResponseEntity<ApiResponse<List<ChatMessageDto>>> getRoomMessages(
-        @PathVariable("roomId") @TsidType Long roomId) {
+      @PathVariable("roomId") @TsidType Long roomId) {
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK,
-            "fetched successfully",
-            chatService.getRoomMessages(roomId)));
+            HttpStatus.OK, "fetched successfully", chatService.getRoomMessages(roomId)));
   }
 
   @PreAuthorize("isAuthenticated()")
-  @DeleteMapping("/{roomId}")
-  public ResponseEntity<ApiResponse<Void>> deleteRoom(
+  @DeleteMapping("/{roomId}/leave")
+  public ResponseEntity<ApiResponse<Void>> leaveRoom(
       @AuthenticationPrincipal CustomPrincipal principal,
       @PathVariable("roomId") @TsidType Long roomId) {
     chatService.leaveRoom(roomId, Objects.requireNonNull(principal.getUserId()));
-    return ResponseEntity.ok(
-        ApiResponse.success(
-            HttpStatus.OK,
-            "deleted successfully"));
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "deleted successfully"));
   }
 }

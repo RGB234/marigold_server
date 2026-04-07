@@ -1,7 +1,6 @@
 package com.sns.marigold.user.enums;
 
 import com.sns.marigold.auth.common.enums.AuthStatus;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -17,10 +16,10 @@ public enum UserStatus {
 
   public AuthStatus toAuthStatus() {
     return switch (this) {
-      case BANNED  -> AuthStatus.BANNED;
-      case SLEEP   -> AuthStatus.SLEEP;
+      case BANNED -> AuthStatus.BANNED;
+      case SLEEP -> AuthStatus.SLEEP;
       case DELETED -> AuthStatus.DELETED;
-      default      -> AuthStatus.LOGIN_SUCCESS;
+      default -> AuthStatus.LOGIN_SUCCESS;
     };
   }
 }

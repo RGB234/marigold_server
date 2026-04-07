@@ -37,6 +37,10 @@ public class AdoptionPostSpecification {
     };
   }
 
+  public static Specification<AdoptionPost> isNotDeleted() {
+    return (root, query, builder) -> builder.isNull(root.get("deletedAt"));
+  }
+
   public static Specification<AdoptionPost> hasNickname(String nickname) {
     return (root, query, builder) -> {
       if (nickname == null) {
@@ -45,8 +49,4 @@ public class AdoptionPostSpecification {
       return builder.equal(root.get("nickname"), nickname);
     };
   }
-  // public static Specification<AdoptionPost> hasWriterId(UUID writerId){
-  //   return (root, query, builder) -> writerId == null ? null :
-  // builder.equal(root.get("writerId"), writerId);
-  // }
 }

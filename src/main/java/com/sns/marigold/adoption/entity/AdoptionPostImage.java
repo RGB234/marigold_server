@@ -1,17 +1,15 @@
 package com.sns.marigold.adoption.entity;
 
+import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
-import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,9 +28,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 public class AdoptionPostImage {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
+  @Tsid
   @Column(name = "id", updatable = false, nullable = false)
-  private UUID id;
+  private Long id;
 
   @CreatedDate private LocalDateTime createdAt;
 

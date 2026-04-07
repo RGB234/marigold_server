@@ -87,7 +87,10 @@ public class AuthService {
     // 방금 회원가입한 유저
     CustomPrincipal principal =
         new CustomPrincipal(
-            user.getId(), List.of(new SimpleGrantedAuthority(user.getRole().name())), null, AuthStatus.LOGIN_SUCCESS);
+            user.getId(),
+            List.of(new SimpleGrantedAuthority(user.getRole().name())),
+            null,
+            AuthStatus.LOGIN_SUCCESS);
 
     String accessToken = jwtManager.createAccessToken(principal);
     String refreshToken = jwtManager.createRefreshToken(principal);

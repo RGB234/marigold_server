@@ -1,29 +1,31 @@
 package com.sns.marigold.adoption.service;
 
+import com.sns.marigold.adoption.dto.AdoptionCandidateDto;
 import com.sns.marigold.adoption.dto.AdoptionPostCreateDto;
 import com.sns.marigold.adoption.dto.AdoptionPostDetailDto;
 import com.sns.marigold.adoption.dto.AdoptionPostDto;
 import com.sns.marigold.adoption.dto.AdoptionPostSearchFilterDto;
 import com.sns.marigold.adoption.dto.AdoptionPostUpdateDto;
+import com.sns.marigold.adoption.entity.AdoptionAdopter;
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.entity.AdoptionPostEditor;
 import com.sns.marigold.adoption.entity.AdoptionPostImage;
 import com.sns.marigold.adoption.enums.AdoptionPostStatus;
 import com.sns.marigold.adoption.exception.AdoptionPostException;
+import com.sns.marigold.adoption.repository.AdoptionAdopterRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.adoption.specification.AdoptionPostSpecification;
 import com.sns.marigold.auth.exception.AuthException;
-import com.sns.marigold.chat.repository.ChatRoomRepository;
-import com.sns.marigold.adoption.repository.AdoptionAdopterRepository;
-import com.sns.marigold.adoption.entity.AdoptionAdopter;
-import com.sns.marigold.adoption.dto.AdoptionCandidateDto;
 import com.sns.marigold.chat.entity.ChatRoom;
-import com.sns.marigold.user.dto.response.UserInfoDto;
+import com.sns.marigold.chat.entity.RoomParticipant;
+import com.sns.marigold.chat.repository.ChatRoomRepository;
+import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.global.error.exception.BusinessException;
 import com.sns.marigold.global.error.exception.InternalServerException;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
 import java.util.Collections;
@@ -51,6 +53,7 @@ public class AdoptionPostService {
   private final AdoptionPostRepository adoptionPostRepository;
   private final AdoptionAdopterRepository adoptionAdopterRepository;
   private final ChatRoomRepository chatRoomRepository;
+  private final RoomParticipantRepository participantRepository;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
 
@@ -62,7 +65,8 @@ public class AdoptionPostService {
   }
 
   public Long create(AdoptionPostCreateDto dto, Long writerId) {
-    List<MultipartFile> images = dto.getImages() != null ? dto.getImages() : Collections.emptyList();
+    List<MultipartFile> images =
+        dto.getImages() != null ? dto.getImages() : Collections.emptyList();
     List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(images);
 
     User writer = userService.findEntityById(writerId);
@@ -74,10 +78,11 @@ public class AdoptionPostService {
             adoptionPost.changeImages(
                 uploadedImages.stream()
                     .map(
-                        image -> AdoptionPostImage.builder()
-                            .storedFileName(image.getStoredFileName())
-                            .originalFileName(image.getOriginalFileName())
-                            .build())
+                        image ->
+                            AdoptionPostImage.builder()
+                                .storedFileName(image.getStoredFileName())
+                                .originalFileName(image.getOriginalFileName())
+                                .build())
                     .collect(Collectors.toList()));
 
             return adoptionPostRepository.save(adoptionPost).getId();
@@ -102,6 +107,10 @@ public class AdoptionPostService {
   public void update(Long postId, Long userId, AdoptionPostUpdateDto dto) {
     AdoptionPost adoptionPost = findEntityById(postId);
 
+    if (adoptionPost.getDeletedAt() != null) {
+      throw AdoptionPostException.forAdoptionPostDeleted();
+    }
+
     validateWriter(adoptionPost, userId);
 
     // 1. 새 이미지 S3 업로드 (실패 시 예외 발생, 파일 자동 삭제됨)
@@ -110,33 +119,38 @@ public class AdoptionPostService {
 
     try {
       // 2. 유지할 이미지 파일명 목록 (Null Safe)
-      List<String> imagesToKeep = dto.getImagesToKeep() != null ? dto.getImagesToKeep() : Collections.emptyList();
+      List<String> imagesToKeep =
+          dto.getImagesToKeep() != null ? dto.getImagesToKeep() : Collections.emptyList();
 
       // 3. 삭제할 기존 이미지 목록 미리 계산 (DB 조회 필요 없음, 엔티티에서 추출)
-      List<String> storedFileNamesToDelete = adoptionPost.getImages().stream()
-          .map(AdoptionPostImage::getStoredFileName)
-          .filter(fileName -> !imagesToKeep.contains(fileName))
-          .collect(Collectors.toList());
+      List<String> storedFileNamesToDelete =
+          adoptionPost.getImages().stream()
+              .map(AdoptionPostImage::getStoredFileName)
+              .filter(fileName -> !imagesToKeep.contains(fileName))
+              .collect(Collectors.toList());
 
       // 4. 새로 추가할 이미지 엔티티 생성 준비
-      List<AdoptionPostImage> newImages = uploadedImages.stream()
-          .map(
-              image -> AdoptionPostImage.builder()
-                  .storedFileName(image.getStoredFileName())
-                  .originalFileName(image.getOriginalFileName())
-                  .build())
-          .toList();
+      List<AdoptionPostImage> newImages =
+          uploadedImages.stream()
+              .map(
+                  image ->
+                      AdoptionPostImage.builder()
+                          .storedFileName(image.getStoredFileName())
+                          .originalFileName(image.getOriginalFileName())
+                          .build())
+              .toList();
 
-      AdoptionPostEditor editor = AdoptionPostEditor.builder()
-          .title(dto.getTitle())
-          .age(dto.getAge())
-          .weight(dto.getWeight())
-          .features(dto.getFeatures())
-          .area(dto.getArea())
-          .species(dto.getSpecies())
-          .sex(dto.getSex())
-          .neutering(dto.getNeutering())
-          .build();
+      AdoptionPostEditor editor =
+          AdoptionPostEditor.builder()
+              .title(dto.getTitle())
+              .age(dto.getAge())
+              .weight(dto.getWeight())
+              .features(dto.getFeatures())
+              .area(dto.getArea())
+              .species(dto.getSpecies())
+              .sex(dto.getSex())
+              .neutering(dto.getNeutering())
+              .build();
 
       // 5. DB 트랜잭션 (데이터 변경)
       transactionTemplate.executeWithoutResult(
@@ -176,43 +190,50 @@ public class AdoptionPostService {
   @Transactional(readOnly = true)
   public Page<AdoptionPostDto> search(AdoptionPostSearchFilterDto dto, Pageable pageable) {
 
-    Page<AdoptionPost> resultPage = adoptionPostRepository.findAll(
-        Specification.allOf(
-            AdoptionPostSpecification.hasSpecies(dto.getSpecies()),
-            AdoptionPostSpecification.hasSex(dto.getSex())),
-        pageable);
+    Page<AdoptionPost> resultPage =
+        adoptionPostRepository.findAll(
+            Specification.allOf(
+                AdoptionPostSpecification.isNotDeleted(),
+                AdoptionPostSpecification.hasSpecies(dto.getSpecies()),
+                AdoptionPostSpecification.hasSex(dto.getSex())),
+            pageable);
 
-    return resultPage.map(post -> {
-      AdoptionPostDto postDto = AdoptionPostDto.from(post);
-      if (postDto.getImageUrl() != null) {
-        postDto.setImageUrl(s3Service.getPresignedGetUrl(postDto.getImageUrl()));
-      }
-      return postDto;
-    });
+    return resultPage.map(
+        post -> {
+          AdoptionPostDto postDto = AdoptionPostDto.from(post);
+          if (postDto.getImageUrl() != null) {
+            postDto.setImageUrl(s3Service.getPresignedGetObject(postDto.getImageUrl()));
+          }
+          return postDto;
+        });
   }
 
   @Transactional(readOnly = true)
   public Page<AdoptionPostDto> searchByWriter(Long writerId, Pageable pageable) {
-    Page<AdoptionPost> resultPage = adoptionPostRepository.findByWriter_Id(writerId, pageable);
-    return resultPage.map(post -> {
-      AdoptionPostDto postDto = AdoptionPostDto.from(post);
-      if (postDto.getImageUrl() != null) {
-        postDto.setImageUrl(s3Service.getPresignedGetUrl(postDto.getImageUrl()));
-      }
-      return postDto;
-    });
+    Page<AdoptionPost> resultPage =
+        adoptionPostRepository.findByWriter_IdAndDeletedAtIsNull(writerId, pageable);
+    return resultPage.map(
+        post -> {
+          AdoptionPostDto postDto = AdoptionPostDto.from(post);
+          if (postDto.getImageUrl() != null) {
+            postDto.setImageUrl(s3Service.getPresignedGetObject(postDto.getImageUrl()));
+          }
+          return postDto;
+        });
   }
 
   @Transactional(readOnly = true)
   public Page<AdoptionPostDto> searchByAdopter(Long adopterId, Pageable pageable) {
-    Page<AdoptionPost> resultPage = adoptionAdopterRepository.findAdoptionPostsByAdopterId(adopterId, pageable);
-    return resultPage.map(post -> {
-      AdoptionPostDto postDto = AdoptionPostDto.from(post);
-      if (postDto.getImageUrl() != null) {
-        postDto.setImageUrl(s3Service.getPresignedGetUrl(postDto.getImageUrl()));
-      }
-      return postDto;
-    });
+    Page<AdoptionPost> resultPage =
+        adoptionAdopterRepository.findAdoptionPostsByAdopterId(adopterId, pageable);
+    return resultPage.map(
+        post -> {
+          AdoptionPostDto postDto = AdoptionPostDto.from(post);
+          if (postDto.getImageUrl() != null) {
+            postDto.setImageUrl(s3Service.getPresignedGetObject(postDto.getImageUrl()));
+          }
+          return postDto;
+        });
   }
 
   @Transactional(readOnly = true)
@@ -220,7 +241,7 @@ public class AdoptionPostService {
     AdoptionPost info = findEntityById(id);
     AdoptionPostDto postDto = AdoptionPostDto.from(info);
     if (postDto.getImageUrl() != null) {
-      postDto.setImageUrl(s3Service.getPresignedGetUrl(postDto.getImageUrl()));
+      postDto.setImageUrl(s3Service.getPresignedGetObject(postDto.getImageUrl()));
     }
     return postDto;
   }
@@ -231,25 +252,31 @@ public class AdoptionPostService {
     AdoptionPost info = findEntityById(id);
     AdoptionPostDetailDto detailResponseDto = AdoptionPostDetailDto.from(info);
 
-    if (detailResponseDto.getWriter() != null && detailResponseDto.getWriter().getImageUrl() != null) {
-      detailResponseDto.getWriter()
-          .setImageUrl(s3Service.getPresignedGetUrl(detailResponseDto.getWriter().getImageUrl()));
+    if (detailResponseDto.getWriter() != null
+        && detailResponseDto.getWriter().getImageUrl() != null) {
+      detailResponseDto
+          .getWriter()
+          .setImageUrl(s3Service.getPresignedGetObject(detailResponseDto.getWriter().getImageUrl()));
     }
 
-    List<String> imageUrls = info.getImages().stream()
-        .map(image -> s3Service.getPresignedGetUrl(image.getStoredFileName()))
-        .collect(Collectors.toList());
+    List<String> imageUrls =
+        info.getImages().stream()
+            .map(image -> s3Service.getPresignedGetObject(image.getStoredFileName()))
+            .collect(Collectors.toList());
 
     detailResponseDto.setImageUrls(imageUrls);
 
     if (info.getStatus() == AdoptionPostStatus.COMPLETED) {
-      adoptionAdopterRepository.findByAdoptionPostId(id).ifPresent(adopterMapping -> {
-        UserInfoDto adopterDto = UserInfoDto.from(adopterMapping.getAdopter());
-        if (adopterDto.getImageUrl() != null) {
-          adopterDto.setImageUrl(s3Service.getPresignedGetUrl(adopterDto.getImageUrl()));
-        }
-        detailResponseDto.setAdopter(adopterDto);
-      });
+      adoptionAdopterRepository
+          .findByAdoptionPostId(id)
+          .ifPresent(
+              adopterMapping -> {
+                UserInfoDto adopterDto = UserInfoDto.from(adopterMapping.getAdopter());
+                if (adopterDto.getImageUrl() != null) {
+                  adopterDto.setImageUrl(s3Service.getPresignedGetObject(adopterDto.getImageUrl()));
+                }
+                detailResponseDto.setAdopter(adopterDto);
+              });
     }
 
     detailResponseDto.setChatRoomCount(chatRoomRepository.countByAdoptionPostId(id));
@@ -257,10 +284,14 @@ public class AdoptionPostService {
     return detailResponseDto;
   }
 
-
   @Transactional
   public void updateStatus(Long id, AdoptionPostStatus status, Long userId) {
     AdoptionPost info = findEntityById(id);
+
+    if (info.getDeletedAt() != null) {
+      throw AdoptionPostException.forAdoptionPostDeleted();
+    }
+
     validateWriter(info, userId);
 
     if (info.getStatus() == AdoptionPostStatus.COMPLETED) {
@@ -271,28 +302,38 @@ public class AdoptionPostService {
   }
 
   public void delete(Long id, Long userId) {
-    // User user = userService.findEntityById(userId);
-    List<ImageUploadDto> images;
+    List<String> imagesToDelete =
+        transactionTemplate.execute(
+            status -> {
+              AdoptionPost info = findEntityById(id);
 
-    images = transactionTemplate.execute(
-        status -> {
-          AdoptionPost info = findEntityById(id);
-          validateWriter(info, userId);
+              if (info.getDeletedAt() != null) {
+                throw AdoptionPostException.forAdoptionPostDeleted();
+              }
 
-          // 삭제 전 이미지 리스트 추출 (영속성 컨텍스트가 살아있을 때 수행)
-          List<ImageUploadDto> dtoList = info.getImages() != null
-              ? info.getImages().stream()
-                  .map(ImageUploadDto::from)
-                  .collect(Collectors.toList())
-              : Collections.emptyList();
+              validateWriter(info, userId);
 
-          adoptionPostRepository.delete(info);
+              // 삭제 전 이미지 리스트 추출 (영속성 컨텍스트가 살아있을 때 수행)
+              List<String> dtoList =
+                  info.getImages() != null && info.getImages().size() > 1
+                      ? info.getImages().subList(1, info.getImages().size()).stream()
+                          .map(AdoptionPostImage::getStoredFileName)
+                          .collect(Collectors.toList())
+                      : Collections.emptyList();
 
-          return dtoList;
-        });
+              info.softDelete();
 
-    if (!Objects.isNull(images)) {
-      s3Service.deleteUploadedImagesFromS3(images);
+              // 연관 채팅방 종료
+              List<ChatRoom> chatRooms = chatRoomRepository.findAllByAdoptionPostId(id);
+              for (ChatRoom room : chatRooms) {
+                room.close();
+              }
+
+              return dtoList;
+            });
+
+    if (imagesToDelete != null && !imagesToDelete.isEmpty()) {
+      eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
     }
   }
 
@@ -302,27 +343,38 @@ public class AdoptionPostService {
     }
   }
 
+  /*
+   * AdoptionPost와 연결된 1:1 채팅방 중 작성자가 아닌 유저들을 조회하여 반환
+   */
   @Transactional(readOnly = true)
-  public List<AdoptionCandidateDto> getCandidates(Long id, Long userId) {
-    AdoptionPost info = findEntityById(id);
-    validateWriter(info, userId);
+  public List<AdoptionCandidateDto> getCandidates(Long adoptionPostId, Long userId) {
+    AdoptionPost adoptionPost = findEntityById(adoptionPostId);
+    validateWriter(adoptionPost, userId);
 
-    List<ChatRoom> chatRooms = chatRoomRepository.findAllByAdoptionPostId(id);
-    return chatRooms.stream()
-        .map(room -> {
-          User otherUser = room.getUser1().getId().equals(userId) ? room.getUser2() : room.getUser1();
-          String imageUrl = null;
-          if (otherUser.getImage() != null) {
-            imageUrl = s3Service.getPresignedGetUrl(otherUser.getImage().getStoredFileName());
-          }
-          return AdoptionCandidateDto.from(otherUser, imageUrl);
-        })
+    List<RoomParticipant> participants =
+        participantRepository.findAllByAdoptionPostId(adoptionPostId);
+    return participants.stream()
+        .filter(participant -> !Objects.equals(participant.getUser().getId(), userId))
+        .map(
+            participant -> {
+              User otherUser = participant.getUser();
+              String imageUrl = null;
+              if (otherUser.getImage() != null) {
+                imageUrl = s3Service.getPresignedGetObject(otherUser.getImage().getStoredFileName());
+              }
+              return AdoptionCandidateDto.from(otherUser, imageUrl);
+            })
         .collect(Collectors.toList());
   }
 
   @Transactional
   public void completeAdoption(Long id, Long adopterId, Long userId) {
     AdoptionPost info = findEntityById(id);
+
+    if (info.getDeletedAt() != null) {
+      throw AdoptionPostException.forAdoptionPostDeleted();
+    }
+
     validateWriter(info, userId);
 
     if (info.getStatus() == AdoptionPostStatus.COMPLETED) {
@@ -333,16 +385,19 @@ public class AdoptionPostService {
 
     info.updateStatus(AdoptionPostStatus.COMPLETED);
 
-    AdoptionAdopter adoptionAdopter = AdoptionAdopter.builder()
-        .adoptionPost(info)
-        .adopter(adopter)
-        .build();
+    AdoptionAdopter adoptionAdopter =
+        AdoptionAdopter.builder().adoptionPost(info).adopter(adopter).build();
     adoptionAdopterRepository.save(adoptionAdopter);
   }
 
   @Transactional
   public void cancelAdoption(Long id, Long userId) {
     AdoptionPost info = findEntityById(id);
+
+    if (info.getDeletedAt() != null) {
+      throw AdoptionPostException.forAdoptionPostDeleted();
+    }
+
     validateWriter(info, userId);
 
     if (info.getStatus() != AdoptionPostStatus.COMPLETED) {

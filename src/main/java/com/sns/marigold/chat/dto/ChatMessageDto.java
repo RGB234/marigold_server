@@ -28,6 +28,7 @@ public class ChatMessageDto {
   private Long senderId;
 
   private String senderNickname;
+  private String senderImageUrl;
   private String message;
   private LocalDateTime createdAt;
 }

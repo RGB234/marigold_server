@@ -23,11 +23,11 @@ public class ChatRoomDto {
 
   private Long postId;
   private String postTitle;
-  
+
   @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
   @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
   private Long postWriterId;
-  
+
   private LocalDateTime createdAt;
 
   @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
@@ -41,4 +41,6 @@ public class ChatRoomDto {
   private Long user2Id;
 
   private String user2Nickname;
+
+  private String status;
 }
