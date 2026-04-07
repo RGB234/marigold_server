@@ -145,11 +145,12 @@ public class S3Service {
 
   public void validateRealImageFiles(List<MultipartFile> files) {
     Tika tika = new Tika();
+    List<String> allowedMimeTypes = List.of("image/jpeg", "image/png", "image/webp");
     // 파일의 실제 InputStream을 읽어 MIME 타입을 추론
     for (MultipartFile file : files) {
       try (InputStream inputStream = file.getInputStream()) {
         String detectType = tika.detect(inputStream);
-        if (!detectType.startsWith("image/")) {
+        if (!allowedMimeTypes.contains(detectType)) {
           throw StorageException.forFileInvalid(file.getOriginalFilename());
         }
       } catch (IOException e) {
