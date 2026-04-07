@@ -34,7 +34,7 @@ public class ImageFilesValidatorForList
     try {
       s3Service.validateRealImageFiles(nonEmptyFiles);
     } catch (StorageException e) {
-      replaceMessage(ctx, "이미지 파일만 업로드 가능합니다. (jpg, png, gif, webp)");
+      replaceMessage(ctx, "JPG, JPEG, PNG, WebP 형식의 이미지만 업로드 가능합니다.");
       return false;
     }
     return true;
