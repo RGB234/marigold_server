@@ -52,6 +52,8 @@ public class AdoptionPostDetailDto {
 
   @Setter private Integer chatRoomCount;
 
+  private boolean isDeleted;
+
   public static AdoptionPostDetailDto from(AdoptionPost adoptionPost) {
 
     List<String> imageFileNames =
@@ -76,6 +78,7 @@ public class AdoptionPostDetailDto {
         .features(adoptionPost.getFeatures())
         .imageFileNames(imageFileNames)
         .status(adoptionPost.getStatus())
+        .isDeleted(adoptionPost.getDeletedAt() != null)
         .build();
   }
 }

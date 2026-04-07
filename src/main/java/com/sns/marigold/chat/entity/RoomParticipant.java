@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -25,7 +26,14 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @AllArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
-@Table(name = "room_participants")
+@Table(
+    name = "room_participants",
+    indexes = {
+      // 1. 복합 인덱스: (chat_room_id, user_id) > 특정 채팅방 내의 유저 검색 성능 향상
+      @Index(name = "idx_room_user", columnList = "chat_room_id, user_id"),
+      // 2. 단일 인덱스: (user_id) > 특정 유저가 참여한 채팅방 검색 성능 향상
+      @Index(name = "idx_user", columnList = "user_id")
+    })
 public class RoomParticipant {
 
   @Id
@@ -47,15 +55,15 @@ public class RoomParticipant {
 
   private LocalDateTime leavedAt;
 
-  @Builder.Default private boolean isDeleted = false;
+  // @Builder.Default private boolean isExited = false;
 
   public void leave() {
-    this.isDeleted = true;
+    // this.isExited = true;
     this.leavedAt = LocalDateTime.now();
   }
 
   public void reJoin() {
-    this.isDeleted = false;
+    // this.isExited = false;
     this.leavedAt = null;
   }
 }

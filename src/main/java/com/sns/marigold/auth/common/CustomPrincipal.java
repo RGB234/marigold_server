@@ -17,7 +17,10 @@ public class CustomPrincipal implements OAuth2User {
   private final AuthStatus authStatus;
 
   public CustomPrincipal(
-      Long userId, Collection<SimpleGrantedAuthority> authorities, Map<String, Object> attributes, AuthStatus authStatus) {
+      Long userId,
+      Collection<SimpleGrantedAuthority> authorities,
+      Map<String, Object> attributes,
+      AuthStatus authStatus) {
     this.userId = userId;
     this.authorities = authorities;
     this.attributes = attributes;

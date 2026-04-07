@@ -112,7 +112,7 @@ public class S3Service {
    * @param storedFileName 저장된 파일명 (Key)
    * @return 접근 가능한 URL
    */
-  public String getPresignedGetUrl(String storedFileName) {
+  public String getPresignedGetObject(String storedFileName) {
     if (storedFileName == null || storedFileName.isEmpty()) {
       return null;
     }

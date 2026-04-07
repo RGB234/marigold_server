@@ -30,18 +30,21 @@ public class AdoptionPostDto {
 
   private String area;
 
-  @Setter
-  @Getter
-  private String imageUrl;
+  @Setter @Getter private String imageUrl;
 
   private AdoptionPostStatus status;
 
   private LocalDateTime createdAt;
 
+  private boolean isDeleted;
+
   public static AdoptionPostDto from(AdoptionPost adoptionPost) {
+    boolean deleted = adoptionPost.getDeletedAt() != null;
+    String maskedTitle = deleted ? "삭제된 게시글입니다" : adoptionPost.getTitle();
+
     return AdoptionPostDto.builder()
         .id(adoptionPost.getId())
-        .title(adoptionPost.getTitle())
+        .title(maskedTitle)
         .species(adoptionPost.getSpecies())
         .age(adoptionPost.getAge())
         .sex(adoptionPost.getSex())
@@ -52,6 +55,7 @@ public class AdoptionPostDto {
                 : adoptionPost.getImages().get(0).getStoredFileName())
         .status(adoptionPost.getStatus())
         .createdAt(adoptionPost.getCreatedAt())
+        .isDeleted(deleted)
         .build();
   }
 }

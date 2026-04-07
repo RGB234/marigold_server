@@ -15,51 +15,87 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 
   @Query(
       """
-      SELECT cr FROM ChatRoom cr 
-      WHERE ((cr.user1 = :user1 AND cr.user2 = :user2) 
-      OR (cr.user1 = :user2 AND cr.user2 = :user1)) 
-      AND cr.adoptionPost = :adoptionPost
+      SELECT cr FROM ChatRoom cr
+      WHERE cr.adoptionPost = :adoptionPost
+      AND EXISTS (
+          SELECT 1 FROM RoomParticipant rp1
+          WHERE rp1.chatRoom = cr AND rp1.user = :user1)
+      AND EXISTS (
+          SELECT 1 FROM RoomParticipant rp2
+          WHERE rp2.chatRoom = cr AND rp2.user = :user2)
+      ORDER BY cr.createdAt ASC
       """)
   Optional<ChatRoom> findByUsersAndAdoptionPost(
-      @Param("user1") User user1, 
-      @Param("user2") User user2, 
+      @Param("user1") User user1,
+      @Param("user2") User user2,
       @Param("adoptionPost") AdoptionPost adoptionPost);
 
   @Query(
-      """
-      SELECT cr FROM ChatRoom cr 
-      WHERE cr.user1 = :user OR cr.user2 = :user 
-      ORDER BY cr.createdAt DESC
-      """)
+      value =
+          """
+          SELECT DISTINCT cr FROM ChatRoom cr
+          JOIN RoomParticipant rp ON cr = rp.chatRoom
+          WHERE rp.user = :user
+          ORDER BY cr.createdAt DESC
+          """,
+      countQuery =
+          """
+          SELECT COUNT(DISTINCT cr) FROM ChatRoom cr
+          JOIN RoomParticipant rp ON cr = rp.chatRoom
+          WHERE rp.user = :user
+          """)
   Page<ChatRoom> findAllByUser(@Param("user") User user, Pageable pageable);
 
   @Query(
-      """
-      SELECT cr FROM ChatRoom cr 
-      JOIN RoomParticipant rp ON cr = rp.chatRoom 
-      WHERE rp.user = :user AND rp.isDeleted = false 
-      ORDER BY cr.createdAt DESC
-      """)
+      value =
+          """
+          SELECT DISTINCT cr FROM ChatRoom cr
+          JOIN RoomParticipant rp ON cr = rp.chatRoom
+          WHERE rp.user = :user AND rp.leavedAt IS NULL
+          ORDER BY cr.createdAt DESC
+          """,
+      countQuery =
+          """
+          SELECT COUNT(DISTINCT cr) FROM ChatRoom cr
+          JOIN RoomParticipant rp ON cr = rp.chatRoom
+          WHERE rp.user = :user AND rp.leavedAt IS NULL
+          """)
   Page<ChatRoom> findAllActiveByUser(@Param("user") User user, Pageable pageable);
 
   @Query(
-      """
-      SELECT cr FROM ChatRoom cr 
-      JOIN RoomParticipant rp ON cr = rp.chatRoom 
-      WHERE rp.user = :user AND rp.isDeleted = false 
-      AND cr.adoptionPost.writer = :user 
-      ORDER BY cr.createdAt DESC
-      """)
+      value =
+          """
+          SELECT DISTINCT cr FROM ChatRoom cr
+          JOIN RoomParticipant rp ON cr = rp.chatRoom
+          WHERE rp.user = :user AND rp.leavedAt IS NULL
+          AND cr.adoptionPost.writer = :user
+          ORDER BY cr.createdAt DESC
+          """,
+      countQuery =
+          """
+          SELECT COUNT(DISTINCT cr) FROM ChatRoom cr
+          JOIN RoomParticipant rp ON cr = rp.chatRoom
+          WHERE rp.user = :user AND rp.leavedAt IS NULL
+          AND cr.adoptionPost.writer = :user
+          """)
   Page<ChatRoom> findAllActiveByUserAsWriter(@Param("user") User user, Pageable pageable);
 
   @Query(
-      """
-      SELECT cr FROM ChatRoom cr 
-      JOIN RoomParticipant rp ON cr = rp.chatRoom 
-      WHERE rp.user = :user AND rp.isDeleted = false 
-      AND cr.adoptionPost.writer != :user 
-      ORDER BY cr.createdAt DESC
-      """)
+      value =
+          """
+          SELECT DISTINCT cr FROM ChatRoom cr
+          JOIN RoomParticipant rp ON cr = rp.chatRoom
+          WHERE rp.user = :user AND rp.leavedAt IS NULL
+          AND cr.adoptionPost.writer <> :user
+          ORDER BY cr.createdAt DESC
+          """,
+      countQuery =
+          """
+          SELECT COUNT(DISTINCT cr) FROM ChatRoom cr
+          JOIN RoomParticipant rp ON cr = rp.chatRoom
+          WHERE rp.user = :user AND rp.leavedAt IS NULL
+          AND cr.adoptionPost.writer <> :user
+          """)
   Page<ChatRoom> findAllActiveByUserAsInquirer(@Param("user") User user, Pageable pageable);
 
   @Query("SELECT cr FROM ChatRoom cr WHERE cr.adoptionPost.id = :postId")

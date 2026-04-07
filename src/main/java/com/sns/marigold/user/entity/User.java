@@ -3,6 +3,7 @@ package com.sns.marigold.user.entity;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.user.enums.UserStatus;
+import io.hypersistence.tsid.TSID;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -94,7 +95,7 @@ public class User {
   }
 
   public void softDelete() {
-    this.nickname = this.nickname + "#deleted";
+    this.nickname = "삭제된 사용자#" + TSID.from(this.id).toString();
     this.image = null;
     this.providerInfo = null;
     this.providerId = null;
@@ -116,5 +117,12 @@ public class User {
 
   public boolean isActive() {
     return this.status == UserStatus.ACTIVE;
+  }
+
+  public String getDisplayNickname() {
+    if (this.status == UserStatus.DELETED) {
+      return "삭제된유저";
+    }
+    return this.nickname;
   }
 }

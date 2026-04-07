@@ -17,14 +17,14 @@ public class AdoptionCandidateDto {
   @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
   @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
   private Long id;
-  
+
   private String nickname;
   private String imageUrl;
 
   public static AdoptionCandidateDto from(User user, String imageUrl) {
     return AdoptionCandidateDto.builder()
         .id(user.getId())
-        .nickname(user.getNickname())
+        .nickname(user.getDisplayNickname())
         .imageUrl(imageUrl)
         .build();
   }

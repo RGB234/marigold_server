@@ -48,6 +48,8 @@ public class AdoptionPost {
 
   @LastModifiedDate private LocalDateTime modifiedAt;
 
+  private LocalDateTime deletedAt;
+
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "writer_id", nullable = false)
   private User writer;
@@ -92,6 +94,9 @@ public class AdoptionPost {
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   private List<AdoptionPostImage> images;
+
+  // @OneToMany(mappedBy = "adoptionPost", fetch = FetchType.LAZY)
+  // private List<ChatRoom> chatRooms = new ArrayList<>();
 
   @Builder
   public AdoptionPost(
@@ -187,6 +192,15 @@ public class AdoptionPost {
       for (AdoptionPostImage image : newImages) {
         this.addImage(image); // 편의 메서드 재사용 (양방향 연관관계 설정)
       }
+    }
+  }
+
+  public void softDelete() {
+    this.deletedAt = LocalDateTime.now();
+    if (this.images != null && this.images.size() > 1) {
+      AdoptionPostImage firstImage = this.images.get(0);
+      this.images.clear();
+      this.addImage(firstImage);
     }
   }
 }

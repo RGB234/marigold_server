@@ -36,7 +36,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     // OAuth2 인증 provider 정보 추출
     String providerCode = userRequest.getClientRegistration().getRegistrationId();
-    
+
     ProviderInfo providerInfo = ProviderInfo.fromString(providerCode);
     // 해당 provider에서 제공하는 사용자 정보
     OAuth2UserInfo oAuth2UserInfo =

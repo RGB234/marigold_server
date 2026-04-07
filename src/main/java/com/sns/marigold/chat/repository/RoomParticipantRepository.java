@@ -6,6 +6,8 @@ import com.sns.marigold.user.entity.User;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface RoomParticipantRepository extends JpaRepository<RoomParticipant, Long> {
 
@@ -13,5 +15,12 @@ public interface RoomParticipantRepository extends JpaRepository<RoomParticipant
 
   List<RoomParticipant> findAllByChatRoom(ChatRoom chatRoom);
 
-  List<RoomParticipant> findAllByUserAndIsDeletedFalse(User user);
+  @Query(
+      """
+      SELECT rp
+      FROM RoomParticipant rp
+      JOIN rp.chatRoom.adoptionPost ap
+      WHERE ap.id = :adoptionPostId
+      """)
+  List<RoomParticipant> findAllByAdoptionPostId(@Param("adoptionPostId") Long adoptionPostId);
 }

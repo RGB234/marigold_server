@@ -1,10 +1,12 @@
 package com.sns.marigold.adoption.controller;
 
+import com.sns.marigold.adoption.dto.AdoptionCandidateDto;
 import com.sns.marigold.adoption.dto.AdoptionPostCreateDto;
 import com.sns.marigold.adoption.dto.AdoptionPostDetailDto;
 import com.sns.marigold.adoption.dto.AdoptionPostDto;
 import com.sns.marigold.adoption.dto.AdoptionPostSearchFilterDto;
 import com.sns.marigold.adoption.dto.AdoptionPostUpdateDto;
+import com.sns.marigold.adoption.dto.CompleteAdoptionRequestDto;
 import com.sns.marigold.adoption.enums.AdoptionPostStatus;
 import com.sns.marigold.adoption.service.AdoptionPostService;
 import com.sns.marigold.auth.common.CustomPrincipal;
@@ -13,8 +15,6 @@ import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.annotation.TsidType;
 import com.sns.marigold.global.dto.ApiResponse;
 import jakarta.validation.groups.Default;
-import com.sns.marigold.adoption.dto.CompleteAdoptionRequestDto;
-import com.sns.marigold.adoption.dto.AdoptionCandidateDto;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -35,9 +35,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -106,9 +106,9 @@ public class AdoptionPostController {
           Pageable pageable) {
     Long loggedInUserId = principal.getUserId();
     if (loggedInUserId == null || !loggedInUserId.equals(userId)) {
-        throw AuthException.forAccessDenied();
+      throw AuthException.forAccessDenied();
     }
-    
+
     Page<AdoptionPostDto> result = adoptionPostService.searchByAdopter(userId, pageable);
     return ResponseEntity.status(HttpStatus.OK)
         .body(
@@ -188,7 +188,9 @@ public class AdoptionPostController {
     }
     List<AdoptionCandidateDto> candidates = adoptionPostService.getCandidates(id, userId);
     return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResponse.success(HttpStatus.OK, "Adoption candidates fetched successfully", candidates));
+        .body(
+            ApiResponse.success(
+                HttpStatus.OK, "Adoption candidates fetched successfully", candidates));
   }
 
   @PreAuthorize("isAuthenticated()")
@@ -209,8 +211,7 @@ public class AdoptionPostController {
   @PreAuthorize("isAuthenticated()")
   @PostMapping("/{id}/cancel-complete")
   public ResponseEntity<ApiResponse<?>> cancelAdoption(
-      @AuthenticationPrincipal CustomPrincipal principal,
-      @PathVariable("id") Long id) {
+      @AuthenticationPrincipal CustomPrincipal principal, @PathVariable("id") Long id) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw AuthException.forUnauthorized();

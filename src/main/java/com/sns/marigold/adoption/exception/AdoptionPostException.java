@@ -19,4 +19,8 @@ public class AdoptionPostException extends BusinessException {
   public static AdoptionPostException forAdoptionPostNotCompleted() {
     return new AdoptionPostException(ErrorCode.ADOPTION_POST_NOT_COMPLETED);
   }
+
+  public static AdoptionPostException forAdoptionPostDeleted() {
+    return new AdoptionPostException(ErrorCode.ADOPTION_POST_DELETED);
+  }
 }
