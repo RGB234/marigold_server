@@ -1,14 +1,12 @@
 package com.sns.marigold.user.service;
 
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
-import com.sns.marigold.auth.oauth2.RandomUsernameGenerator;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.service.S3Service;
-import com.sns.marigold.user.dto.create.OAuth2SignupDto;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.entity.User;
@@ -37,7 +35,6 @@ public class UserService {
   private final UserRepository userRepository;
   private final AdoptionPostRepository adoptionPostRepository;
   private final ChatRoomRepository chatRoomRepository;
-  private final RandomUsernameGenerator randomUsernameGenerator;
   private final S3Service s3Service;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
@@ -85,51 +82,6 @@ public class UserService {
   }
 
   @Transactional
-  public Long createUser(OAuth2SignupDto dto) {
-    Objects.requireNonNull(dto, "UserCreateDto는 null일 수 없습니다.");
-
-    if (existsByProviderInfoAndProviderId(dto.getProviderInfo(), dto.getProviderId())) {
-      throw UserException.forUserAlreadyExists();
-    }
-
-    // nickname 자동 생성
-    String generatedNickname = generateUniqueNickname();
-
-    // User 엔티티 생성
-    User user =
-        User.builder()
-            .providerInfo(dto.getProviderInfo())
-            .providerId(dto.getProviderId())
-            .nickname(generatedNickname)
-            .role(dto.getRole())
-            .build();
-
-    userRepository.save(Objects.requireNonNull(user));
-
-    // 저장
-    return user.getId();
-  }
-
-  /** 고유한 nickname 생성 (중복 체크 포함) */
-  private String generateUniqueNickname() {
-    int maxAttempts = 10; // 최대 시도 횟수
-    String nickname;
-
-    for (int i = 0; i < maxAttempts; i++) {
-      nickname = randomUsernameGenerator.generate();
-
-      // 중복 체크
-      if (!userRepository.existsByNickname(nickname)) {
-        return nickname;
-      }
-
-      log.warn("Nickname 중복 발생, 재생성 시도: {}", nickname);
-    }
-
-    // 최대 시도 횟수 초과 시 예외 발생
-    throw UserException.forUserNicknameAlreadyExists();
-  }
-
   public void updateUser(Long uid, UserUpdateDto dto) {
     // 1. 이미지 업로드 (트랜잭션 밖에서 수행)
     ImageUploadDto uploadedImageDto = null;

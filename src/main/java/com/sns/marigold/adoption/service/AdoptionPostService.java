@@ -256,7 +256,8 @@ public class AdoptionPostService {
         && detailResponseDto.getWriter().getImageUrl() != null) {
       detailResponseDto
           .getWriter()
-          .setImageUrl(s3Service.getPresignedGetObject(detailResponseDto.getWriter().getImageUrl()));
+          .setImageUrl(
+              s3Service.getPresignedGetObject(detailResponseDto.getWriter().getImageUrl()));
     }
 
     List<String> imageUrls =
@@ -360,7 +361,8 @@ public class AdoptionPostService {
               User otherUser = participant.getUser();
               String imageUrl = null;
               if (otherUser.getImage() != null) {
-                imageUrl = s3Service.getPresignedGetObject(otherUser.getImage().getStoredFileName());
+                imageUrl =
+                    s3Service.getPresignedGetObject(otherUser.getImage().getStoredFileName());
               }
               return AdoptionCandidateDto.from(otherUser, imageUrl);
             })

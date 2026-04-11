@@ -39,7 +39,7 @@ public class UserController {
   // @PreAuthorize("permitAll()")
   // @PostMapping("")
   // public ResponseEntity<ApiResponse<Long>> create(@RequestBody @Valid OAuth2SignupDto dto) {
-  //   Long userId = userService.createUser(dto);
+  //   Long userId = authService.oauth2Signup(dto);
   //   return ResponseEntity.ok(
   //       ApiResponse.success(HttpStatus.CREATED, "User created successfully", userId));
   // }

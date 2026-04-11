@@ -44,12 +44,12 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
       // 2. 쿠키 설정 및 추가
       cookieManager.addCookie(
           response,
-          cookieManager.ACCESS_TOKEN_NAME,
+          CookieManager.ACCESS_TOKEN_NAME,
           accessToken,
           jwtManager.getAccessTokenValidityInMilliseconds());
       cookieManager.addCookie(
           response,
-          cookieManager.REFRESH_TOKEN_NAME,
+          CookieManager.REFRESH_TOKEN_NAME,
           refreshToken,
           jwtManager.getRefreshTokenValidityInMilliseconds());
     }

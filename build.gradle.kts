@@ -32,6 +32,7 @@ dependencies {
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     annotationProcessor("org.projectlombok:lombok")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.security:spring-security-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8") // Swagger
@@ -53,6 +54,15 @@ dependencies {
     implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.7.0")
     //
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    
+    // Testcontainers
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:mysql")
+    testImplementation("com.navercorp.fixturemonkey:fixture-monkey-starter:1.0.0")
+    
+    // Data Faker for Dummy Data Generation
+    implementation("net.datafaker:datafaker:2.1.0")
 }
 
 tasks.withType<Test> {
