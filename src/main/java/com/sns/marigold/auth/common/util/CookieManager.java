@@ -13,8 +13,8 @@ import org.springframework.web.util.WebUtils;
 @Slf4j
 public class CookieManager {
 
-  public final String ACCESS_TOKEN_NAME = "accessToken";
-  public final String REFRESH_TOKEN_NAME = "refreshToken";
+  public static final String ACCESS_TOKEN_NAME = "access_token";
+  public static final String REFRESH_TOKEN_NAME = "refresh_token";
 
   /**
    * HttpOnly, Secure 쿠키 추가

@@ -1,11 +1,13 @@
 package com.sns.marigold.storage.dto;
 
 import com.sns.marigold.adoption.entity.AdoptionPostImage;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
 @Getter
 @Builder
+@AllArgsConstructor
 public class ImageUploadDto {
   private String storedFileName;
   private String originalFileName;

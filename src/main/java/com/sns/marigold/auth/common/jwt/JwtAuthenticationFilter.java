@@ -1,5 +1,6 @@
 package com.sns.marigold.auth.common.jwt;
 
+import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.global.error.ErrorCode;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -40,7 +41,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       throws ServletException, IOException {
 
     // 1. Request에서 토큰 추출
-    String accessToken = resolveToken(request, "accessToken");
+    String accessToken = resolveToken(request, CookieManager.ACCESS_TOKEN_NAME);
 
     // 2. 토큰이 존재하는 경우 검증 및 인증 처리
     if (StringUtils.hasText(accessToken)) {

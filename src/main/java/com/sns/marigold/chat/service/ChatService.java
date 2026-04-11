@@ -36,9 +36,10 @@ public class ChatService {
   private final S3Service storageService;
 
   public ChatRoomDto getChatRoom(Long roomId) {
-    ChatRoom chatRoom = chatRoomRepository
-        .findById(roomId)
-        .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
+    ChatRoom chatRoom =
+        chatRoomRepository
+            .findById(roomId)
+            .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
     return convertToRoomDto(Objects.requireNonNull(chatRoom));
   }
 
@@ -48,14 +49,15 @@ public class ChatService {
     User user2 = userRepository.getReferenceById(user2Id);
     AdoptionPost adoptionPost = adoptionPostRepository.getReferenceById(postId);
 
-    ChatRoom chatRoom = chatRoomRepository
-        .findByUsersAndAdoptionPost(user1, user2, adoptionPost)
-        .orElseGet(
-            () -> {
-              // 없으면 생성
-              ChatRoom newRoom = ChatRoom.create(user1, user2, adoptionPost);
-              return chatRoomRepository.save(Objects.requireNonNull(newRoom));
-            });
+    ChatRoom chatRoom =
+        chatRoomRepository
+            .findByUsersAndAdoptionPost(user1, user2, adoptionPost)
+            .orElseGet(
+                () -> {
+                  // 없으면 생성
+                  ChatRoom newRoom = ChatRoom.create(user1, user2, adoptionPost);
+                  return chatRoomRepository.save(Objects.requireNonNull(newRoom));
+                });
 
     ensureParticipant(chatRoom, user1);
     ensureParticipant(chatRoom, user2);
@@ -68,14 +70,16 @@ public class ChatService {
         .findByChatRoomAndUser(chatRoom, user)
         .ifPresentOrElse(
             RoomParticipant::reJoin,
-            () -> participantRepository.save(
-                RoomParticipant.builder().chatRoom(chatRoom).user(user).build()));
+            () ->
+                participantRepository.save(
+                    RoomParticipant.builder().chatRoom(chatRoom).user(user).build()));
   }
 
   public Page<ChatRoomDto> getUserRooms(Long userId, String type, Pageable pageable) {
-    User user = userRepository
-        .findById(userId)
-        .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
     if ("writer".equalsIgnoreCase(type)) {
       return chatRoomRepository
@@ -91,9 +95,10 @@ public class ChatService {
   }
 
   public List<ChatMessageDto> getRoomMessages(Long roomId) {
-    ChatRoom chatRoom = chatRoomRepository
-        .findById(roomId)
-        .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
+    ChatRoom chatRoom =
+        chatRoomRepository
+            .findById(roomId)
+            .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
     return chatMessageRepository.findAllByChatRoomOrderByCreatedAtAsc(chatRoom).stream()
         .map(this::convertToMessageDto)
         .collect(Collectors.toList());
@@ -101,25 +106,30 @@ public class ChatService {
 
   @Transactional
   public ChatMessageDto saveMessage(ChatMessageDto messageDto) {
-    ChatRoom chatRoom = chatRoomRepository
-        .findById(Objects.requireNonNull(messageDto.getRoomId()))
-        .orElseThrow(
-            () -> new IllegalArgumentException("Chat room not found: " + messageDto.getRoomId()));
+    ChatRoom chatRoom =
+        chatRoomRepository
+            .findById(Objects.requireNonNull(messageDto.getRoomId()))
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException("Chat room not found: " + messageDto.getRoomId()));
 
     if (chatRoom.getStatus() == com.sns.marigold.chat.enums.ChatRoomStatus.CLOSED) {
       throw new IllegalStateException("종료된 채팅방에는 메시지를 보낼 수 없습니다.");
     }
 
-    User sender = userRepository
-        .findById(Objects.requireNonNull(messageDto.getSenderId()))
-        .orElseThrow(
-            () -> new IllegalArgumentException("Sender not found: " + messageDto.getSenderId()));
+    User sender =
+        userRepository
+            .findById(Objects.requireNonNull(messageDto.getSenderId()))
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException("Sender not found: " + messageDto.getSenderId()));
 
-    ChatMessage chatMessage = ChatMessage.builder()
-        .chatRoom(chatRoom)
-        .sender(sender)
-        .message(messageDto.getMessage())
-        .build();
+    ChatMessage chatMessage =
+        ChatMessage.builder()
+            .chatRoom(chatRoom)
+            .sender(sender)
+            .message(messageDto.getMessage())
+            .build();
 
     chatMessageRepository.save(Objects.requireNonNull(chatMessage));
 
@@ -134,12 +144,14 @@ public class ChatService {
 
   @Transactional
   public void leaveRoom(Long roomId, Long userId) {
-    ChatRoom chatRoom = chatRoomRepository
-        .findById(roomId)
-        .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
-    User user = userRepository
-        .findById(userId)
-        .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+    ChatRoom chatRoom =
+        chatRoomRepository
+            .findById(roomId)
+            .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
     participantRepository.findByChatRoomAndUser(chatRoom, user).ifPresent(RoomParticipant::leave);
   }
@@ -150,10 +162,11 @@ public class ChatService {
       throw new IllegalStateException(
           "1:1 채팅방은 참가자 2명이어야 합니다. roomId=" + chatRoom.getId() + ", count=" + participants.size());
     }
-    List<User> orderedUsers = participants.stream()
-        .map(RoomParticipant::getUser)
-        .sorted(Comparator.comparing(User::getId))
-        .toList();
+    List<User> orderedUsers =
+        participants.stream()
+            .map(RoomParticipant::getUser)
+            .sorted(Comparator.comparing(User::getId))
+            .toList();
     User user1 = orderedUsers.get(0);
     User user2 = orderedUsers.get(1);
 
@@ -179,9 +192,11 @@ public class ChatService {
         .roomId(message.getChatRoom().getId())
         .senderId(message.getSender().getId())
         .senderNickname(message.getSender().getDisplayNickname())
-        .senderImageUrl(message.getSender().getImage() != null
-            ? storageService.getPresignedGetObject(message.getSender().getImage().getStoredFileName())
-            : null)
+        .senderImageUrl(
+            message.getSender().getImage() != null
+                ? storageService.getPresignedGetObject(
+                    message.getSender().getImage().getStoredFileName())
+                : null)
         .message(message.getMessage())
         .createdAt(message.getCreatedAt())
         .build();
