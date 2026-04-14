@@ -1,6 +1,7 @@
 package com.sns.marigold.user.service;
 
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
+import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
@@ -145,7 +146,11 @@ public class UserService {
 
   // soft delete And PII scrubbing
   @Transactional
-  public void deleteUser(Long uid) {
+  public void deleteUser(Long uid, Long currentUserId) {
+    if (!uid.equals(currentUserId)) {
+      throw AuthException.forAccessDenied();
+    }
+
     User user = findEntityById(uid);
     List<String> imageUrls = new ArrayList<>();
     // 사용자 프로필 이미지 url 주소 임시 백업
