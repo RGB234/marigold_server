@@ -95,7 +95,7 @@ public class UserController {
     if (userId == null) {
       throw com.sns.marigold.auth.exception.AuthException.forUnauthorized();
     }
-    userService.deleteUser(userId);
+    userService.deleteUser(userId, principal.getUserId());
     return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "User deleted successfully"));
   }
 }

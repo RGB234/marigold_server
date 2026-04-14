@@ -2,11 +2,13 @@ package com.sns.marigold.chat.service;
 
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
+import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.entity.ChatMessage;
 import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.chat.entity.RoomParticipant;
+import com.sns.marigold.chat.enums.ChatRoomType;
 import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
@@ -65,6 +67,21 @@ public class ChatService {
     return convertToRoomDto(Objects.requireNonNull(chatRoom));
   }
 
+  /*
+    채팅방(1:1)의 참여자 중 하나가 채팅방을 종료한다. 
+    이전의 대화내용은 볼 수 있지만 새로 메시지를 보낼 수 없는 상태가 된다.
+  */
+  public void closeChatRoom(Long roomId, Long currentUserId){
+    ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
+    User user = userRepository.findById(currentUserId).orElseThrow(() -> new IllegalArgumentException("User not found: " + currentUserId));
+
+    // 권한 체크
+    participantRepository.findByChatRoomAndUser(chatRoom, user).orElseThrow(() -> AuthException.forAccessDenied());
+  
+    chatRoom.close();
+    chatRoomRepository.save(chatRoom);
+  }
+
   private void ensureParticipant(ChatRoom chatRoom, User user) {
     participantRepository
         .findByChatRoomAndUser(chatRoom, user)
@@ -75,23 +92,24 @@ public class ChatService {
                     RoomParticipant.builder().chatRoom(chatRoom).user(user).build()));
   }
 
-  public Page<ChatRoomDto> getUserRooms(Long userId, String type, Pageable pageable) {
+  public Page<ChatRoomDto> getUserRooms(Long userId, ChatRoomType type, Pageable pageable) {
     User user =
         userRepository
             .findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
-    if ("writer".equalsIgnoreCase(type)) {
-      return chatRoomRepository
+    return switch (type) {
+      case WRITER -> chatRoomRepository
           .findAllActiveByUserAsWriter(user, pageable)
           .map(this::convertToRoomDto);
-    } else if ("inquirer".equalsIgnoreCase(type)) {
-      return chatRoomRepository
+      case INQUIRER -> chatRoomRepository
           .findAllActiveByUserAsInquirer(user, pageable)
           .map(this::convertToRoomDto);
-    } else {
-      return chatRoomRepository.findAllActiveByUser(user, pageable).map(this::convertToRoomDto);
-    }
+      case ALL -> chatRoomRepository
+          .findAllActiveByUser(user, pageable)
+          .map(this::convertToRoomDto);
+      default -> throw new IllegalArgumentException("Invalid chat room type: " + type);
+    };
   }
 
   public List<ChatMessageDto> getRoomMessages(Long roomId) {

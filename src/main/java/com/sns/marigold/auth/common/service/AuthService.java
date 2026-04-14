@@ -135,7 +135,6 @@ public class AuthService {
 
     checkUserStatus(user);
 
-    // 방금 회원가입한 유저
     CustomPrincipal principal =
         new CustomPrincipal(
             user.getId(),

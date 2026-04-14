@@ -4,6 +4,7 @@ import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.dto.NewChatDto;
+import com.sns.marigold.chat.enums.ChatRoomType;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.annotation.TsidType;
@@ -64,7 +65,7 @@ public class ChatRoomController { // HTTP REST API
             HttpStatus.OK,
             "fetched successfully",
             chatService.getUserRooms(
-                Objects.requireNonNull(principal.getUserId()), type, pageable)));
+                Objects.requireNonNull(principal.getUserId()), ChatRoomType.fromString(type), pageable)));
   }
 
   @PreAuthorize("isAuthenticated()")
