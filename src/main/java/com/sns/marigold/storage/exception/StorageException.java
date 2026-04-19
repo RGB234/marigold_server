@@ -2,12 +2,14 @@ package com.sns.marigold.storage.exception;
 
 import com.sns.marigold.global.error.ErrorCode;
 import com.sns.marigold.global.error.exception.BusinessException;
+import org.springframework.lang.NonNull;
 
 public class StorageException extends BusinessException {
 
   private static final long serialVersionUID = 1L;
 
-  private StorageException(ErrorCode errorCode, String detailMessage, Throwable cause) {
+  private StorageException(
+      @NonNull ErrorCode errorCode, @NonNull String detailMessage, Throwable cause) {
     super(errorCode, detailMessage, cause);
   }
 

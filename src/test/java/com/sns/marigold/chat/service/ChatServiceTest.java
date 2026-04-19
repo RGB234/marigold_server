@@ -26,6 +26,7 @@ import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -230,7 +231,7 @@ class ChatServiceTest {
     Pageable pageable = PageRequest.of(0, 10);
 
     given(chatRoomRepository.findAllActiveByUser(user1, pageable))
-        .willReturn(new PageImpl<>(List.of(chatRoom)));
+        .willReturn(new PageImpl<>(Objects.requireNonNull(List.of(chatRoom))));
 
     RoomParticipant p1 = createParticipant(chatRoom, user1);
     RoomParticipant p2 = createParticipant(chatRoom, user2);
@@ -252,7 +253,7 @@ class ChatServiceTest {
     Pageable pageable = PageRequest.of(0, 10);
 
     given(chatRoomRepository.findAllActiveByUserAsWriter(user1, pageable))
-        .willReturn(new PageImpl<>(List.of(chatRoom)));
+        .willReturn(new PageImpl<>(Objects.requireNonNull(List.of(chatRoom))));
 
     RoomParticipant p1 = createParticipant(chatRoom, user1);
     RoomParticipant p2 = createParticipant(chatRoom, user2);
@@ -274,7 +275,7 @@ class ChatServiceTest {
     Pageable pageable = PageRequest.of(0, 10);
 
     given(chatRoomRepository.findAllActiveByUserAsInquirer(user1, pageable))
-        .willReturn(new PageImpl<>(List.of(chatRoom)));
+        .willReturn(new PageImpl<>(Objects.requireNonNull(List.of(chatRoom))));
 
     RoomParticipant p1 = createParticipant(chatRoom, user1);
     RoomParticipant p2 = createParticipant(chatRoom, user2);

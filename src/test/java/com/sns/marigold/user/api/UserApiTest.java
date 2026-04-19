@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.support.ApiIntegrationTest;
+import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.exception.UserException;
 import io.hypersistence.tsid.TSID;
 import org.junit.jupiter.api.DisplayName;
@@ -17,13 +18,14 @@ public class UserApiTest extends ApiIntegrationTest {
   @Test
   @DisplayName("인증 없이 프로필을 조회할 수 있다")
   void getProfile_Success() throws Exception {
-    String tsid = TSID.from(tester1.getId()).toString();
+    User user = java.util.Objects.requireNonNull(tester1);
+    String tsid = TSID.from(user.getId()).toString();
 
     mockMvc
         .perform(get(UrlConstants.USER_BASE + "/profile/{userId}", tsid))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value(200))
-        .andExpect(jsonPath("$.data.nickname").value(tester1.getNickname()));
+        .andExpect(jsonPath("$.data.nickname").value(user.getNickname()));
   }
 
   @Test
@@ -49,10 +51,11 @@ public class UserApiTest extends ApiIntegrationTest {
   @Test
   @DisplayName("인증된 사용자는 본인 계정을 삭제할 수 있다")
   void deleteUser_Success() throws Exception {
+    User user = java.util.Objects.requireNonNull(tester1);
     mockMvc
         .perform(
             delete(UrlConstants.USER_BASE + "/delete")
-                .header("Authorization", "Bearer " + getAccessToken(tester1)))
+                .header("Authorization", "Bearer " + getAccessToken(user)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value(200));
   }

@@ -3,6 +3,7 @@ package com.sns.marigold.global.error;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
+import org.springframework.lang.NonNull;
 
 @Getter
 @AllArgsConstructor
@@ -57,7 +58,7 @@ public enum ErrorCode {
       HttpStatus.BAD_REQUEST, "ADOPTION_POST_NOT_COMPLETED", "입양 완료 상태가 아닙니다."),
   ADOPTION_POST_DELETED(HttpStatus.BAD_REQUEST, "ADOPTION_POST_DELETED", "삭제된 게시글입니다.");
 
-  private final HttpStatus status;
-  private final String code;
-  private final String message;
+  @NonNull private final HttpStatus status;
+  @NonNull private final String code;
+  @NonNull private final String message;
 }

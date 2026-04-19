@@ -22,7 +22,7 @@ public class CustomLogoutHandler implements LogoutHandler {
       HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
     // log.info("로그아웃 핸들러 실행: 쿠키 만료 처리 시작");
 
-    cookieManager.expireCookie(response, cookieManager.REFRESH_TOKEN_NAME);
+    cookieManager.expireCookie(response, CookieManager.REFRESH_TOKEN_NAME);
 
     // log.info("로그아웃 핸들러 실행 완료: 쿠키 만료 처리 성공");
   }

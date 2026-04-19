@@ -2,9 +2,10 @@ package com.sns.marigold.adoption.exception;
 
 import com.sns.marigold.global.error.ErrorCode;
 import com.sns.marigold.global.error.exception.BusinessException;
+import org.springframework.lang.NonNull;
 
 public class AdoptionPostException extends BusinessException {
-  protected AdoptionPostException(ErrorCode errorCode) {
+  protected AdoptionPostException(@NonNull ErrorCode errorCode) {
     super(errorCode);
   }
 

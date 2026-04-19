@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +38,7 @@ public class ChatService {
   private final RoomParticipantRepository participantRepository;
   private final S3Service storageService;
 
-  public ChatRoomDto getChatRoom(Long roomId) {
+  public ChatRoomDto getChatRoom(@NonNull Long roomId) {
     ChatRoom chatRoom =
         chatRoomRepository
             .findById(roomId)
@@ -46,7 +47,8 @@ public class ChatService {
   }
 
   @Transactional
-  public ChatRoomDto getOrCreateChatRoom(Long user1Id, Long user2Id, Long postId) {
+  public ChatRoomDto getOrCreateChatRoom(
+      @NonNull Long user1Id, @NonNull Long user2Id, @NonNull Long postId) {
     User user1 = userRepository.getReferenceById(user1Id);
     User user2 = userRepository.getReferenceById(user2Id);
     AdoptionPost adoptionPost = adoptionPostRepository.getReferenceById(postId);
@@ -68,10 +70,10 @@ public class ChatService {
   }
 
   /*
-    채팅방(1:1)의 참여자 중 하나가 채팅방을 종료한다.
-    이전의 대화내용은 볼 수 있지만 새로 메시지를 보낼 수 없는 상태가 된다.
-  */
-  public void closeChatRoom(Long roomId, Long currentUserId) {
+   * 채팅방(1:1)의 참여자 중 하나가 채팅방을 종료한다.
+   * 이전의 대화내용은 볼 수 있지만 새로 메시지를 보낼 수 없는 상태가 된다.
+   */
+  public void closeChatRoom(@NonNull Long roomId, @NonNull Long currentUserId) {
     ChatRoom chatRoom =
         chatRoomRepository
             .findById(roomId)
@@ -97,10 +99,12 @@ public class ChatService {
             RoomParticipant::reJoin,
             () ->
                 participantRepository.save(
-                    RoomParticipant.builder().chatRoom(chatRoom).user(user).build()));
+                    Objects.requireNonNull(
+                        RoomParticipant.builder().chatRoom(chatRoom).user(user).build())));
   }
 
-  public Page<ChatRoomDto> getUserRooms(Long userId, ChatRoomType type, Pageable pageable) {
+  public Page<ChatRoomDto> getUserRooms(
+      @NonNull Long userId, @NonNull ChatRoomType type, @NonNull Pageable pageable) {
     User user =
         userRepository
             .findById(userId)
@@ -121,7 +125,7 @@ public class ChatService {
     };
   }
 
-  public List<ChatMessageDto> getRoomMessages(Long roomId) {
+  public List<ChatMessageDto> getRoomMessages(@NonNull Long roomId) {
     ChatRoom chatRoom =
         chatRoomRepository
             .findById(roomId)
@@ -170,7 +174,7 @@ public class ChatService {
   }
 
   @Transactional
-  public void leaveRoom(Long roomId, Long userId) {
+  public void leaveRoom(@NonNull Long roomId, @NonNull Long userId) {
     ChatRoom chatRoom =
         chatRoomRepository
             .findById(roomId)

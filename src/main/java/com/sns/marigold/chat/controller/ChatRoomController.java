@@ -19,6 +19,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -58,7 +59,7 @@ public class ChatRoomController {
   public ResponseEntity<ApiResponse<Page<ChatRoomDto>>> getMyRooms(
       @RequestParam(name = "type", required = false) String type,
       @AuthenticationPrincipal CustomPrincipal principal,
-      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
+      @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) @NonNull
           Pageable pageable) {
     return ResponseEntity.ok(
         ApiResponse.success(
@@ -66,14 +67,14 @@ public class ChatRoomController {
             "fetched successfully",
             chatService.getUserRooms(
                 Objects.requireNonNull(principal.getUserId()),
-                ChatRoomType.fromString(type),
+                Objects.requireNonNull(ChatRoomType.fromString(type)),
                 pageable)));
   }
 
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/{roomId}")
   public ResponseEntity<ApiResponse<ChatRoomDto>> getChatRoom(
-      @PathVariable("roomId") @TsidType Long roomId) {
+      @PathVariable("roomId") @TsidType @NonNull Long roomId) {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK, "fetched successfully", chatService.getChatRoom(roomId)));
@@ -82,7 +83,7 @@ public class ChatRoomController {
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/{roomId}/messages")
   public ResponseEntity<ApiResponse<List<ChatMessageDto>>> getRoomMessages(
-      @PathVariable("roomId") @TsidType Long roomId) {
+      @PathVariable("roomId") @TsidType @NonNull Long roomId) {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK, "fetched successfully", chatService.getRoomMessages(roomId)));
@@ -92,7 +93,7 @@ public class ChatRoomController {
   @DeleteMapping("/{roomId}/leave")
   public ResponseEntity<ApiResponse<Void>> leaveRoom(
       @AuthenticationPrincipal CustomPrincipal principal,
-      @PathVariable("roomId") @TsidType Long roomId) {
+      @PathVariable("roomId") @TsidType @NonNull Long roomId) {
     chatService.leaveRoom(roomId, Objects.requireNonNull(principal.getUserId()));
     return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "deleted successfully"));
   }

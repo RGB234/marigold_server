@@ -2,10 +2,11 @@ package com.sns.marigold.auth.exception;
 
 import com.sns.marigold.global.error.ErrorCode;
 import com.sns.marigold.global.error.exception.BusinessException;
+import org.springframework.lang.NonNull;
 
 public class AuthException extends BusinessException {
 
-  protected AuthException(ErrorCode errorCode) {
+  protected AuthException(@NonNull ErrorCode errorCode) {
     super(errorCode);
   }
 
