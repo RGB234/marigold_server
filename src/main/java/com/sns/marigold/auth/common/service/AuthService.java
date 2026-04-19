@@ -2,6 +2,7 @@ package com.sns.marigold.auth.common.service;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.dto.LocalLoginDto;
+import com.sns.marigold.auth.common.dto.LoginResponseDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.jwt.JwtManager;
@@ -13,6 +14,11 @@ import com.sns.marigold.user.dto.create.OAuth2SignupDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Collections;
 import java.util.List;
@@ -123,7 +129,7 @@ public class AuthService {
   }
 
   @Transactional(readOnly = true)
-  public void localLogin(LocalLoginDto dto, HttpServletResponse response) {
+  public LoginResponseDto localLogin(LocalLoginDto dto, HttpServletResponse response) {
     User user =
         userRepository
             .findByEmail(dto.getEmail())
@@ -147,14 +153,52 @@ public class AuthService {
 
     cookieManager.addCookie(
         response,
-        CookieManager.ACCESS_TOKEN_NAME,
-        accessToken,
-        jwtManager.getAccessTokenValidityInSeconds());
-    cookieManager.addCookie(
-        response,
         CookieManager.REFRESH_TOKEN_NAME,
         refreshToken,
         jwtManager.getRefreshTokenValidityInSeconds());
+
+    return new LoginResponseDto(accessToken);
+  }
+
+  @Transactional(readOnly = true)
+  public LoginResponseDto reissue(HttpServletRequest request, HttpServletResponse response) {
+    Cookie cookie = cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME);
+    if (cookie == null) {
+      throw AuthException.forInvalidToken();
+    }
+    String refreshToken = cookie.getValue();
+
+    Claims claims;
+    try {
+      claims = jwtManager.getClaims(refreshToken);
+    } catch (ExpiredJwtException e) {
+      throw AuthException.forExpiredToken();
+    } catch (JwtException | IllegalArgumentException e) {
+      throw AuthException.forInvalidToken();
+    }
+
+    Long userId = jwtManager.getUserId(claims);
+    User user = userRepository.findById(userId).orElseThrow(() -> UserException.forUserNotFound());
+
+    checkUserStatus(user);
+
+    CustomPrincipal principal =
+        new CustomPrincipal(
+            user.getId(),
+            List.of(new SimpleGrantedAuthority(user.getRole().name())),
+            null,
+            AuthStatus.LOGIN_SUCCESS);
+
+    String newAccessToken = jwtManager.createAccessToken(principal);
+    String newRefreshToken = jwtManager.createRefreshToken(principal);
+
+    cookieManager.addCookie(
+        response,
+        CookieManager.REFRESH_TOKEN_NAME,
+        newRefreshToken,
+        jwtManager.getRefreshTokenValidityInSeconds());
+
+    return new LoginResponseDto(newAccessToken);
   }
 
   public void checkUserStatus(User user) {

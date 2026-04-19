@@ -68,16 +68,24 @@ public class ChatService {
   }
 
   /*
-    채팅방(1:1)의 참여자 중 하나가 채팅방을 종료한다. 
+    채팅방(1:1)의 참여자 중 하나가 채팅방을 종료한다.
     이전의 대화내용은 볼 수 있지만 새로 메시지를 보낼 수 없는 상태가 된다.
   */
-  public void closeChatRoom(Long roomId, Long currentUserId){
-    ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
-    User user = userRepository.findById(currentUserId).orElseThrow(() -> new IllegalArgumentException("User not found: " + currentUserId));
+  public void closeChatRoom(Long roomId, Long currentUserId) {
+    ChatRoom chatRoom =
+        chatRoomRepository
+            .findById(roomId)
+            .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
+    User user =
+        userRepository
+            .findById(currentUserId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + currentUserId));
 
     // 권한 체크
-    participantRepository.findByChatRoomAndUser(chatRoom, user).orElseThrow(() -> AuthException.forAccessDenied());
-  
+    participantRepository
+        .findByChatRoomAndUser(chatRoom, user)
+        .orElseThrow(() -> AuthException.forAccessDenied());
+
     chatRoom.close();
     chatRoomRepository.save(chatRoom);
   }
@@ -99,15 +107,16 @@ public class ChatService {
             .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
     return switch (type) {
-      case WRITER -> chatRoomRepository
-          .findAllActiveByUserAsWriter(user, pageable)
-          .map(this::convertToRoomDto);
-      case INQUIRER -> chatRoomRepository
-          .findAllActiveByUserAsInquirer(user, pageable)
-          .map(this::convertToRoomDto);
-      case ALL -> chatRoomRepository
-          .findAllActiveByUser(user, pageable)
-          .map(this::convertToRoomDto);
+      case WRITER ->
+          chatRoomRepository
+              .findAllActiveByUserAsWriter(user, pageable)
+              .map(this::convertToRoomDto);
+      case INQUIRER ->
+          chatRoomRepository
+              .findAllActiveByUserAsInquirer(user, pageable)
+              .map(this::convertToRoomDto);
+      case ALL ->
+          chatRoomRepository.findAllActiveByUser(user, pageable).map(this::convertToRoomDto);
       default -> throw new IllegalArgumentException("Invalid chat room type: " + type);
     };
   }

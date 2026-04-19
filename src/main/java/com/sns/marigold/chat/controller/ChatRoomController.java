@@ -32,9 +32,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping(UrlConstants.CHAT_BASE + "/rooms")
+@RequestMapping(UrlConstants.CHAT_BASE + "/rooms") // HTTP REST API
 @RequiredArgsConstructor
-public class ChatRoomController { // HTTP REST API
+public class ChatRoomController {
 
   private final ChatService chatService;
 
@@ -65,7 +65,9 @@ public class ChatRoomController { // HTTP REST API
             HttpStatus.OK,
             "fetched successfully",
             chatService.getUserRooms(
-                Objects.requireNonNull(principal.getUserId()), ChatRoomType.fromString(type), pageable)));
+                Objects.requireNonNull(principal.getUserId()),
+                ChatRoomType.fromString(type),
+                pageable)));
   }
 
   @PreAuthorize("isAuthenticated()")

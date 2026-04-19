@@ -1,91 +1,91 @@
 package com.sns.marigold.global.error;
 
-import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.global.dto.ApiResponse;
 import com.sns.marigold.global.error.dto.FieldErrorDetail;
 import com.sns.marigold.global.error.exception.BusinessException;
-import com.sns.marigold.global.error.exception.InternalServerException;
-import com.sns.marigold.storage.exception.StorageException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /** 전역 예외 처리를 담당하는 Advice 클래스입니다. */
-@ControllerAdvice
+@Slf4j
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
-  Logger logger = LoggerFactory.getLogger(this.getClass());
-
+  /** 비즈니스 예외 처리. 모든 도메인 커스텀 예외는 BusinessException을 상속합니다. */
   @ExceptionHandler(BusinessException.class)
   public ResponseEntity<ApiResponse<?>> handleBusinessException(final BusinessException e) {
-    logger.error("{} is occurred", e.getErrorCode().getCode());
-    logger.error("{}", e.getMessage());
-    logger.error("{}", Arrays.stream(e.getStackTrace()).toArray());
-    return ResponseEntity.status(e.getErrorCode().getStatus().value())
+    log.error("Exception occurred: {}", e.getErrorCode().getCode(), e);
+    return ResponseEntity.status(e.getErrorCode().getStatus())
         .body(ApiResponse.error(e.getErrorCode()));
   }
 
-  @ExceptionHandler(InternalServerException.class)
-  public ResponseEntity<ApiResponse<?>> handleInternalServerException(
-      final InternalServerException e) {
-    logger.error("{} is occurred", e.getErrorCode().getCode());
-    logger.error("{}", e.getMessage());
-    logger.error("{}", Arrays.stream(e.getStackTrace()).toArray());
-    return ResponseEntity.status(e.getErrorCode().getStatus().value())
-        .body(ApiResponse.error(e.getErrorCode()));
+  /** Spring Security의 @PreAuthorize 등에서 발생하는 인가 예외 처리 */
+  @ExceptionHandler(org.springframework.security.authorization.AuthorizationDeniedException.class)
+  public ResponseEntity<ApiResponse<?>> handleAuthorizationDeniedException(
+      org.springframework.security.authorization.AuthorizationDeniedException e) {
+
+    // 1. 현재 SecurityContext에서 인증 객체를 가져옵니다.
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    // 2. 인증 객체가 없거나, 익명 사용자(Anonymous)인 경우 -> 401 Unauthorized
+    //
+    if (authentication == null
+        || authentication instanceof AnonymousAuthenticationToken
+        || !authentication.isAuthenticated()) {
+      log.error("Unauthorized access attempt: {}", e.getMessage());
+      return ResponseEntity.status(ErrorCode.AUTH_UNAUTHORIZED.getStatus())
+          .body(ApiResponse.error(ErrorCode.AUTH_UNAUTHORIZED));
+    }
+    // 3. 인증은 되었으나 권한이 부족한 경우 (예: USER가 ADMIN API 호출) -> 403 Forbidden
+    log.error("Access denied for user {}: {}", authentication.getName(), e.getMessage());
+    return ResponseEntity.status(ErrorCode.AUTH_ACCESS_DENIED.getStatus())
+        .body(ApiResponse.error(ErrorCode.AUTH_ACCESS_DENIED));
   }
 
-  @ExceptionHandler(AuthException.class)
-  public ResponseEntity<ApiResponse<?>> handleAuthException(final AuthException e) {
-    logger.error("{} is occurred", e.getErrorCode().getCode());
-    logger.error("{}", e.getMessage());
-    logger.error("{}", Arrays.stream(e.getStackTrace()).toArray());
-    return ResponseEntity.status(e.getErrorCode().getStatus().value())
-        .body(ApiResponse.error(e.getErrorCode()));
-  }
-
-  @ExceptionHandler(StorageException.class)
-  public ResponseEntity<ApiResponse<?>> handleStorageException(final StorageException e) {
-    logger.error("{} is occurred", e.getErrorCode().getCode());
-    logger.error("{}", e.getMessage());
-    logger.error("{}", Arrays.stream(e.getStackTrace()).toArray());
-    return ResponseEntity.status(e.getErrorCode().getStatus().value())
-        .body(ApiResponse.error(e.getErrorCode()));
-  }
-
+  /** Request Body 필드 검증 실패 (@Valid) 처리 */
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<ApiResponse<?>> handleMethodArgumentNotValidException(
       final MethodArgumentNotValidException e) {
-    logger.error("{} is occurred", ErrorCode.INVALID_INPUT_VALUE.getCode());
-    logger.error("{}", e.getMessage());
-    logger.error("{}", Arrays.stream(e.getStackTrace()).toArray());
+    log.error("MethodArgumentNotValidException occurred", e);
 
-    // 에러가 발생한 필드들을 리스트로 추출
+    BindingResult bindingResult = e.getBindingResult();
     List<FieldErrorDetail> errors =
-        e.getBindingResult().getFieldErrors().stream()
-            .map(
-                error ->
-                    new FieldErrorDetail(
-                        error.getField(), // 예: "email"
-                        error.getDefaultMessage() // 예: "이메일 형식이 올바르지 않습니다."
-                        ))
+        bindingResult.getFieldErrors().stream()
+            .map(error -> new FieldErrorDetail(error.getField(), error.getDefaultMessage()))
             .collect(Collectors.toList());
 
-    // 프론트엔드와 약속한 에러 응답 포맷으로 감싸서 반환
-    return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus().value())
+    return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
         .body(ApiResponse.error(ErrorCode.INVALID_INPUT_VALUE, errors));
   }
 
+  /** Request Parameter 바인딩/타입 변환 실패 (예: Enum 타입 오류) 처리 */
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  public ResponseEntity<ApiResponse<?>> handleMethodArgumentTypeMismatchException(
+      final MethodArgumentTypeMismatchException e) {
+    log.error("MethodArgumentTypeMismatchException occurred", e);
+    return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
+        .body(ApiResponse.error(ErrorCode.INVALID_INPUT_VALUE));
+  }
+
+  /** 그 외 처리되지 않은 모든 예외 처리 */
   @ExceptionHandler(Exception.class)
   protected ResponseEntity<ApiResponse<?>> handleException(Exception e) {
-    logger.error("Unhandled Exception", e);
-    return ResponseEntity.status(ErrorCode.INTERNAL_SERVER_ERROR.getStatus().value())
+    log.error("Unhandled Exception occurred", e);
+
+    log.error("Exception class: {}", e.getClass());
+    log.error("Exception cause: {}", e.getCause());
+    log.error("Exception message: {}", e.getMessage());
+
+    return ResponseEntity.status(ErrorCode.INTERNAL_SERVER_ERROR.getStatus())
         .body(ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR));
   }
 }

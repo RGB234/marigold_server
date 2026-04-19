@@ -1,11 +1,13 @@
 package com.sns.marigold.auth.common.controller;
 
 import com.sns.marigold.auth.common.dto.LocalLoginDto;
+import com.sns.marigold.auth.common.dto.LoginResponseDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.service.AuthService;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.dto.ApiResponse;
 import com.sns.marigold.user.dto.create.LocalSignupDto;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -44,11 +46,11 @@ public class AuthController {
 
   @PreAuthorize("permitAll()")
   @PostMapping("/login")
-  public ResponseEntity<ApiResponse<Void>> localLogin(
+  public ResponseEntity<ApiResponse<LoginResponseDto>> localLogin(
       @Valid @RequestBody LocalLoginDto dto, HttpServletResponse response) {
-    authService.localLogin(dto, response);
+    LoginResponseDto loginResponse = authService.localLogin(dto, response);
     return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResponse.success(HttpStatus.OK, "local login successfully", null));
+        .body(ApiResponse.success(HttpStatus.OK, "local login successfully", loginResponse));
   }
 
   /*
@@ -68,10 +70,12 @@ public class AuthController {
                 authService.getAuthStatus(authentication)));
   }
 
-  // @GetMapping("/reissue")
-  // public ResponseEntity<Map<String, Object>> reissue(HttpServletRequest
-  // request, HttpServletResponse response) {
-  // authService.reissue(request, response);
-  // return ResponseEntity.ok().body(Map.of("message", "reissue success"));
-  // }
+  @PreAuthorize("permitAll()")
+  @PostMapping("/refresh")
+  public ResponseEntity<ApiResponse<LoginResponseDto>> refresh(
+      HttpServletRequest request, HttpServletResponse response) {
+    LoginResponseDto loginResponse = authService.reissue(request, response);
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(ApiResponse.success(HttpStatus.OK, "token refreshed successfully", loginResponse));
+  }
 }

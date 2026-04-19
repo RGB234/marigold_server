@@ -89,11 +89,11 @@ public class UserController {
 
   @PreAuthorize("isAuthenticated()")
   @DeleteMapping("/delete")
-  public ResponseEntity<ApiResponse<Void>> deletePerson(
+  public ResponseEntity<ApiResponse<Void>> deleteUser(
       @AuthenticationPrincipal CustomPrincipal principal) {
     Long userId = principal.getUserId();
     if (userId == null) {
-      throw com.sns.marigold.auth.exception.AuthException.forUnauthorized();
+      throw com.sns.marigold.auth.exception.AuthException.forAccessDenied();
     }
     userService.deleteUser(userId, principal.getUserId());
     return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "User deleted successfully"));
