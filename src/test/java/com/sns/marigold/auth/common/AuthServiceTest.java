@@ -25,7 +25,6 @@ import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.enums.UserStatus;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
-
 import io.hypersistence.tsid.TSID;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
@@ -47,36 +46,31 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
-  @Mock
-  private UserRepository userRepository;
+  @Mock private UserRepository userRepository;
 
-  @Mock
-  private PasswordEncoder passwordEncoder;
+  @Mock private PasswordEncoder passwordEncoder;
 
-  @Mock
-  private JwtManager jwtManager;
+  @Mock private JwtManager jwtManager;
 
-  @Mock
-  private CookieManager cookieManager;
+  @Mock private CookieManager cookieManager;
 
-  @Mock
-  private RandomUsernameGenerator randomUsernameGenerator;
+  @Mock private RandomUsernameGenerator randomUsernameGenerator;
 
-  @InjectMocks
-  private AuthService authService;
+  @InjectMocks private AuthService authService;
 
   private User testUser;
 
   @BeforeEach
   void setUp() {
-    testUser = User.builder()
-        .id(TSID.from(1L).toLong())
-        .email("test@example.com")
-        .password("encodedPassword")
-        .nickname("tester")
-        .role(Role.ROLE_PERSON)
-        .status(UserStatus.ACTIVE)
-        .build();
+    testUser =
+        User.builder()
+            .id(TSID.from(1L).toLong())
+            .email("test@example.com")
+            .password("encodedPassword")
+            .nickname("tester")
+            .role(Role.ROLE_PERSON)
+            .status(UserStatus.ACTIVE)
+            .build();
   }
 
   private LocalSignupDto createLocalSignupDto(String email, String password, String nickname) {
@@ -144,11 +138,12 @@ class AuthServiceTest {
   @DisplayName("OAuth2 회원가입 시 고유한 닉네임을 생성하고 사용자를 저장한다.")
   void oauth2Signup_Success() {
     // given
-    OAuth2SignupDto dto = OAuth2SignupDto.builder()
-        .providerInfo(ProviderInfo.KAKAO)
-        .providerId("12345")
-        .role(Role.ROLE_PERSON)
-        .build();
+    OAuth2SignupDto dto =
+        OAuth2SignupDto.builder()
+            .providerInfo(ProviderInfo.KAKAO)
+            .providerId("12345")
+            .role(Role.ROLE_PERSON)
+            .build();
 
     given(userRepository.existsByProviderInfoAndProviderId(ProviderInfo.KAKAO, "12345"))
         .willReturn(false);
@@ -166,11 +161,12 @@ class AuthServiceTest {
   @DisplayName("OAuth2 회원가입 시 이미 존재하는 회원이면 예외가 발생한다.")
   void oauth2Signup_AlreadyExists() {
     // given
-    OAuth2SignupDto dto = OAuth2SignupDto.builder()
-        .providerInfo(ProviderInfo.KAKAO)
-        .providerId("12345")
-        .role(Role.ROLE_PERSON)
-        .build();
+    OAuth2SignupDto dto =
+        OAuth2SignupDto.builder()
+            .providerInfo(ProviderInfo.KAKAO)
+            .providerId("12345")
+            .role(Role.ROLE_PERSON)
+            .build();
 
     given(userRepository.existsByProviderInfoAndProviderId(ProviderInfo.KAKAO, "12345"))
         .willReturn(true);
@@ -190,19 +186,22 @@ class AuthServiceTest {
 
     given(userRepository.findByEmail(dto.getEmail())).willReturn(Optional.of(testUser));
     given(passwordEncoder.matches(dto.getPassword(), testUser.getPassword())).willReturn(true);
-    given(jwtManager.createAccessToken(any(CustomPrincipal.class))).willReturn("access_token_value");
-    given(jwtManager.createRefreshToken(any(CustomPrincipal.class))).willReturn("refresh_token_value");
-    given(jwtManager.getAccessTokenValidityInSeconds()).willReturn(3600L);
+    given(jwtManager.createAccessToken(any(CustomPrincipal.class)))
+        .willReturn("access_token_value");
+    given(jwtManager.createRefreshToken(any(CustomPrincipal.class)))
+        .willReturn("refresh_token_value");
     given(jwtManager.getRefreshTokenValidityInSeconds()).willReturn(86400L);
 
     // when
     authService.localLogin(dto, response);
 
     // then
-    verify(cookieManager, times(1)).addCookie(eq(response), eq(CookieManager.ACCESS_TOKEN_NAME),
-        eq("access_token_value"), eq(3600L));
-    verify(cookieManager, times(1)).addCookie(eq(response), eq(CookieManager.REFRESH_TOKEN_NAME),
-        eq("refresh_token_value"), eq(86400L));
+    verify(cookieManager, times(1))
+        .addCookie(
+            eq(response),
+            eq(CookieManager.REFRESH_TOKEN_NAME),
+            eq("refresh_token_value"),
+            eq(86400L));
   }
 
   @Test
@@ -228,12 +227,13 @@ class AuthServiceTest {
     LocalLoginDto dto = createLocalLoginDto("test@example.com", "password123");
     HttpServletResponse response = mock(HttpServletResponse.class);
 
-    User deletedUser = User.builder()
-        .id(2L)
-        .email("test@example.com")
-        .password("encodedPassword")
-        .status(UserStatus.DELETED)
-        .build();
+    User deletedUser =
+        User.builder()
+            .id(2L)
+            .email("test@example.com")
+            .password("encodedPassword")
+            .status(UserStatus.DELETED)
+            .build();
 
     given(userRepository.findByEmail(dto.getEmail())).willReturn(Optional.of(deletedUser));
     given(passwordEncoder.matches(dto.getPassword(), deletedUser.getPassword())).willReturn(true);
@@ -248,13 +248,14 @@ class AuthServiceTest {
   @DisplayName("인증 정보가 유효할 경우 사용자의 인증 상태 정보를 반환한다.")
   void getAuthStatus_Success() {
     // given
-    CustomPrincipal principal = new CustomPrincipal(
-        TSID.from(1L).toLong(),
-        List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name())),
-        null,
-        AuthStatus.LOGIN_SUCCESS);
-    Authentication authentication = new UsernamePasswordAuthenticationToken(principal, null,
-        principal.getAuthorities());
+    CustomPrincipal principal =
+        new CustomPrincipal(
+            TSID.from(1L).toLong(),
+            List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name())),
+            null,
+            AuthStatus.LOGIN_SUCCESS);
+    Authentication authentication =
+        new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
 
     // when
     UserAuthStatusDto statusDto = authService.getAuthStatus(authentication);
@@ -269,8 +270,9 @@ class AuthServiceTest {
   @DisplayName("인증 정보가 익명 사용자일 경우 빈 상태 정보를 반환한다.")
   void getAuthStatus_AnonymousUser() {
     // given
-    Authentication authentication = new AnonymousAuthenticationToken(
-        "key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")));
+    Authentication authentication =
+        new AnonymousAuthenticationToken(
+            "key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")));
 
     // when
     UserAuthStatusDto statusDto = authService.getAuthStatus(authentication);

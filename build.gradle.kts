@@ -56,7 +56,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     
     // Testcontainers
-    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    // testImplementation("org.testcontainers:testcontainers")
+    testImplementation("org.testcontainers:testcontainers:2.0.2")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:mysql")
     testImplementation("com.navercorp.fixturemonkey:fixture-monkey-starter:1.0.0")

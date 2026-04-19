@@ -14,8 +14,8 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 /*
-인증 실패 시 처리
- */
+ 인증 실패 시 처리
+*/
 @Component
 @RequiredArgsConstructor
 public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
@@ -40,7 +40,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
 
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
     response.setCharacterEncoding("UTF-8");
-    response.setStatus(errorCode.getStatus().value()); // HTTP 상태 코드 설정
+    response.setStatus(errorCode.getStatus().value());
 
     response.getWriter().write(objectMapper.writeValueAsString(responseBody));
   }

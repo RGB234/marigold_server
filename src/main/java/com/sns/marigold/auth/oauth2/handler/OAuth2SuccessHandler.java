@@ -41,12 +41,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
       String accessToken = jwtManager.createAccessToken(principal);
       String refreshToken = jwtManager.createRefreshToken(principal);
 
-      // 2. 쿠키 설정 및 추가
-      cookieManager.addCookie(
-          response,
-          CookieManager.ACCESS_TOKEN_NAME,
-          accessToken,
-          jwtManager.getAccessTokenValidityInMilliseconds());
+      // 2. Refresh Token 쿠키 설정
       cookieManager.addCookie(
           response,
           CookieManager.REFRESH_TOKEN_NAME,
@@ -57,11 +52,16 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     String callbackUrl = urlProperties.frontend().auth().callback();
     Objects.requireNonNull(callbackUrl, "url.frontend.auth.callback is not configured");
 
-    String redirectUrl =
+    UriComponentsBuilder uriBuilder =
         UriComponentsBuilder.fromUriString(callbackUrl)
-            .queryParam("auth_status", authStatus.name())
-            .build()
-            .toUriString();
+            .queryParam("auth_status", authStatus.name());
+
+    if (authStatus == AuthStatus.LOGIN_SUCCESS || authStatus == AuthStatus.SIGNUP_SUCCESS) {
+      String accessToken = jwtManager.createAccessToken(principal);
+      uriBuilder.queryParam("access_token", accessToken);
+    }
+
+    String redirectUrl = uriBuilder.build().toUriString();
 
     // 3. 리다이렉트 처리
     if (response.isCommitted()) {

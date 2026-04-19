@@ -1,18 +1,14 @@
 package com.sns.marigold.storage.exception;
 
 import com.sns.marigold.global.error.ErrorCode;
-import lombok.Getter;
+import com.sns.marigold.global.error.exception.BusinessException;
 
-@Getter
-public class StorageException extends RuntimeException {
+public class StorageException extends BusinessException {
 
-  private static final long serialVersionUID = 1L; // 1. 직렬화 ID 추가
-
-  private final ErrorCode errorCode;
+  private static final long serialVersionUID = 1L;
 
   private StorageException(ErrorCode errorCode, String detailMessage, Throwable cause) {
-    super(errorCode.getMessage() + " (" + detailMessage + ")", cause);
-    this.errorCode = errorCode;
+    super(errorCode, detailMessage, cause);
   }
 
   // --- Factory Methods ---

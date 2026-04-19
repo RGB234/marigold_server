@@ -1,15 +1,12 @@
 package com.sns.marigold.auth.exception;
 
 import com.sns.marigold.global.error.ErrorCode;
-import lombok.Getter;
+import com.sns.marigold.global.error.exception.BusinessException;
 
-@Getter
-public class AuthException extends RuntimeException {
-  private final ErrorCode errorCode;
+public class AuthException extends BusinessException {
 
   protected AuthException(ErrorCode errorCode) {
-    super(errorCode.getMessage());
-    this.errorCode = errorCode;
+    super(errorCode);
   }
 
   public static AuthException forUnauthorized() {

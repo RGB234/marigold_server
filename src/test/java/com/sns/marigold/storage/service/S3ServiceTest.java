@@ -31,14 +31,11 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequ
 @ExtendWith(MockitoExtension.class)
 class S3ServiceTest {
 
-  @Mock
-  private S3Template s3Template;
+  @Mock private S3Template s3Template;
 
-  @Mock
-  private S3Presigner s3Presigner;
+  @Mock private S3Presigner s3Presigner;
 
-  @InjectMocks
-  private S3Service s3Service;
+  @InjectMocks private S3Service s3Service;
 
   @BeforeEach
   void setUp() {
@@ -50,12 +47,13 @@ class S3ServiceTest {
   @DisplayName("파일 업로드 성공 시 ImageUploadDto를 반환한다")
   void uploadFile_Success() throws Exception {
     // given
-    MockMultipartFile mockFile = new MockMultipartFile(
-        "file", "test-image.png", "image/png", "test image content".getBytes());
+    MockMultipartFile mockFile =
+        new MockMultipartFile(
+            "file", "test-image.png", "image/png", "test image content".getBytes());
 
     given(
-        s3Template.upload(
-            eq("test-bucket"), any(String.class), any(ByteArrayInputStream.class), any()))
+            s3Template.upload(
+                eq("test-bucket"), any(String.class), any(ByteArrayInputStream.class), any()))
         .willReturn(null); // S3Template의 upload는 S3Resource를 리턴하지만 여기선 필요 없음
 
     // when
@@ -81,11 +79,12 @@ class S3ServiceTest {
   @DisplayName("확장자가 없는 파일 업로드 시 StorageException이 발생한다")
   void uploadFile_NoExtension() {
     // given
-    MockMultipartFile noExtensionFile = new MockMultipartFile(
-        "file",
-        "test-image", // 확장자 없음
-        "image/png",
-        "test content".getBytes());
+    MockMultipartFile noExtensionFile =
+        new MockMultipartFile(
+            "file",
+            "test-image", // 확장자 없음
+            "image/png",
+            "test content".getBytes());
 
     // when & then
     assertThatThrownBy(() -> s3Service.uploadFile(noExtensionFile))
@@ -95,26 +94,27 @@ class S3ServiceTest {
   @Test
   @DisplayName("Presigned URL 발급 성공")
   void getPresignedGetObject_Success() throws Exception {
-      // given
-      String storedFileName = "uuid-name.png";
-      URL fakeUrl = new URL("https://test-bucket.s3.amazonaws.com/" + storedFileName + "?...");
-  
-      PresignedGetObjectRequest presignedRequest = mock(PresignedGetObjectRequest.class);
-      given(presignedRequest.url()).willReturn(fakeUrl);
-      
-      given(s3Presigner.presignGetObject(any(GetObjectPresignRequest.class)))
-          .willReturn(presignedRequest);
-  
-      // when
-      String url = s3Service.getPresignedGetObject(storedFileName);
-  
-      // then
-      assertThat(url).isEqualTo(fakeUrl.toString());
-  
-      ArgumentCaptor<GetObjectPresignRequest> captor = ArgumentCaptor.forClass(GetObjectPresignRequest.class);
-      verify(s3Presigner, times(1)).presignGetObject(captor.capture());
-  
-      GetObjectPresignRequest capturedRequest = captor.getValue();
-      assertThat(capturedRequest.getObjectRequest().key()).isEqualTo(storedFileName);
+    // given
+    String storedFileName = "uuid-name.png";
+    URL fakeUrl = new URL("https://test-bucket.s3.amazonaws.com/" + storedFileName + "?...");
+
+    PresignedGetObjectRequest presignedRequest = mock(PresignedGetObjectRequest.class);
+    given(presignedRequest.url()).willReturn(fakeUrl);
+
+    given(s3Presigner.presignGetObject(any(GetObjectPresignRequest.class)))
+        .willReturn(presignedRequest);
+
+    // when
+    String url = s3Service.getPresignedGetObject(storedFileName);
+
+    // then
+    assertThat(url).isEqualTo(fakeUrl.toString());
+
+    ArgumentCaptor<GetObjectPresignRequest> captor =
+        ArgumentCaptor.forClass(GetObjectPresignRequest.class);
+    verify(s3Presigner, times(1)).presignGetObject(captor.capture());
+
+    GetObjectPresignRequest capturedRequest = captor.getValue();
+    assertThat(capturedRequest.getObjectRequest().key()).isEqualTo(storedFileName);
   }
 }

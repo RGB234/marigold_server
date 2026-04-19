@@ -19,7 +19,9 @@ public class ChatController {
   private final ChatService chatService;
 
   @PreAuthorize("isAuthenticated()")
-  @MessageMapping("/chat/message") // 웹소켓
+  @MessageMapping(
+      "/chat/message") // WebSocket. WebSocketConfig에 의해 /pub + /chat/message 경로로 메시지가 전송되면 이 메서드가
+  // 호출된다.
   public void message(ChatMessageDto messageDto) {
     log.info("Received message: {}", messageDto);
     ChatMessageDto savedMessage = chatService.saveMessage(messageDto);

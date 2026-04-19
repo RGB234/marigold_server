@@ -147,7 +147,7 @@ public class UserService {
   // soft delete And PII scrubbing
   @Transactional
   public void deleteUser(Long uid, Long currentUserId) {
-    if (!uid.equals(currentUserId)) {
+    if (uid == null || !uid.equals(currentUserId)) {
       throw AuthException.forAccessDenied();
     }
 

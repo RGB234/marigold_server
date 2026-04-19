@@ -9,11 +9,13 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.WebUtils;
 
+/*
+  Refresh Token 쿠키 추가 및 만료 처리
+*/
 @Component
 @Slf4j
 public class CookieManager {
 
-  public static final String ACCESS_TOKEN_NAME = "access_token";
   public static final String REFRESH_TOKEN_NAME = "refresh_token";
 
   /**
