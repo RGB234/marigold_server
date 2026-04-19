@@ -151,7 +151,7 @@ class AuthServiceTest {
     given(userRepository.existsByNickname("generatedNick")).willReturn(false);
 
     // when
-    Long userId = authService.oauth2Signup(dto);
+    authService.oauth2Signup(dto);
 
     // then
     verify(userRepository, times(1)).save(any(User.class));

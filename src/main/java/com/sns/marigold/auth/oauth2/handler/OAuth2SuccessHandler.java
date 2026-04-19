@@ -38,7 +38,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     // 정상 상태(로그인, 신규가입)일 때만 토큰 및 쿠키 발급
     if (authStatus == AuthStatus.LOGIN_SUCCESS || authStatus == AuthStatus.SIGNUP_SUCCESS) {
       // 1. JWT 토큰 생성
-      String accessToken = jwtManager.createAccessToken(principal);
       String refreshToken = jwtManager.createRefreshToken(principal);
 
       // 2. Refresh Token 쿠키 설정

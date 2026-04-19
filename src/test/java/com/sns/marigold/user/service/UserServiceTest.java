@@ -61,6 +61,7 @@ class UserServiceTest {
   private User testUser;
 
   @BeforeEach
+  @SuppressWarnings("null")
   void setUp() {
     testUser =
         User.builder()
@@ -76,7 +77,7 @@ class UserServiceTest {
         .doAnswer(
             invocation -> {
               Consumer<TransactionStatus> action = invocation.getArgument(0);
-              action.accept(null);
+              action.accept(mock(TransactionStatus.class));
               return null;
             })
         .when(transactionTemplate)
@@ -85,8 +86,8 @@ class UserServiceTest {
     lenient()
         .doAnswer(
             invocation -> {
-              TransactionCallback<?> action = invocation.getArgument(0);
-              return action.doInTransaction(null);
+              TransactionCallback<Object> action = invocation.getArgument(0);
+              return action.doInTransaction(mock(TransactionStatus.class));
             })
         .when(transactionTemplate)
         .execute(any());
@@ -120,6 +121,7 @@ class UserServiceTest {
 
   @Test
   @DisplayName("이미지를 제외한 나머지 계정 정보를 업데이트한다.")
+  @SuppressWarnings("null")
   void updateUser_WithoutImage_Success() {
     // given
     UserUpdateDto dto = new UserUpdateDto();
@@ -139,6 +141,7 @@ class UserServiceTest {
 
   @Test
   @DisplayName("사용자 프로필 이미지를 새로 업로드한다.")
+  @SuppressWarnings("null")
   void updateUser_NewImage_Success() {
     // given
     UserUpdateDto dto = new UserUpdateDto();
@@ -166,6 +169,7 @@ class UserServiceTest {
 
   @Test
   @DisplayName("사용자 프로필 이미지를 교체한다.")
+  @SuppressWarnings("null")
   void updateUser_ReplaceImage_Success() {
     // given
     testUser.update(
@@ -200,6 +204,7 @@ class UserServiceTest {
 
   @Test
   @DisplayName("사용자 프로필 이미지를 기본 이미지로 변경(삭제)한다.")
+  @SuppressWarnings("null")
   void updateUser_RemoveImage_Success() {
     // given
     testUser.update(
@@ -229,6 +234,7 @@ class UserServiceTest {
 
   @Test
   @DisplayName("회원 탈퇴(소프트 딜리트) 시 작성한 게시글을 논리 삭제하고 참여 중인 채팅방을 닫는다.")
+  @SuppressWarnings("null")
   void deleteUser_Success() {
     // given
     testUser.update(

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,7 +24,8 @@ public class GlobalExceptionHandler {
 
   /** 비즈니스 예외 처리. 모든 도메인 커스텀 예외는 BusinessException을 상속합니다. */
   @ExceptionHandler(BusinessException.class)
-  public ResponseEntity<ApiResponse<?>> handleBusinessException(final BusinessException e) {
+  public ResponseEntity<ApiResponse<?>> handleBusinessException(
+      @NonNull final BusinessException e) {
     log.error("Exception occurred: {}", e.getErrorCode().getCode(), e);
     return ResponseEntity.status(e.getErrorCode().getStatus())
         .body(ApiResponse.error(e.getErrorCode()));

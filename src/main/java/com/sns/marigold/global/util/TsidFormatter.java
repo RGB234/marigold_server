@@ -3,6 +3,8 @@ package com.sns.marigold.global.util;
 import io.hypersistence.tsid.TSID;
 import java.text.ParseException;
 import java.util.Locale;
+import java.util.Objects;
+
 import org.springframework.format.Formatter;
 import org.springframework.lang.NonNull;
 import org.springframework.util.StringUtils;
@@ -31,6 +33,6 @@ public class TsidFormatter implements Formatter<Long> {
   @NonNull
   public String print(@NonNull Long object, @NonNull Locale locale) {
     // Long -> Base32 String 변환 (응답 시 활용)
-    return TSID.from(object).toLowerCase();
+    return Objects.requireNonNull(TSID.from(object).toLowerCase());
   }
 }

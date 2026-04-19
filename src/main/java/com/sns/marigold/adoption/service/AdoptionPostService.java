@@ -60,7 +60,7 @@ public class AdoptionPostService {
   @Transactional(readOnly = true)
   public AdoptionPost findEntityById(Long id) {
     return adoptionPostRepository
-        .findById(id)
+        .findById(Objects.requireNonNull(id))
         .orElseThrow(AdoptionPostException::forAdoptionPostNotExists);
   }
 
@@ -196,7 +196,7 @@ public class AdoptionPostService {
                 AdoptionPostSpecification.isNotDeleted(),
                 AdoptionPostSpecification.hasSpecies(dto.getSpecies()),
                 AdoptionPostSpecification.hasSex(dto.getSex())),
-            pageable);
+            Objects.requireNonNull(pageable));
 
     return resultPage.map(
         post -> {
@@ -388,7 +388,8 @@ public class AdoptionPostService {
     info.updateStatus(AdoptionPostStatus.COMPLETED);
 
     AdoptionAdopter adoptionAdopter =
-        AdoptionAdopter.builder().adoptionPost(info).adopter(adopter).build();
+        Objects.requireNonNull(
+            AdoptionAdopter.builder().adoptionPost(info).adopter(adopter).build());
     adoptionAdopterRepository.save(adoptionAdopter);
   }
 

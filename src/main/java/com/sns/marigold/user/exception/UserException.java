@@ -2,9 +2,10 @@ package com.sns.marigold.user.exception;
 
 import com.sns.marigold.global.error.ErrorCode;
 import com.sns.marigold.global.error.exception.BusinessException;
+import org.springframework.lang.NonNull;
 
 public class UserException extends BusinessException {
-  protected UserException(ErrorCode errorCode) {
+  protected UserException(@NonNull ErrorCode errorCode) {
     super(errorCode);
   }
 

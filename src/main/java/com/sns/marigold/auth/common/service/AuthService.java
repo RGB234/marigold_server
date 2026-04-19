@@ -42,7 +42,8 @@ public class AuthService {
   private final CookieManager cookieManager;
   private final RandomUsernameGenerator randomUsernameGenerator;
 
-  // OAuth2 로그인/로그아웃 & 회원가입 -> Spring security 에서 처리 (SecurityConfig & OAuth2UserService)
+  // OAuth2 로그인/로그아웃 & 회원가입 -> Spring security 에서 처리 (SecurityConfig &
+  // OAuth2UserService)
 
   public UserAuthStatusDto getAuthStatus(Authentication authentication) {
     // JwtAuthenticationFilter에서 Authentication 객체 생성 후 SecurityContext에 저장함
@@ -78,7 +79,7 @@ public class AuthService {
             .nickname(dto.getNickname())
             .build();
 
-    userRepository.save(user);
+    userRepository.save(Objects.requireNonNull(user));
   }
 
   @Transactional
@@ -178,7 +179,10 @@ public class AuthService {
     }
 
     Long userId = jwtManager.getUserId(claims);
-    User user = userRepository.findById(userId).orElseThrow(() -> UserException.forUserNotFound());
+    User user =
+        userRepository
+            .findById(Objects.requireNonNull(userId))
+            .orElseThrow(() -> UserException.forUserNotFound());
 
     checkUserStatus(user);
 

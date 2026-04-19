@@ -16,6 +16,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 public abstract class BaseIntegrationTest {
 
   @Container
+  @SuppressWarnings("resource") // Testcontainers이므로 자동으로 .close() 호출됨.
   static MySQLContainer<?> mysql =
       new MySQLContainer<>("mysql:8.0.32")
           .withDatabaseName("marigold_test")
