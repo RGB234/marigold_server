@@ -54,21 +54,14 @@ import org.springframework.web.socket.messaging.WebSocketStompClient;
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 public class ChatIntegrationTest extends BaseIntegrationTest {
 
-  @LocalServerPort
-  private int port;
+  @LocalServerPort private int port;
 
-  @Autowired
-  private JwtManager jwtManager;
-  @Autowired
-  private UserRepository userRepository;
-  @Autowired
-  private AdoptionPostRepository adoptionPostRepository;
-  @Autowired
-  private ChatRoomRepository chatRoomRepository;
-  @Autowired
-  private RoomParticipantRepository participantRepository;
-  @Autowired
-  private ObjectMapper objectMapper;
+  @Autowired private JwtManager jwtManager;
+  @Autowired private UserRepository userRepository;
+  @Autowired private AdoptionPostRepository adoptionPostRepository;
+  @Autowired private ChatRoomRepository chatRoomRepository;
+  @Autowired private RoomParticipantRepository participantRepository;
+  @Autowired private ObjectMapper objectMapper;
 
   private WebSocketStompClient stompClient;
   private String accessToken;
@@ -84,35 +77,42 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
     converter.setObjectMapper(Objects.requireNonNull(objectMapper));
     stompClient.setMessageConverter(converter);
 
-    user1 = userRepository
-        .save(Objects.requireNonNull(User.builder().nickname("user1").role(Role.ROLE_PERSON).build()));
-    user2 = userRepository
-        .save(Objects.requireNonNull(User.builder().nickname("user2").role(Role.ROLE_PERSON).build()));
+    user1 =
+        userRepository.save(
+            Objects.requireNonNull(
+                User.builder().nickname("user1").role(Role.ROLE_PERSON).build()));
+    user2 =
+        userRepository.save(
+            Objects.requireNonNull(
+                User.builder().nickname("user2").role(Role.ROLE_PERSON).build()));
 
-    post = adoptionPostRepository.save(
-        Objects.requireNonNull(AdoptionPost.builder()
-            .writer(user1)
-            .title("Adoption Post")
-            .species(Species.DOG)
-            .sex(Sex.MALE)
-            .age(1)
-            .weight(2.0)
-            .area("Seoul")
-            .neutering(Neutering.NO)
-            .features("Features text string")
-            .build()));
+    post =
+        adoptionPostRepository.save(
+            Objects.requireNonNull(
+                AdoptionPost.builder()
+                    .writer(user1)
+                    .title("Adoption Post")
+                    .species(Species.DOG)
+                    .sex(Sex.MALE)
+                    .age(1)
+                    .weight(2.0)
+                    .area("Seoul")
+                    .neutering(Neutering.NO)
+                    .features("Features text string")
+                    .build()));
 
     chatRoom = chatRoomRepository.save(Objects.requireNonNull(ChatRoom.create(user1, user2, post)));
-    participantRepository
-        .save(Objects.requireNonNull(RoomParticipant.builder().chatRoom(chatRoom).user(user1).build()));
-    participantRepository
-        .save(Objects.requireNonNull(RoomParticipant.builder().chatRoom(chatRoom).user(user2).build()));
+    participantRepository.save(
+        Objects.requireNonNull(RoomParticipant.builder().chatRoom(chatRoom).user(user1).build()));
+    participantRepository.save(
+        Objects.requireNonNull(RoomParticipant.builder().chatRoom(chatRoom).user(user2).build()));
 
-    CustomPrincipal principal = new CustomPrincipal(
-        user1.getId(),
-        Collections.singletonList(new SimpleGrantedAuthority(user1.getRole().name())),
-        Map.of(),
-        AuthStatus.LOGIN_SUCCESS);
+    CustomPrincipal principal =
+        new CustomPrincipal(
+            user1.getId(),
+            Collections.singletonList(new SimpleGrantedAuthority(user1.getRole().name())),
+            Map.of(),
+            AuthStatus.LOGIN_SUCCESS);
     accessToken = jwtManager.createAccessToken(principal);
   }
 
@@ -132,29 +132,30 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
     // WebSocket Config에서 SockJS를 사용 중
     // 따라서 순수 웹소켓 엔드포인트를 사용하려면 접속하는 경로인 /websocket을 URL 뒤에 추가해야 한다.
     String url = Objects.requireNonNull(String.format("ws://localhost:%d/ws/websocket", port));
-    StompSession session = client
-        .connectAsync(
-            url,
-            new WebSocketHttpHeaders(),
-            connectHeaders,
-            new StompSessionHandlerAdapter() {
-              @Override
-              public void handleException(
-                  @NonNull StompSession session,
-                  @Nullable StompCommand command,
-                  @NonNull StompHeaders headers,
-                  @NonNull byte[] payload,
-                  @NonNull Throwable exception) {
-                log.error("STOMP Exception: {}", exception.getMessage(), exception);
-              }
+    StompSession session =
+        client
+            .connectAsync(
+                url,
+                new WebSocketHttpHeaders(),
+                connectHeaders,
+                new StompSessionHandlerAdapter() {
+                  @Override
+                  public void handleException(
+                      @NonNull StompSession session,
+                      @Nullable StompCommand command,
+                      @NonNull StompHeaders headers,
+                      @NonNull byte[] payload,
+                      @NonNull Throwable exception) {
+                    log.error("STOMP Exception: {}", exception.getMessage(), exception);
+                  }
 
-              @Override
-              public void handleTransportError(
-                  @NonNull StompSession session, @NonNull Throwable exception) {
-                log.error("STOMP Transport Error: {}", exception.getMessage(), exception);
-              }
-            })
-        .get(5, TimeUnit.SECONDS);
+                  @Override
+                  public void handleTransportError(
+                      @NonNull StompSession session, @NonNull Throwable exception) {
+                    log.error("STOMP Transport Error: {}", exception.getMessage(), exception);
+                  }
+                })
+            .get(5, TimeUnit.SECONDS);
 
     String roomIdStr = TSID.from(room.getId()).toString();
 
@@ -180,11 +181,13 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
         });
 
     // Send Message
-    ChatMessageDto messageDto = Objects.requireNonNull(ChatMessageDto.builder()
-        .roomId(room.getId())
-        .senderId(sender.getId())
-        .message("Hello WebSocket")
-        .build());
+    ChatMessageDto messageDto =
+        Objects.requireNonNull(
+            ChatMessageDto.builder()
+                .roomId(room.getId())
+                .senderId(sender.getId())
+                .message("Hello WebSocket")
+                .build());
 
     StompHeaders sendHeaders = new StompHeaders();
     sendHeaders.setDestination("/pub/chat/message");

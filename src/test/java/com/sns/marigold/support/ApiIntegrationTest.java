@@ -33,13 +33,13 @@ public abstract class ApiIntegrationTest extends BaseIntegrationTest {
 
   @BeforeEach
   void apiSetUp() {
-    User user1 = Objects.requireNonNull(User.builder().nickname("tester1").role(Role.ROLE_PERSON).build());
-    User user2 = Objects.requireNonNull(User.builder().nickname("tester2").role(Role.ROLE_PERSON).build());
-    tester1 =
-        userRepository.save(user1);
+    User user1 =
+        Objects.requireNonNull(User.builder().nickname("tester1").role(Role.ROLE_PERSON).build());
+    User user2 =
+        Objects.requireNonNull(User.builder().nickname("tester2").role(Role.ROLE_PERSON).build());
+    tester1 = userRepository.save(user1);
 
-    tester2 =
-        userRepository.save(user2);
+    tester2 = userRepository.save(user2);
   }
 
   protected String getAccessToken(@NonNull User tester) {

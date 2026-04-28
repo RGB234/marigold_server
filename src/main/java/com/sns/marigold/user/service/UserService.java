@@ -9,6 +9,8 @@ import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.service.S3Service;
 import com.sns.marigold.user.dto.response.UserInfoDto;
+import com.sns.marigold.user.dto.response.UserSecurityInfoDto;
+import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.entity.UserImage;
@@ -24,6 +26,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -39,6 +42,7 @@ public class UserService {
   private final S3Service s3Service;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
+  private final PasswordEncoder passwordEncoder;
 
   @Transactional(readOnly = true)
   public boolean existsByProviderInfoAndProviderId(ProviderInfo providerInfo, String providerId) {
@@ -68,6 +72,11 @@ public class UserService {
   }
 
   @Transactional(readOnly = true)
+  public UserSecurityInfoDto getSecurityInfo(Long uid) {
+    return UserSecurityInfoDto.from(findEntityById(uid));
+  }
+
+  @Transactional(readOnly = true)
   public List<UserInfoDto> getUserByNickname(String nickname) {
     List<User> users = userRepository.findPersonalUsersByNickname(nickname);
     return users.stream()
@@ -80,6 +89,30 @@ public class UserService {
               return dto;
             })
         .toList();
+  }
+
+  @Transactional
+  public void linkOAuth2(Long uid, ProviderInfo providerInfo, String providerId) {
+    User user = findEntityById(uid);
+    if (user.hasOAuth2Link()) {
+      throw UserException.forUserOAuth2AlreadyLinked();
+    }
+    if (userRepository.existsByProviderInfoAndProviderId(providerInfo, providerId)) {
+      throw UserException.forUserOAuth2AccountAlreadyInUse();
+    }
+    user.linkOAuth2(providerInfo, providerId);
+  }
+
+  @Transactional
+  public void registerEmailAndPassword(Long uid, EmailPasswordRegisterDto dto) {
+    User user = findEntityById(uid);
+    if (user.hasLocalCredentials()) {
+      throw UserException.forUserLocalCredentialsAlreadyExists();
+    }
+    if (userRepository.existsByEmail(dto.getEmail())) {
+      throw UserException.forUserAlreadyExists();
+    }
+    user.addEmailAndPassword(dto.getEmail(), passwordEncoder.encode(dto.getPassword()));
   }
 
   @Transactional

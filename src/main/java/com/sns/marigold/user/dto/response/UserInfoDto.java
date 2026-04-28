@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.sns.marigold.global.util.TsidJacksonConfig;
 import com.sns.marigold.user.entity.User;
+import com.sns.marigold.user.enums.UserStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,6 +22,8 @@ public class UserInfoDto {
 
   private final String nickname;
 
+  private final UserStatus status;
+
   @Setter private String imageUrl;
 
   public static UserInfoDto from(User user) {
@@ -29,11 +32,12 @@ public class UserInfoDto {
     return UserInfoDto.builder()
         .id(user.getId())
         .nickname(user.getDisplayNickname())
+        .status(user.getStatus())
         .imageUrl(user.getImage() != null ? user.getImage().getStoredFileName() : null)
         .build();
   }
 
   public static UserInfoDto emptyDto() {
-    return UserInfoDto.builder().id(null).nickname(null).imageUrl(null).build();
+    return UserInfoDto.builder().id(null).nickname(null).status(null).imageUrl(null).build();
   }
 }

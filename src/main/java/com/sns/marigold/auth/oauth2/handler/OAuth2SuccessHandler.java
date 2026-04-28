@@ -4,6 +4,7 @@ import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.sns.marigold.global.config.UrlProperties;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,6 +26,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
   private final JwtManager jwtManager;
   private final CookieManager cookieManager;
   private final UrlProperties urlProperties;
+  private final HttpCookieOAuth2AuthorizationRequestRepository
+      httpCookieOAuth2AuthorizationRequestRepository;
 
   @Override
   public void onAuthenticationSuccess(
@@ -34,6 +37,10 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     CustomPrincipal principal = (CustomPrincipal) authentication.getPrincipal();
     AuthStatus authStatus = principal.getAuthStatus();
     log.info("OAuth2 인증 성공 - UserId: {}, 상태: {}", principal.getUserId(), authStatus);
+
+    // 쿠키 삭제
+    httpCookieOAuth2AuthorizationRequestRepository.removeAuthorizationRequestCookies(
+        request, response);
 
     // 정상 상태(로그인, 신규가입)일 때만 토큰 및 쿠키 발급
     if (authStatus == AuthStatus.LOGIN_SUCCESS || authStatus == AuthStatus.SIGNUP_SUCCESS) {

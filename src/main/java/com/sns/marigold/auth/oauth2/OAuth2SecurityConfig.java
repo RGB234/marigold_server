@@ -30,6 +30,8 @@ public class OAuth2SecurityConfig {
   private final OAuth2SuccessHandler oAuth2SuccessHandler;
   private final OAuth2FailureHandler oAuth2FailureHandler;
   private final CustomAccessDeniedHandler customAccessDeniedHandler;
+  private final HttpCookieOAuth2AuthorizationRequestRepository
+      httpCookieOAuth2AuthorizationRequestRepository;
 
   private final UrlProperties urlProperties;
 
@@ -60,7 +62,12 @@ public class OAuth2SecurityConfig {
         .oauth2Login(
             oauth2 ->
                 oauth2
-                    .authorizationEndpoint(endpoint -> endpoint.baseUri(oauth2EndpointBaseUrl))
+                    .authorizationEndpoint(
+                        endpoint ->
+                            endpoint
+                                .baseUri(oauth2EndpointBaseUrl)
+                                .authorizationRequestRepository(
+                                    httpCookieOAuth2AuthorizationRequestRepository))
                     .redirectionEndpoint(endpoint -> endpoint.baseUri(oauth2RedirectionUrl))
                     .successHandler(oAuth2SuccessHandler)
                     .failureHandler(oAuth2FailureHandler)

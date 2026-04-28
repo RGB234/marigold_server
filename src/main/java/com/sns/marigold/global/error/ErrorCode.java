@@ -25,6 +25,8 @@ public enum ErrorCode {
   AUTH_ACCESS_DENIED(HttpStatus.FORBIDDEN, "AUTH_ACCESS_DENIED", "권한이 없습니다."),
   AUTH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "AUTH_TOKEN_INVALID", "토큰이 유효하지 않습니다."),
   AUTH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH_TOKEN_EXPIRED", "토큰이 만료되었습니다."),
+  AUTH_INVALID_CREDENTIALS(
+      HttpStatus.BAD_REQUEST, "AUTH_INVALID_CREDENTIALS", "이메일이나 비밀번호가 올바르지 않습니다."),
   AUTH_INVALID_PROVIDER(
       HttpStatus.BAD_REQUEST, "AUTH_INVALID_PROVIDER", "지원하지 않는 OAuth2 Provider입니다."),
   AUTH_INTERNAL_SERVER_ERROR(
@@ -45,6 +47,14 @@ public enum ErrorCode {
   USER_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_ALREADY_EXISTS", "이미 존재하는 사용자입니다."),
   USER_NICKNAME_ALREADY_EXISTS(
       HttpStatus.CONFLICT, "USER_NICKNAME_ALREADY_EXISTS", "이미 존재하는 닉네임입니다."),
+  USER_LOCAL_CREDENTIALS_ALREADY_EXISTS(
+      HttpStatus.CONFLICT,
+      "USER_LOCAL_CREDENTIALS_ALREADY_EXISTS",
+      "이미 이메일/비밀번호 로그인 정보가 등록된 사용자입니다."),
+  USER_OAUTH2_ALREADY_LINKED(
+      HttpStatus.CONFLICT, "USER_OAUTH2_ALREADY_LINKED", "이미 소셜 로그인 정보가 연동된 사용자입니다."),
+  USER_OAUTH2_ACCOUNT_ALREADY_IN_USE(
+      HttpStatus.CONFLICT, "USER_OAUTH2_ACCOUNT_ALREADY_IN_USE", "이미 다른 계정에 연결된 소셜 계정입니다."),
   USER_DELETED(HttpStatus.FORBIDDEN, "USER_DELETED", "탈퇴한 사용자입니다."),
   USER_BANNED(HttpStatus.FORBIDDEN, "USER_BANNED", "이용이 제한된 사용자입니다."),
   USER_SLEEPING(HttpStatus.FORBIDDEN, "USER_SLEEPING", "휴면 상태인 사용자입니다."),
@@ -56,7 +66,11 @@ public enum ErrorCode {
       HttpStatus.BAD_REQUEST, "ADOPTION_POST_ALREADY_COMPLETED", "이미 입양 완료된 게시글입니다."),
   ADOPTION_POST_NOT_COMPLETED(
       HttpStatus.BAD_REQUEST, "ADOPTION_POST_NOT_COMPLETED", "입양 완료 상태가 아닙니다."),
-  ADOPTION_POST_DELETED(HttpStatus.BAD_REQUEST, "ADOPTION_POST_DELETED", "삭제된 게시글입니다.");
+  ADOPTION_POST_DELETED(HttpStatus.BAD_REQUEST, "ADOPTION_POST_DELETED", "삭제된 게시글입니다."),
+  ADOPTION_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "ADOPTION_COMMENT_NOT_FOUND", "존재하지 않는 댓글입니다."),
+  ADOPTION_COMMENT_DELETED(HttpStatus.BAD_REQUEST, "ADOPTION_COMMENT_DELETED", "이미 삭제된 댓글입니다."),
+  ADOPTION_COMMENT_POST_MISMATCH(
+      HttpStatus.BAD_REQUEST, "ADOPTION_COMMENT_POST_MISMATCH", "해당 게시글의 댓글이 아닙니다.");
 
   @NonNull private final HttpStatus status;
   @NonNull private final String code;

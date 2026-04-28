@@ -19,4 +19,6 @@ public interface AdoptionAdopterRepository extends JpaRepository<AdoptionAdopter
       @Param("adopterId") Long adopterId, Pageable pageable);
 
   void deleteByAdoptionPostId(Long adoptionPostId);
+
+  boolean existsByAdoptionPostIdAndAdopterId(Long adoptionPostId, Long adopterId);
 }

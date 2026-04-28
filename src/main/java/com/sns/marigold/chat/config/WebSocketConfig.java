@@ -17,6 +17,7 @@ import org.springframework.messaging.support.ExecutorChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.StringUtils;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -37,8 +38,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
   @Override
   public void configureMessageBroker(@NonNull MessageBrokerRegistry config) {
-    config.enableSimpleBroker("/sub"); // 해당 접두사로 시작하는 경로를 구독
-    config.setApplicationDestinationPrefixes("/pub"); // 클라이언트에서 서버로 메시지를 보낼 때 사용하는 접두사
+    config.enableSimpleBroker("/sub"); // 해당 접두어로 시작하는 경로를 구독
+    config.setApplicationDestinationPrefixes("/pub"); // 클라이언트에서 서버로 메시지를 보낼 때 사용하는 접두어
   }
 
   @Override
@@ -52,17 +53,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             StompHeaderAccessor accessor =
                 MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-            if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
-              String authorizationHeader = accessor.getFirstNativeHeader("Authorization");
-              if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-                String token = authorizationHeader.substring(7);
-                try {
-                  Authentication authentication = jwtManager.getAuthentication(token);
-                  accessor.setUser(authentication);
-                } catch (Exception e) {
-                  log.error("WebSocket 토큰 인증 실패: {}", e.getMessage());
-                }
-              }
+            if (accessor != null
+                && (StompCommand.CONNECT.equals(accessor.getCommand())
+                    || (accessor.getUser() == null
+                        && StompCommand.SEND.equals(accessor.getCommand())))) {
+              authenticate(accessor);
             }
             return message;
           }
@@ -90,5 +85,20 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             SecurityContextHolder.clearContext();
           }
         });
+  }
+
+  private void authenticate(@NonNull StompHeaderAccessor accessor) {
+    String authorizationHeader = accessor.getFirstNativeHeader("Authorization");
+    if (!StringUtils.hasText(authorizationHeader) || !authorizationHeader.startsWith("Bearer ")) {
+      return;
+    }
+
+    String token = authorizationHeader.substring(7);
+    try {
+      Authentication authentication = jwtManager.getAuthentication(token);
+      accessor.setUser(authentication);
+    } catch (Exception e) {
+      log.error("WebSocket token authentication failed: {}", e.getMessage());
+    }
   }
 }

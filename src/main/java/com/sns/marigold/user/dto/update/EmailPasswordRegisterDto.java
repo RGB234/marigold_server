@@ -1,14 +1,17 @@
-package com.sns.marigold.user.dto.create;
+package com.sns.marigold.user.dto.update;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class LocalSignupDto {
+@AllArgsConstructor
+public class EmailPasswordRegisterDto {
+
   @Email(message = "이메일 형식이 올바르지 않습니다.")
   @NotBlank(message = "이메일은 필수입니다.")
   private String email;
@@ -16,10 +19,4 @@ public class LocalSignupDto {
   @Pattern(regexp = "^.{8,}$", message = "비밀번호는 8자 이상이여야 합니다.")
   @NotBlank(message = "비밀번호는 필수입니다.")
   private String password;
-
-  @NotBlank(message = "닉네임은 필수입니다.")
-  @Pattern(
-      regexp = "^[a-zA-Z0-9가-힣]{3,12}$",
-      message = "닉네임은 영문 혹은 한글, 숫자를 사용하여 3자 이상, 12자 이하로 구성해야 합니다.")
-  private String nickname;
 }

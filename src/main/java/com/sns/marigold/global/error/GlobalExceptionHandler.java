@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.BindingResult;
@@ -22,7 +23,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-  /** 비즈니스 예외 처리. 모든 도메인 커스텀 예외는 BusinessException을 상속합니다. */
+  /** 비즈니스 예외 처리. 모든 커스텀 예외는 BusinessException을 상속합니다. */
   @ExceptionHandler(BusinessException.class)
   public ResponseEntity<ApiResponse<?>> handleBusinessException(
       @NonNull final BusinessException e) {
@@ -36,10 +37,7 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ApiResponse<?>> handleAuthorizationDeniedException(
       org.springframework.security.authorization.AuthorizationDeniedException e) {
 
-    // 1. 현재 SecurityContext에서 인증 객체를 가져옵니다.
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    // 2. 인증 객체가 없거나, 익명 사용자(Anonymous)인 경우 -> 401 Unauthorized
-    //
     if (authentication == null
         || authentication instanceof AnonymousAuthenticationToken
         || !authentication.isAuthenticated()) {
@@ -47,10 +45,19 @@ public class GlobalExceptionHandler {
       return ResponseEntity.status(ErrorCode.AUTH_UNAUTHORIZED.getStatus())
           .body(ApiResponse.error(ErrorCode.AUTH_UNAUTHORIZED));
     }
-    // 3. 인증은 되었으나 권한이 부족한 경우 (예: USER가 ADMIN API 호출) -> 403 Forbidden
+
     log.error("Access denied for user {}: {}", authentication.getName(), e.getMessage());
     return ResponseEntity.status(ErrorCode.AUTH_ACCESS_DENIED.getStatus())
         .body(ApiResponse.error(ErrorCode.AUTH_ACCESS_DENIED));
+  }
+
+  /** SecurityContext가 비어 있는 상태에서 @PreAuthorize가 실행되면 401로 변환 */
+  @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
+  public ResponseEntity<ApiResponse<?>> handleAuthenticationCredentialsNotFoundException(
+      AuthenticationCredentialsNotFoundException e) {
+    log.error("Authentication not found in security context: {}", e.getMessage());
+    return ResponseEntity.status(ErrorCode.AUTH_UNAUTHORIZED.getStatus())
+        .body(ApiResponse.error(ErrorCode.AUTH_UNAUTHORIZED));
   }
 
   /** Request Body 필드 검증 실패 (@Valid) 처리 */
@@ -69,7 +76,7 @@ public class GlobalExceptionHandler {
         .body(ApiResponse.error(ErrorCode.INVALID_INPUT_VALUE, errors));
   }
 
-  /** Request Parameter 바인딩/타입 변환 실패 (예: Enum 타입 오류) 처리 */
+  /** Request Parameter 바인딩 타입 변환 실패 (예: Enum 타입 오류) 처리 */
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
   public ResponseEntity<ApiResponse<?>> handleMethodArgumentTypeMismatchException(
       final MethodArgumentTypeMismatchException e) {

@@ -15,6 +15,7 @@ import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.entity.UserImage;
@@ -36,6 +37,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -55,6 +57,8 @@ class UserServiceTest {
   @Mock private TransactionTemplate transactionTemplate;
 
   @Mock private ApplicationEventPublisher eventPublisher;
+
+  @Mock private PasswordEncoder passwordEncoder;
 
   @InjectMocks private UserService userService;
 
@@ -117,6 +121,113 @@ class UserServiceTest {
     assertThatThrownBy(() -> userService.findEntityById(999L))
         .isInstanceOf(UserException.class)
         .hasMessageContaining(UserException.forUserNotFound().getMessage());
+  }
+
+  @Test
+  @DisplayName("OAuth2 가입 사용자는 이메일/비밀번호 로그인을 추가로 등록할 수 있다.")
+  void registerEmailAndPassword_Success() {
+    User oauthUser = User.builder().id(2L).nickname("oauth-user").role(Role.ROLE_PERSON).build();
+    EmailPasswordRegisterDto dto =
+        new EmailPasswordRegisterDto("oauth@example.com", "password123!");
+
+    given(userRepository.findById(2L)).willReturn(Optional.of(oauthUser));
+    given(userRepository.existsByEmail(dto.getEmail())).willReturn(false);
+    given(passwordEncoder.encode(dto.getPassword())).willReturn("encoded-password");
+
+    userService.registerEmailAndPassword(2L, dto);
+
+    assertThat(oauthUser.getEmail()).isEqualTo("oauth@example.com");
+    assertThat(oauthUser.getPassword()).isEqualTo("encoded-password");
+    verify(passwordEncoder).encode("password123!");
+  }
+
+  @Test
+  @DisplayName("이미 이메일/비밀번호가 등록된 사용자는 중복 등록할 수 없다.")
+  void registerEmailAndPassword_AlreadyRegistered() {
+    User localUser =
+        User.builder()
+            .id(2L)
+            .nickname("local-user")
+            .email("local@example.com")
+            .password("encoded-password")
+            .role(Role.ROLE_PERSON)
+            .build();
+    EmailPasswordRegisterDto dto = new EmailPasswordRegisterDto("new@example.com", "password123!");
+
+    given(userRepository.findById(2L)).willReturn(Optional.of(localUser));
+
+    assertThatThrownBy(() -> userService.registerEmailAndPassword(2L, dto))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(UserException.forUserLocalCredentialsAlreadyExists().getMessage());
+    verify(passwordEncoder, never()).encode(any());
+  }
+
+  @Test
+  @DisplayName("이미 다른 사용자가 사용하는 이메일로는 로그인 정보를 등록할 수 없다.")
+  void registerEmailAndPassword_EmailAlreadyExists() {
+    User oauthUser = User.builder().id(2L).nickname("oauth-user").role(Role.ROLE_PERSON).build();
+    EmailPasswordRegisterDto dto = new EmailPasswordRegisterDto("dup@example.com", "password123!");
+
+    given(userRepository.findById(2L)).willReturn(Optional.of(oauthUser));
+    given(userRepository.existsByEmail(dto.getEmail())).willReturn(true);
+
+    assertThatThrownBy(() -> userService.registerEmailAndPassword(2L, dto))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(UserException.forUserAlreadyExists().getMessage());
+    verify(passwordEncoder, never()).encode(any());
+  }
+
+  @Test
+  @DisplayName("이메일 가입 사용자는 소셜 로그인 정보를 연동할 수 있다.")
+  void linkOAuth2_Success() {
+    User localUser =
+        User.builder()
+            .id(2L)
+            .nickname("local-user")
+            .email("local@example.com")
+            .password("encoded-password")
+            .role(Role.ROLE_PERSON)
+            .build();
+
+    given(userRepository.findById(2L)).willReturn(Optional.of(localUser));
+    given(userRepository.existsByProviderInfoAndProviderId(ProviderInfo.NAVER, "naver-123"))
+        .willReturn(false);
+
+    userService.linkOAuth2(2L, ProviderInfo.NAVER, "naver-123");
+
+    assertThat(localUser.getProviderInfo()).isEqualTo(ProviderInfo.NAVER);
+    assertThat(localUser.getProviderId()).isEqualTo("naver-123");
+  }
+
+  @Test
+  @DisplayName("이미 소셜 로그인 정보가 연결된 사용자는 중복 연동할 수 없다.")
+  void linkOAuth2_AlreadyLinked() {
+    given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+
+    assertThatThrownBy(() -> userService.linkOAuth2(1L, ProviderInfo.NAVER, "naver-123"))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(UserException.forUserOAuth2AlreadyLinked().getMessage());
+  }
+
+  @Test
+  @DisplayName("이미 다른 사용자에게 연결된 소셜 계정은 연동할 수 없다.")
+  void linkOAuth2_AlreadyInUse() {
+    User localUser =
+        User.builder()
+            .id(2L)
+            .nickname("local-user")
+            .email("local@example.com")
+            .password("encoded-password")
+            .role(Role.ROLE_PERSON)
+            .build();
+
+    given(userRepository.findById(2L)).willReturn(Optional.of(localUser));
+    given(userRepository.existsByProviderInfoAndProviderId(ProviderInfo.KAKAO, "12345"))
+        .willReturn(true);
+
+    assertThatThrownBy(() -> userService.linkOAuth2(2L, ProviderInfo.KAKAO, "12345"))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(UserException.forUserOAuth2AccountAlreadyInUse().getMessage());
   }
 
   @Test
