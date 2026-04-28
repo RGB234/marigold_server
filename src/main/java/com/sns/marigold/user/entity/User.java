@@ -5,7 +5,17 @@ import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.user.enums.UserStatus;
 import io.hypersistence.tsid.TSID;
 import io.hypersistence.utils.hibernate.id.Tsid;
-import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -28,15 +38,13 @@ public class User {
   @Id
   @Tsid
   @Column(updatable = false, nullable = false)
-  private Long id; // DB에서는 BIGINT로 저장
-
-  // 비공개 정보
+  private Long id;
 
   @Enumerated(EnumType.STRING)
-  private ProviderInfo providerInfo; // 소셜로그인 제공 서비스 종류 (Google, Kakao, ...)
+  private ProviderInfo providerInfo;
 
   @Column(nullable = true)
-  private String providerId; // 소셜로그인 계정 id
+  private String providerId;
 
   @Column(nullable = true, unique = true)
   private String email;
@@ -44,19 +52,14 @@ public class User {
   @Column(nullable = true)
   private String password;
 
-  @Enumerated(EnumType.STRING) // DB에 숫자가 아닌 문자열(ROLE_PERSON)로 저장
+  @Enumerated(EnumType.STRING)
   @Column(nullable = false)
-  @Builder.Default // 빌더로 생성 시 값을 안 넣으면 기본값 적용
+  @Builder.Default
   private Role role = Role.ROLE_PERSON;
 
-  // 공개 정보
-  @Column(length = 50, nullable = false, unique = true) // 12자 이하 + #deleted -> 12 + 8 = 20
+  @Column(length = 50, nullable = false, unique = true)
   private String nickname;
 
-  /**
-   * 1. orphanRemoval = true 추가: image를 null로 바꾸거나 다른 걸로 교체하면 기존 이미지는 DB에서 자동 삭제 2. CascadeType.ALL:
-   * User 저장 시 Image도 자동 저장
-   */
   @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
   @JoinColumn(name = "image_id", nullable = true)
   private UserImage image;
@@ -67,10 +70,10 @@ public class User {
   private UserStatus status = UserStatus.ACTIVE;
 
   @Column(nullable = true)
-  private LocalDateTime deletedAt; // soft delete timestamp
+  private LocalDateTime deletedAt;
 
   public void saveImage(UserImage image) {
-    this.image = image; // nullable
+    this.image = image;
   }
 
   public void deleteImage() {
@@ -94,8 +97,29 @@ public class User {
     }
   }
 
+  public void addEmailAndPassword(String email, String encodedPassword) {
+    this.email = email;
+    this.password = encodedPassword;
+  }
+
+  public void linkOAuth2(ProviderInfo providerInfo, String providerId) {
+    this.providerInfo = providerInfo;
+    this.providerId = providerId;
+  }
+
+  public boolean hasLocalCredentials() {
+    return this.email != null
+        && !this.email.isBlank()
+        && this.password != null
+        && !this.password.isBlank();
+  }
+
+  public boolean hasOAuth2Link() {
+    return this.providerInfo != null && this.providerId != null && !this.providerId.isBlank();
+  }
+
   public void softDelete() {
-    this.nickname = "삭제된 사용자#" + TSID.from(this.id).toString();
+    this.nickname = "deleted-user-" + TSID.from(this.id).toString();
     this.image = null;
     this.providerInfo = null;
     this.providerId = null;
@@ -121,7 +145,7 @@ public class User {
 
   public String getDisplayNickname() {
     if (this.status == UserStatus.DELETED) {
-      return "삭제된유저";
+      return "탈퇴한 유저";
     }
     return this.nickname;
   }

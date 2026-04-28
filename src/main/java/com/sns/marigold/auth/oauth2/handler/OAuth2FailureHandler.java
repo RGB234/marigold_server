@@ -1,5 +1,6 @@
 package com.sns.marigold.auth.oauth2.handler;
 
+import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.sns.marigold.global.config.UrlProperties;
 import com.sns.marigold.global.error.ErrorCode;
 import jakarta.servlet.ServletException;
@@ -25,6 +26,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
   private final UrlProperties urlProperties;
+  private final HttpCookieOAuth2AuthorizationRequestRepository
+      httpCookieOAuth2AuthorizationRequestRepository;
 
   @Override
   public void onAuthenticationFailure(
@@ -33,6 +36,9 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
 
     String errorCode = ErrorCode.AUTH_OAUTH2_LOGIN_FAILURE.getCode();
     String errorMessage = exception.getMessage();
+    // 쿠키 삭제
+    httpCookieOAuth2AuthorizationRequestRepository.removeAuthorizationRequestCookies(
+        request, response);
     // 콜백 URL로 에러 정보와 함께 리다이렉트
 
     String callbackUrl = urlProperties.frontend().auth().callback();

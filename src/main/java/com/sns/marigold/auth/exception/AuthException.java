@@ -31,6 +31,6 @@ public class AuthException extends BusinessException {
   }
 
   public static AuthException forInvalidCredentials() {
-    return new AuthException(ErrorCode.BAD_REQUEST);
+    return new AuthException(ErrorCode.AUTH_INVALID_CREDENTIALS);
   }
 }

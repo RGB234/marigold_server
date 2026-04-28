@@ -1,10 +1,9 @@
 package com.sns.marigold;
 
+import com.sns.marigold.support.BaseIntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class MarigoldApplicationTests {
+class MarigoldApplicationTests extends BaseIntegrationTest {
 
   @Test
   void contextLoads() {}

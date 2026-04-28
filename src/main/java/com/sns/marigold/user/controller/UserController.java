@@ -4,6 +4,8 @@ import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.dto.ApiResponse;
 import com.sns.marigold.user.dto.response.UserInfoDto;
+import com.sns.marigold.user.dto.response.UserSecurityInfoDto;
+import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.service.UserService;
@@ -22,6 +24,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -46,6 +50,20 @@ public class UserController {
 
   // ** update **
   @PreAuthorize("isAuthenticated()")
+  @PostMapping("/credentials")
+  public ResponseEntity<ApiResponse<Void>> registerEmailAndPassword(
+      @AuthenticationPrincipal CustomPrincipal principal,
+      @Valid @RequestBody EmailPasswordRegisterDto dto) {
+    Long userId = principal.getUserId();
+    if (userId == null) {
+      throw com.sns.marigold.auth.exception.AuthException.forUnauthorized();
+    }
+    userService.registerEmailAndPassword(userId, dto);
+    return ResponseEntity.ok(
+        ApiResponse.success(HttpStatus.OK, "Credentials registered successfully"));
+  }
+
+  @PreAuthorize("isAuthenticated()")
   @PatchMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<ApiResponse<Void>> update(
       @AuthenticationPrincipal CustomPrincipal principal,
@@ -59,6 +77,21 @@ public class UserController {
   }
 
   // ** get **
+
+  @PreAuthorize("isAuthenticated()")
+  @GetMapping("/security")
+  public ResponseEntity<ApiResponse<UserSecurityInfoDto>> getSecurityInfo(
+      @AuthenticationPrincipal CustomPrincipal principal) {
+    Long userId = principal.getUserId();
+    if (userId == null) {
+      throw com.sns.marigold.auth.exception.AuthException.forUnauthorized();
+    }
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK,
+            "User security info fetched successfully",
+            userService.getSecurityInfo(userId)));
+  }
 
   // 검색
   @PreAuthorize("permitAll()")
