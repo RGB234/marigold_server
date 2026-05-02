@@ -59,10 +59,11 @@ dependencies {
     
     // Testcontainers
     // testImplementation("org.testcontainers:testcontainers")
-    testImplementation("org.testcontainers:testcontainers:2.0.2")
+    testImplementation("org.testcontainers:testcontainers:2.0.2") // testContainers가 사용하는 docker api와 최신 도커 환경과의 호환성
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:mysql")
     testImplementation("com.navercorp.fixturemonkey:fixture-monkey-starter:1.0.0")
+
     
     // Data Faker for Dummy Data Generation
     implementation("net.datafaker:datafaker:2.1.0")

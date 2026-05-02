@@ -20,6 +20,7 @@ import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.entity.UserImage;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
+import io.hypersistence.tsid.TSID;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -347,6 +348,7 @@ class UserServiceTest {
   @SuppressWarnings("null")
   void deleteUser_Success() {
     // given
+    testUser.addEmailAndPassword("tester@example.com", "encoded-password");
     testUser.update(
         "tester",
         UserImage.builder().storedFileName("old.jpg").originalFileName("old.jpg").build());
@@ -363,6 +365,13 @@ class UserServiceTest {
     verify(adoptionPostImageRepository, times(1)).deleteImagesByWriter(1L);
     verify(chatService, times(1)).closeAllChatRoomsByUserId(1L);
     assertThat(testUser.getStatus().name()).isEqualTo("DELETED");
+    assertThat(testUser.getEmail()).isNull();
+    assertThat(testUser.getPassword()).isNull();
+    assertThat(testUser.getProviderInfo()).isNull();
+    assertThat(testUser.getProviderId()).isNull();
+    assertThat(testUser.getImage()).isNull();
+    assertThat(testUser.getDeletedAt()).isNotNull();
+    assertThat(testUser.getNickname()).isEqualTo("deleted-user-" + TSID.from(1L));
     verify(userRepository, times(1)).save(testUser);
     ArgumentCaptor<DeleteOldStorageFilesEvent> eventCaptor =
         ArgumentCaptor.forClass(DeleteOldStorageFilesEvent.class);
