@@ -24,4 +24,8 @@ public class AdoptionPostException extends BusinessException {
   public static AdoptionPostException forAdoptionPostDeleted() {
     return new AdoptionPostException(ErrorCode.ADOPTION_POST_DELETED);
   }
+
+  public static AdoptionPostException forInvalidPostImages() {
+    return new AdoptionPostException(ErrorCode.ADOPTION_POST_IMAGE_INVALID);
+  }
 }

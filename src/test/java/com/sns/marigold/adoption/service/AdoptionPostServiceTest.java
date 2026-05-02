@@ -246,6 +246,38 @@ class AdoptionPostServiceTest {
   }
 
   @Test
+  @DisplayName("게시글 수정 시 존재하지 않는 유지 이미지 파일명이 있으면 실패한다.")
+  void update_InvalidImageToKeep() {
+    // given
+    AdoptionPostUpdateDto dto =
+        AdoptionPostUpdateDto.builder()
+            .title("Updated Title")
+            .species(Species.DOG)
+            .sex(Sex.MALE)
+            .age(3)
+            .weight(6.0)
+            .area("Seoul")
+            .neutering(Neutering.YES)
+            .features("Updated features")
+            .imagesToKeep(List.of("missing.jpg"))
+            .images(List.of())
+            .build();
+
+    given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
+
+    // when & then
+    assertThatThrownBy(() -> adoptionPostService.update(100L, 1L, dto))
+        .isInstanceOf(AdoptionPostException.class)
+        .hasMessageContaining(AdoptionPostException.forInvalidPostImages().getMessage());
+
+    assertThat(testPost.getImages())
+        .extracting(AdoptionPostImage::getStoredFileName)
+        .containsExactly("old1.jpg", "old2.jpg");
+    verify(s3Service, never()).uploadImagesToS3(any());
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
   @DisplayName("게시글 수정 시 작성자가 다르면 AuthException이 발생한다.")
   void update_NotWriter() {
     // given

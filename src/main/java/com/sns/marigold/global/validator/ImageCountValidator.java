@@ -3,6 +3,9 @@ package com.sns.marigold.global.validator;
 import com.sns.marigold.global.annotation.ValidImageCount;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import java.util.List;
+import java.util.Objects;
+import org.springframework.web.multipart.MultipartFile;
 
 public class ImageCountValidator
     implements ConstraintValidator<ValidImageCount, ImageCountValidatable> {
@@ -18,13 +21,28 @@ public class ImageCountValidator
   @Override
   public boolean isValid(
       ImageCountValidatable imageCountValidatable, ConstraintValidatorContext context) {
-    int storedImageCount = imageCountValidatable.getImagesToKeep().size();
+    if (imageCountValidatable == null) {
+      return true;
+    }
 
-    int newImageCount =
-        imageCountValidatable.getImages() == null || imageCountValidatable.getImages().isEmpty()
+    List<String> imagesToKeep = imageCountValidatable.getImagesToKeep();
+    int storedImageCount =
+        imagesToKeep == null || imagesToKeep.isEmpty()
             ? 0
             : (int)
-                imageCountValidatable.getImages().stream()
+                imagesToKeep.stream()
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(fileName -> !fileName.isEmpty())
+                    .distinct()
+                    .count();
+
+    List<MultipartFile> images = imageCountValidatable.getImages();
+    int newImageCount =
+        images == null || images.isEmpty()
+            ? 0
+            : (int)
+                images.stream()
                     .filter(f -> f != null && !f.isEmpty())
                     .count();
 

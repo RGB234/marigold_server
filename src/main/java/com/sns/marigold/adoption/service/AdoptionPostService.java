@@ -123,23 +123,16 @@ public class AdoptionPostService {
 
     validateWriter(adoptionPost, userId);
 
+    List<String> imagesToKeep = normalizeImagesToKeep(dto.getImagesToKeep());
+    List<MultipartFile> images = dto.getImages() != null ? dto.getImages() : Collections.emptyList();
+    adoptionPost.validateImageReplacement(imagesToKeep, countNewImages(images));
+
     // 1. 새 이미지 S3 업로드 (실패 시 예외 발생, 파일 자동 삭제됨)
     // 트랜잭션 외부에서 수행하여 DB 커넥션 점유 최소화
-    final List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(dto.getImages());
+    final List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(images);
 
     try {
-      // 2. 유지할 이미지 파일명 목록 (Null Safe)
-      List<String> imagesToKeep =
-          dto.getImagesToKeep() != null ? dto.getImagesToKeep() : Collections.emptyList();
-
-      // 3. 삭제할 기존 이미지 목록 미리 계산 (DB 조회 필요 없음, 엔티티에서 추출)
-      List<String> storedFileNamesToDelete =
-          adoptionPost.getImages().stream()
-              .map(AdoptionPostImage::getStoredFileName)
-              .filter(fileName -> !imagesToKeep.contains(fileName))
-              .collect(Collectors.toList());
-
-      // 4. 새로 추가할 이미지 엔티티 생성 준비
+      // 2. 새로 추가할 이미지 엔티티 생성 준비
       List<AdoptionPostImage> newImages =
           uploadedImages.stream()
               .map(
@@ -162,24 +155,30 @@ public class AdoptionPostService {
               .neutering(dto.getNeutering())
               .build();
 
-      // 5. DB 트랜잭션 (데이터 변경)
+      // 3. DB 트랜잭션 (데이터 변경)
       transactionTemplate.executeWithoutResult(
           status -> {
             // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
             AdoptionPost info = findEntityById(postId);
             info.updateInfo(editor);
 
+            List<String> storedFileNamesToDelete =
+                info.getImages().stream()
+                    .map(AdoptionPostImage::getStoredFileName)
+                    .filter(fileName -> !imagesToKeep.contains(fileName))
+                    .collect(Collectors.toList());
+
             // 이미지 교체 (유지할 것은 두고, 삭제할 것은 지우고, 새것은 추가)
             info.replaceImages(imagesToKeep, newImages);
 
-            // 6. 트랜잭션 안에서 이벤트 발행 -> 커밋 성공 시에만 리스너 동작
+            // 4. 트랜잭션 안에서 이벤트 발행 -> 커밋 성공 시에만 리스너 동작
             if (!storedFileNamesToDelete.isEmpty()) {
               eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(storedFileNamesToDelete));
             }
           });
 
     } catch (Exception e) {
-      // 7. 실패 시 보상 트랜잭션: 새로 업로드한 S3 파일 삭제
+      // 5. 실패 시 보상 트랜잭션: 새로 업로드한 S3 파일 삭제
       // 트랜잭션 롤백과 무관하게 업로드된 파일은 지워야 함
       log.error("Update failed. Deleting uploaded S3 files... error: {}", e.getMessage());
 
@@ -194,6 +193,27 @@ public class AdoptionPostService {
       }
       throw InternalServerException.forInternalServerError(e);
     }
+  }
+
+  private List<String> normalizeImagesToKeep(List<String> imagesToKeep) {
+    if (imagesToKeep == null || imagesToKeep.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    return imagesToKeep.stream()
+        .filter(Objects::nonNull)
+        .map(String::trim)
+        .filter(fileName -> !fileName.isEmpty())
+        .distinct()
+        .toList();
+  }
+
+  private int countNewImages(List<MultipartFile> images) {
+    if (images == null || images.isEmpty()) {
+      return 0;
+    }
+
+    return (int) images.stream().filter(file -> file != null && !file.isEmpty()).count();
   }
 
   // 검색

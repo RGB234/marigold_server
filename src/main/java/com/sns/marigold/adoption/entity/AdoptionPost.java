@@ -4,6 +4,7 @@ import com.sns.marigold.adoption.enums.AdoptionPostStatus;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
+import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.user.entity.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -20,7 +21,11 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -38,6 +43,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @AllArgsConstructor
 @DynamicUpdate // 변경된 필드만 UPDATE 쿼리 생성
 public class AdoptionPost {
+
+  public static final int MIN_IMAGE_COUNT = 1;
+  public static final int MAX_IMAGE_COUNT = 8;
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY) // Auto increment
@@ -136,26 +144,11 @@ public class AdoptionPost {
     this.neutering = editor.getNeutering();
   }
 
-  // // 입양 완료 처리
-  // public void completeAdoption(User adopter) {
-  //   this.status = AdoptionStatus.COMPLETED;
-  //   this.adopter = adopter;
-  //   this.adoptedAt = LocalDateTime.now();
-  // }
-
-  // 입양 상태 변경 (예약 등)
   public void updateStatus(AdoptionPostStatus status) {
     this.status = status;
   }
 
-  // // 입양 취소 처리 (필요시)
-  // public void cancelAdoption() {
-  //   this.status = AdoptionStatus.PROCEEDING;
-  //   this.adopter = null;
-  //   this.adoptedAt = null;
-  // }
-
-  // --- [연관 관계 편의 메서드 수정] ---
+  // --- [연관 관계 편의 메서드] ---
   public void addImage(AdoptionPostImage image) {
     this.images.add(image);
     // [중요] 자식 엔티티에도 부모(나 자신)를 세팅해줘야 FK가 들어감
@@ -168,9 +161,14 @@ public class AdoptionPost {
   // 이미지 수정 (효율적인 교체 전략)
   // ==========================================================
   public void replaceImages(List<String> remainingImageNames, List<AdoptionPostImage> newImages) {
+    List<String> normalizedRemainingImageNames = normalizeImageNames(remainingImageNames);
+    validateImageReplacement(
+        normalizedRemainingImageNames, newImages != null ? newImages.size() : 0);
+
     // 1. 삭제할 이미지 제거 (리스트에서 제거하면 orphanRemoval=true에 의해 DB 삭제됨)
     // remainingImageNames에 포함되지 않은 기존 이미지는 삭제
-    this.images.removeIf(image -> !remainingImageNames.contains(image.getStoredFileName()));
+    this.images.removeIf(
+        image -> !normalizedRemainingImageNames.contains(image.getStoredFileName()));
 
     // 2. 새로운 이미지 추가
     if (newImages != null) {
@@ -178,6 +176,47 @@ public class AdoptionPost {
         this.addImage(image);
       }
     }
+  }
+
+  public void validateImageReplacement(List<String> remainingImageNames, int newImageCount) {
+    List<String> normalizedRemainingImageNames = normalizeImageNames(remainingImageNames);
+    Set<String> existingImageNames = getStoredImageNameSet();
+
+    if (!existingImageNames.containsAll(normalizedRemainingImageNames)) {
+      throw AdoptionPostException.forInvalidPostImages();
+    }
+
+    int imageCount = normalizedRemainingImageNames.size() + Math.max(newImageCount, 0);
+    if (imageCount < MIN_IMAGE_COUNT || imageCount > MAX_IMAGE_COUNT) {
+      throw AdoptionPostException.forInvalidPostImages();
+    }
+  }
+
+  private List<String> normalizeImageNames(List<String> imageNames) {
+    if (imageNames == null || imageNames.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    return imageNames.stream()
+        .filter(Objects::nonNull)
+        .map(String::trim)
+        .filter(fileName -> !fileName.isEmpty())
+        .distinct()
+        .toList();
+  }
+
+  private Set<String> getStoredImageNameSet() {
+    if (this.images == null || this.images.isEmpty()) {
+      return Collections.emptySet();
+    }
+
+    Set<String> imageNames = new LinkedHashSet<>();
+    for (AdoptionPostImage image : this.images) {
+      if (image != null && image.getStoredFileName() != null) {
+        imageNames.add(image.getStoredFileName());
+      }
+    }
+    return imageNames;
   }
 
   // ==========================================================
