@@ -54,7 +54,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
           response,
           CookieManager.REFRESH_TOKEN_NAME,
           refreshToken,
-          jwtManager.getRefreshTokenValidityInMilliseconds());
+          jwtManager.getRefreshTokenValidityInSeconds());
       recentAuthService.issue(response, principal.getUserId());
     }
 
@@ -64,11 +64,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     UriComponentsBuilder uriBuilder =
         UriComponentsBuilder.fromUriString(callbackUrl)
             .queryParam("auth_status", authStatus.name());
-
-    if (authStatus == AuthStatus.LOGIN_SUCCESS || authStatus == AuthStatus.SIGNUP_SUCCESS) {
-      String accessToken = jwtManager.createAccessToken(principal);
-      uriBuilder.queryParam("access_token", accessToken);
-    }
 
     String redirectUrl = uriBuilder.build().toUriString();
 
