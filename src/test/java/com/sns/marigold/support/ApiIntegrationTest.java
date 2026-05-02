@@ -5,11 +5,16 @@ import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.common.jwt.JwtManager;
+import com.sns.marigold.auth.common.recent.RecentAuthStore;
+import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
+import jakarta.servlet.http.Cookie;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -25,6 +30,8 @@ public abstract class ApiIntegrationTest extends BaseIntegrationTest {
   @Autowired protected ObjectMapper objectMapper;
 
   @Autowired protected JwtManager jwtManager;
+
+  @Autowired protected RecentAuthStore recentAuthStore;
 
   @Autowired protected UserRepository userRepository;
 
@@ -51,5 +58,11 @@ public abstract class ApiIntegrationTest extends BaseIntegrationTest {
             AuthStatus.LOGIN_SUCCESS);
 
     return jwtManager.createAccessToken(principal);
+  }
+
+  protected Cookie getRecentAuthCookie(@NonNull User tester) {
+    String token = UUID.randomUUID().toString();
+    recentAuthStore.save(token, tester.getId(), Instant.now().plusSeconds(300));
+    return new Cookie(CookieManager.RECENT_AUTH_TOKEN_NAME, token);
   }
 }

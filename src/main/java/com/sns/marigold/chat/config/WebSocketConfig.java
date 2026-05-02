@@ -1,6 +1,10 @@
 package com.sns.marigold.chat.config;
 
+import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.jwt.JwtManager;
+import com.sns.marigold.chat.repository.RoomParticipantRepository;
+import io.hypersistence.tsid.TSID;
+import java.security.Principal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
@@ -15,6 +19,7 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ExecutorChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
@@ -28,7 +33,10 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+  private static final String CHAT_ROOM_SUBSCRIPTION_PREFIX = "/sub/chat/room/";
+
   private final JwtManager jwtManager;
+  private final RoomParticipantRepository participantRepository;
 
   @Override
   public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
@@ -53,11 +61,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             StompHeaderAccessor accessor =
                 MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-            if (accessor != null
-                && (StompCommand.CONNECT.equals(accessor.getCommand())
-                    || (accessor.getUser() == null
-                        && StompCommand.SEND.equals(accessor.getCommand())))) {
-              authenticate(accessor);
+            if (accessor != null) {
+              if (StompCommand.CONNECT.equals(accessor.getCommand())
+                  || (accessor.getUser() == null
+                      && (StompCommand.SEND.equals(accessor.getCommand())
+                          || StompCommand.SUBSCRIBE.equals(accessor.getCommand())))) {
+                authenticate(accessor);
+              }
+
+              if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+                authorizeSubscription(accessor);
+              }
             }
             return message;
           }
@@ -100,5 +114,45 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     } catch (Exception e) {
       log.error("WebSocket token authentication failed: {}", e.getMessage());
     }
+  }
+
+  void authorizeSubscription(@NonNull StompHeaderAccessor accessor) {
+    Long roomId = resolveChatRoomSubscriptionId(accessor.getDestination());
+    if (roomId == null) {
+      return;
+    }
+
+    Long userId = getAuthenticatedUserId(accessor.getUser());
+    if (!participantRepository.existsByChatRoom_IdAndUser_Id(roomId, userId)) {
+      throw new AccessDeniedException("User is not a participant of chat room: " + roomId);
+    }
+  }
+
+  @Nullable
+  Long resolveChatRoomSubscriptionId(@Nullable String destination) {
+    if (!StringUtils.hasText(destination)
+        || !destination.startsWith(CHAT_ROOM_SUBSCRIPTION_PREFIX)) {
+      return null;
+    }
+
+    String roomId = destination.substring(CHAT_ROOM_SUBSCRIPTION_PREFIX.length());
+    try {
+      return TSID.from(roomId).toLong();
+    } catch (Exception e) {
+      try {
+        return Long.parseLong(roomId);
+      } catch (NumberFormatException nfe) {
+        throw new AccessDeniedException("Invalid chat room destination: " + destination);
+      }
+    }
+  }
+
+  private Long getAuthenticatedUserId(@Nullable Principal principal) {
+    if (principal instanceof Authentication authentication
+        && authentication.getPrincipal() instanceof CustomPrincipal customPrincipal
+        && customPrincipal.getUserId() != null) {
+      return customPrincipal.getUserId();
+    }
+    throw new AccessDeniedException("Authentication is required for chat room subscription");
   }
 }

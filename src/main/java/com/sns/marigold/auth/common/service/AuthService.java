@@ -41,6 +41,7 @@ public class AuthService {
   private final JwtManager jwtManager;
   private final CookieManager cookieManager;
   private final RandomUsernameGenerator randomUsernameGenerator;
+  private final RecentAuthService recentAuthService;
 
   // OAuth2 로그인/로그아웃 & 회원가입 -> Spring security 에서 처리 (SecurityConfig &
   // OAuth2UserService)
@@ -157,6 +158,7 @@ public class AuthService {
         CookieManager.REFRESH_TOKEN_NAME,
         refreshToken,
         jwtManager.getRefreshTokenValidityInSeconds());
+    recentAuthService.issue(response, user.getId());
 
     return new LoginResponseDto(accessToken);
   }

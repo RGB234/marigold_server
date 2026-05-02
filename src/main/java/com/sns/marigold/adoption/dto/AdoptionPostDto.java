@@ -50,7 +50,7 @@ public class AdoptionPostDto {
         .sex(adoptionPost.getSex())
         .area(adoptionPost.getArea())
         .imageUrl(
-            adoptionPost.getImages().isEmpty()
+            deleted || adoptionPost.getImages().isEmpty()
                 ? null
                 : adoptionPost.getImages().get(0).getStoredFileName())
         .status(adoptionPost.getStatus())

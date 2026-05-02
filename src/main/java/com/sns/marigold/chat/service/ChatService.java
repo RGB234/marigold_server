@@ -8,6 +8,7 @@ import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.entity.ChatMessage;
 import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.chat.entity.RoomParticipant;
+import com.sns.marigold.chat.enums.ChatRoomStatus;
 import com.sns.marigold.chat.enums.ChatRoomType;
 import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
@@ -38,11 +39,9 @@ public class ChatService {
   private final RoomParticipantRepository participantRepository;
   private final S3Service storageService;
 
-  public ChatRoomDto getChatRoom(@NonNull Long roomId) {
-    ChatRoom chatRoom =
-        chatRoomRepository
-            .findById(roomId)
-            .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
+  public ChatRoomDto getChatRoom(@NonNull Long roomId, @NonNull Long currentUserId) {
+    ChatRoom chatRoom = findChatRoom(roomId);
+    validateParticipant(chatRoom, currentUserId);
     return convertToRoomDto(Objects.requireNonNull(chatRoom));
   }
 
@@ -59,7 +58,7 @@ public class ChatService {
             .orElseGet(
                 () -> {
                   // 없으면 생성
-                  ChatRoom newRoom = ChatRoom.create(user1, user2, adoptionPost);
+                  ChatRoom newRoom = ChatRoom.create(adoptionPost);
                   return chatRoomRepository.save(Objects.requireNonNull(newRoom));
                 });
 
@@ -70,7 +69,7 @@ public class ChatService {
   }
 
   /*
-   * 채팅방(1:1)의 참여자 중 하나가 채팅방을 종료한다.
+   * 채팅방을 종료한다.
    * 이전의 대화내용은 볼 수 있지만 새로 메시지를 보낼 수 없는 상태가 된다.
    */
   public void closeChatRoom(@NonNull Long roomId, @NonNull Long currentUserId) {
@@ -78,18 +77,26 @@ public class ChatService {
         chatRoomRepository
             .findById(roomId)
             .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
-    User user =
-        userRepository
-            .findById(currentUserId)
-            .orElseThrow(() -> new IllegalArgumentException("User not found: " + currentUserId));
+
+    User user = userRepository.findById(currentUserId).orElseThrow(() -> new IllegalArgumentException("User not found: " + currentUserId));
 
     // 권한 체크
     participantRepository
         .findByChatRoomAndUser(chatRoom, user)
-        .orElseThrow(() -> AuthException.forAccessDenied());
+        .orElseThrow(AuthException::forAccessDenied);
 
     chatRoom.close();
     chatRoomRepository.save(chatRoom);
+  }
+
+  @Transactional
+  public void closeAllChatRoomsByPostId(@NonNull Long postId) {
+    chatRoomRepository.closeAllByAdoptionPostId(postId);
+  }
+
+  @Transactional
+  public void closeAllChatRoomsByUserId(@NonNull Long userId) {
+    chatRoomRepository.closeAllActiveByUserId(userId);
   }
 
   private void ensureParticipant(ChatRoom chatRoom, User user) {
@@ -125,35 +132,30 @@ public class ChatService {
     };
   }
 
-  public List<ChatMessageDto> getRoomMessages(@NonNull Long roomId) {
-    ChatRoom chatRoom =
-        chatRoomRepository
-            .findById(roomId)
-            .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
+  public List<ChatMessageDto> getRoomMessages(
+      @NonNull Long roomId, @NonNull Long currentUserId) {
+    ChatRoom chatRoom = findChatRoom(roomId);
+    validateParticipant(chatRoom, currentUserId);
     return chatMessageRepository.findAllByChatRoomOrderByCreatedAtAsc(chatRoom).stream()
         .map(this::convertToMessageDto)
         .collect(Collectors.toList());
   }
 
   @Transactional
-  public ChatMessageDto saveMessage(ChatMessageDto messageDto) {
-    ChatRoom chatRoom =
-        chatRoomRepository
-            .findById(Objects.requireNonNull(messageDto.getRoomId()))
-            .orElseThrow(
-                () ->
-                    new IllegalArgumentException("Chat room not found: " + messageDto.getRoomId()));
-
-    if (chatRoom.getStatus() == com.sns.marigold.chat.enums.ChatRoomStatus.CLOSED) {
-      throw new IllegalStateException("종료된 채팅방에는 메시지를 보낼 수 없습니다.");
-    }
-
+  public ChatMessageDto saveMessage(ChatMessageDto messageDto, @NonNull Long currentUserId) {
+    ChatRoom chatRoom = findChatRoom(Objects.requireNonNull(messageDto.getRoomId()));
     User sender =
         userRepository
-            .findById(Objects.requireNonNull(messageDto.getSenderId()))
-            .orElseThrow(
-                () ->
-                    new IllegalArgumentException("Sender not found: " + messageDto.getSenderId()));
+            .findById(currentUserId)
+            .orElseThrow(() -> new IllegalArgumentException("Sender not found: " + currentUserId));
+
+    participantRepository
+        .findByChatRoomAndUser(chatRoom, sender)
+        .orElseThrow(AuthException::forAccessDenied);
+
+    if (chatRoom.getStatus() == ChatRoomStatus.CLOSED) {
+      throw new IllegalStateException("종료된 채팅방에는 메시지를 보낼 수 없습니다.");
+    }
 
     ChatMessage chatMessage =
         ChatMessage.builder()
@@ -216,6 +218,18 @@ public class ChatService {
         .createdAt(chatRoom.getCreatedAt())
         .status(chatRoom.getStatus().name())
         .build();
+  }
+
+  private ChatRoom findChatRoom(@NonNull Long roomId) {
+    return chatRoomRepository
+        .findById(roomId)
+        .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
+  }
+
+  private void validateParticipant(@NonNull ChatRoom chatRoom, @NonNull Long userId) {
+    if (!participantRepository.existsByChatRoom_IdAndUser_Id(chatRoom.getId(), userId)) {
+      throw AuthException.forAccessDenied();
+    }
   }
 
   private ChatMessageDto convertToMessageDto(ChatMessage message) {

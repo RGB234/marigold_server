@@ -15,6 +15,7 @@ import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.service.AuthService;
+import com.sns.marigold.auth.common.service.RecentAuthService;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.auth.oauth2.RandomUsernameGenerator;
@@ -55,6 +56,8 @@ class AuthServiceTest {
   @Mock private CookieManager cookieManager;
 
   @Mock private RandomUsernameGenerator randomUsernameGenerator;
+
+  @Mock private RecentAuthService recentAuthService;
 
   @InjectMocks private AuthService authService;
 
@@ -202,6 +205,7 @@ class AuthServiceTest {
             eq(CookieManager.REFRESH_TOKEN_NAME),
             eq("refresh_token_value"),
             eq(86400L));
+    verify(recentAuthService, times(1)).issue(response, testUser.getId());
   }
 
   @Test

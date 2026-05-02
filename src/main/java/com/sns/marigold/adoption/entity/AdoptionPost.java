@@ -197,10 +197,16 @@ public class AdoptionPost {
 
   public void softDelete() {
     this.deletedAt = LocalDateTime.now();
-    if (this.images != null && this.images.size() > 1) {
-      AdoptionPostImage firstImage = this.images.get(0);
+    this.title = "삭제된 게시글입니다";
+    this.features = "삭제된 게시글입니다";
+    this.area = "비공개";
+    this.age = null;
+    this.weight = null;
+    this.species = null;
+    this.sex = null;
+    this.neutering = null;
+    if (this.images != null) {
       this.images.clear();
-      this.addImage(firstImage);
     }
   }
 }

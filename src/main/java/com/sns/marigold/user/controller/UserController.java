@@ -1,6 +1,7 @@
 package com.sns.marigold.user.controller;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.common.service.RecentAuthService;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.dto.ApiResponse;
 import com.sns.marigold.user.dto.response.UserInfoDto;
@@ -10,6 +11,7 @@ import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.service.UserService;
 import io.hypersistence.tsid.TSID;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -37,27 +39,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
   private final UserService userService;
+  private final RecentAuthService recentAuthService;
 
-  // ** create **
-
-  // @PreAuthorize("permitAll()")
-  // @PostMapping("")
-  // public ResponseEntity<ApiResponse<Long>> create(@RequestBody @Valid OAuth2SignupDto dto) {
-  //   Long userId = authService.oauth2Signup(dto);
-  //   return ResponseEntity.ok(
-  //       ApiResponse.success(HttpStatus.CREATED, "User created successfully", userId));
-  // }
-
-  // ** update **
   @PreAuthorize("isAuthenticated()")
   @PostMapping("/credentials")
   public ResponseEntity<ApiResponse<Void>> registerEmailAndPassword(
       @AuthenticationPrincipal CustomPrincipal principal,
-      @Valid @RequestBody EmailPasswordRegisterDto dto) {
+      @Valid @RequestBody EmailPasswordRegisterDto dto,
+      HttpServletRequest request) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw com.sns.marigold.auth.exception.AuthException.forUnauthorized();
     }
+    recentAuthService.validate(request, userId);
     userService.registerEmailAndPassword(userId, dto);
     return ResponseEntity.ok(
         ApiResponse.success(HttpStatus.OK, "Credentials registered successfully"));
@@ -123,12 +117,14 @@ public class UserController {
   @PreAuthorize("isAuthenticated()")
   @DeleteMapping("/delete")
   public ResponseEntity<ApiResponse<Void>> deleteUser(
-      @AuthenticationPrincipal CustomPrincipal principal) {
+      @AuthenticationPrincipal CustomPrincipal principal,
+      HttpServletRequest request) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw com.sns.marigold.auth.exception.AuthException.forAccessDenied();
     }
-    userService.deleteUser(userId, principal.getUserId());
+    recentAuthService.validate(request, userId);
+    userService.deleteUser(principal.getUserId());
     return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK, "User deleted successfully"));
   }
 }

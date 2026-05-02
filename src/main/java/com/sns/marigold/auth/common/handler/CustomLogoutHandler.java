@@ -1,5 +1,6 @@
 package com.sns.marigold.auth.common.handler;
 
+import com.sns.marigold.auth.common.service.RecentAuthService;
 import com.sns.marigold.auth.common.util.CookieManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 public class CustomLogoutHandler implements LogoutHandler {
 
   private final CookieManager cookieManager;
+  private final RecentAuthService recentAuthService;
 
   @Override
   public void logout(
@@ -23,6 +25,7 @@ public class CustomLogoutHandler implements LogoutHandler {
     // log.info("로그아웃 핸들러 실행: 쿠키 만료 처리 시작");
 
     cookieManager.expireCookie(response, CookieManager.REFRESH_TOKEN_NAME);
+    recentAuthService.clear(request, response);
 
     // log.info("로그아웃 핸들러 실행 완료: 쿠키 만료 처리 성공");
   }

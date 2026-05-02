@@ -3,6 +3,7 @@ package com.sns.marigold.auth.oauth2.handler;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.jwt.JwtManager;
+import com.sns.marigold.auth.common.service.RecentAuthService;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.sns.marigold.global.config.UrlProperties;
@@ -25,6 +26,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
   private final JwtManager jwtManager;
   private final CookieManager cookieManager;
+  private final RecentAuthService recentAuthService;
   private final UrlProperties urlProperties;
   private final HttpCookieOAuth2AuthorizationRequestRepository
       httpCookieOAuth2AuthorizationRequestRepository;
@@ -53,6 +55,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
           CookieManager.REFRESH_TOKEN_NAME,
           refreshToken,
           jwtManager.getRefreshTokenValidityInMilliseconds());
+      recentAuthService.issue(response, principal.getUserId());
     }
 
     String callbackUrl = urlProperties.frontend().auth().callback();

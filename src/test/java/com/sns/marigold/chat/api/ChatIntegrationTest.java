@@ -101,7 +101,7 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
                     .features("Features text string")
                     .build()));
 
-    chatRoom = chatRoomRepository.save(Objects.requireNonNull(ChatRoom.create(user1, user2, post)));
+    chatRoom = chatRoomRepository.save(Objects.requireNonNull(ChatRoom.create(post)));
     participantRepository.save(
         Objects.requireNonNull(RoomParticipant.builder().chatRoom(chatRoom).user(user1).build()));
     participantRepository.save(
@@ -117,7 +117,7 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
   }
 
   @Test
-  @DisplayName("WebSocket을 통해 메시지를 전송하고 구독한 방에서 메시지를 수신한다")
+  @DisplayName("WebSocket 메시지는 인증된 사용자를 발신자로 저장한다")
   void sendAndReceiveMessage() throws InterruptedException, ExecutionException, TimeoutException {
     WebSocketStompClient client = Objects.requireNonNull(stompClient);
     String token = Objects.requireNonNull(accessToken);
@@ -185,7 +185,7 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
         Objects.requireNonNull(
             ChatMessageDto.builder()
                 .roomId(room.getId())
-                .senderId(sender.getId())
+                .senderId(user2.getId())
                 .message("Hello WebSocket")
                 .build());
 

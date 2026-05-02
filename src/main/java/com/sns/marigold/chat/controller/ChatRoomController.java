@@ -74,19 +74,25 @@ public class ChatRoomController {
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/{roomId}")
   public ResponseEntity<ApiResponse<ChatRoomDto>> getChatRoom(
+      @AuthenticationPrincipal CustomPrincipal principal,
       @PathVariable("roomId") @TsidType @NonNull Long roomId) {
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK, "fetched successfully", chatService.getChatRoom(roomId)));
+            HttpStatus.OK,
+            "fetched successfully",
+            chatService.getChatRoom(roomId, Objects.requireNonNull(principal.getUserId()))));
   }
 
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/{roomId}/messages")
   public ResponseEntity<ApiResponse<List<ChatMessageDto>>> getRoomMessages(
+      @AuthenticationPrincipal CustomPrincipal principal,
       @PathVariable("roomId") @TsidType @NonNull Long roomId) {
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK, "fetched successfully", chatService.getRoomMessages(roomId)));
+            HttpStatus.OK,
+            "fetched successfully",
+            chatService.getRoomMessages(roomId, Objects.requireNonNull(principal.getUserId()))));
   }
 
   @PreAuthorize("isAuthenticated()")

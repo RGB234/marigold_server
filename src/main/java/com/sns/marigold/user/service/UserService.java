@@ -1,10 +1,9 @@
 package com.sns.marigold.user.service;
 
+import com.sns.marigold.adoption.repository.AdoptionPostImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
-import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.chat.entity.ChatRoom;
-import com.sns.marigold.chat.repository.ChatRoomRepository;
+import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.service.S3Service;
@@ -23,8 +22,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -38,11 +36,12 @@ public class UserService {
 
   private final UserRepository userRepository;
   private final AdoptionPostRepository adoptionPostRepository;
-  private final ChatRoomRepository chatRoomRepository;
+  private final AdoptionPostImageRepository adoptionPostImageRepository;
   private final S3Service s3Service;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
   private final PasswordEncoder passwordEncoder;
+  private final ChatService chatService;
 
   @Transactional(readOnly = true)
   public boolean existsByProviderInfoAndProviderId(ProviderInfo providerInfo, String providerId) {
@@ -179,34 +178,28 @@ public class UserService {
 
   // soft delete And PII scrubbing
   @Transactional
-  public void deleteUser(Long uid, Long currentUserId) {
-    if (uid == null || !uid.equals(currentUserId)) {
-      throw AuthException.forAccessDenied();
-    }
-
-    User user = findEntityById(uid);
+  public void deleteUser(@NonNull Long id) {
+    User user = findEntityById(id);
     List<String> imageUrls = new ArrayList<>();
-    // 사용자 프로필 이미지 url 주소 임시 백업
+
     if (user.getImage() != null) {
       imageUrls.add(user.getImage().getStoredFileName());
     }
 
-    // 작성자 게시글 논리적 삭제 (Soft Delete)
-    // 여기서 clearAutomatically=true 발동 -> 영속성 컨텍스트 초기화됨
-    adoptionPostRepository.softDeleteByWriter(uid);
-
-    // 탈퇴하는 유저가 참여 중인 모든 채팅방(ChatRoom)을 조회하여 비활성화(CLOSED) 처리
-    Page<ChatRoom> userRooms = chatRoomRepository.findAllByUser(user, Pageable.unpaged());
-    for (ChatRoom room : userRooms) {
-      room.close();
+    List<String> postImageFileNames = adoptionPostImageRepository.findStoredFileNamesByWriter(id);
+    if (postImageFileNames != null) {
+      postImageFileNames.stream().filter(Objects::nonNull).forEach(imageUrls::add);
     }
 
-    // soft delete
+    adoptionPostRepository.setDeletedTimeByWriter(id);
+    adoptionPostImageRepository.deleteImagesByWriter(id);
+
+    // 참가 중인 채팅방 CLOSE (read-only)
+    chatService.closeAllChatRoomsByUserId(id);
+
     user.softDelete();
-    // 주의: 위에서 컨텍스트가 비워졌기 때문에 user는 현재 '준영속' 상태입니다.
-    // 하지만 save()를 호출하면 JPA가 다시 'merge(병합)'를 시도하므로 정상 동작합니다.
     userRepository.save(user);
-    // 트랜잭션 종료 시 스토리지 상 이미지 삭제
+    // 트랜잭션 종료 시 스토리지에서 이미지 삭제
     if (!imageUrls.isEmpty()) {
       eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imageUrls));
     }

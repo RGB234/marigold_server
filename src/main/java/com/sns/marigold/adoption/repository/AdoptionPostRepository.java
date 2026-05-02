@@ -16,25 +16,8 @@ public interface AdoptionPostRepository
   Page<AdoptionPost> findByWriter_IdAndDeletedAtIsNull(
       @Param("writerId") Long writerId, Pageable pageable);
 
-  // clearAutomatically = true : 벌크 연산 후 영속성 컨텍스트 초기화 (권장)
-  @Modifying(clearAutomatically = true)
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("UPDATE AdoptionPost a SET a.deletedAt = CURRENT_TIMESTAMP WHERE a.writer.id = :writerId")
-  void softDeleteByWriter(@Param("writerId") Long writerId);
-
-  @Modifying(clearAutomatically = true)
-  @Query(
-      "DELETE FROM AdoptionPostImage a "
-          + "WHERE a.adoptionPost.id IN ("
-          + "   SELECT i.id FROM AdoptionPost i "
-          + "   WHERE i.writer.id = :writerId"
-          + ")")
-  void deleteImagesByWriter(@Param("writerId") Long writerId);
-
-  @Query(
-      "SELECT a.storedFileName FROM AdoptionPostImage a "
-          + "WHERE a.adoptionPost.id IN ("
-          + "   SELECT i.id FROM AdoptionPost i "
-          + "   WHERE i.writer.id = :writerId"
-          + ")")
-  List<String> findStoredFileNamesByWriter(@Param("writerId") Long writerId);
+  void setDeletedTimeByWriter(@Param("writerId") Long writerId);
 }

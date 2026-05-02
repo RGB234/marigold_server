@@ -5,7 +5,9 @@ import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.service.AuthService;
+import com.sns.marigold.auth.common.service.RecentAuthService;
 import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
@@ -40,6 +42,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
   private final AuthService authService;
   private final CookieManager cookieManager;
   private final JwtManager jwtManager;
+  private final RecentAuthService recentAuthService;
 
   @Override
   public OAuth2User loadUser(OAuth2UserRequest userRequest) {
@@ -81,6 +84,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
           if (userId != null) {
             User currentUser = userService.findEntityById(userId);
             authService.checkUserStatus(currentUser);
+            recentAuthService.validate(request, userId);
 
             // 해당 소셜 계정이 이미 다른 사용자에게 연동되어 있는지 확인
             Optional<User> linkedUser =
@@ -98,6 +102,9 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
           }
         } catch (OAuth2AuthenticationException e) {
           throw e;
+        } catch (AuthException e) {
+          throw new OAuth2AuthenticationException(
+              new OAuth2Error(e.getErrorCode().getCode(), e.getMessage(), null));
         } catch (Exception e) {
           // 갱신 토큰이 유효하지 않은 경우
           throw new OAuth2AuthenticationException(

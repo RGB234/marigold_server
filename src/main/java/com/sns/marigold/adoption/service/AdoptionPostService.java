@@ -13,6 +13,8 @@ import com.sns.marigold.adoption.entity.AdoptionPostImage;
 import com.sns.marigold.adoption.enums.AdoptionPostStatus;
 import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.adoption.repository.AdoptionAdopterRepository;
+import com.sns.marigold.adoption.repository.AdoptionCommentImageRepository;
+import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.adoption.specification.AdoptionPostSpecification;
 import com.sns.marigold.auth.exception.AuthException;
@@ -20,6 +22,7 @@ import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.chat.entity.RoomParticipant;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
+import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.global.error.exception.BusinessException;
 import com.sns.marigold.global.error.exception.InternalServerException;
 import com.sns.marigold.storage.dto.ImageUploadDto;
@@ -28,6 +31,7 @@ import com.sns.marigold.storage.service.S3Service;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -50,10 +54,16 @@ public class AdoptionPostService {
 
   private final UserService userService;
   private final S3Service s3Service;
+  private final AdoptionCommentService adoptionCommentService;
+  private final ChatService chatService;
+
   private final AdoptionPostRepository adoptionPostRepository;
   private final AdoptionAdopterRepository adoptionAdopterRepository;
+  private final AdoptionCommentRepository adoptionCommentRepository;
+  private final AdoptionCommentImageRepository adoptionCommentImageRepository;
   private final ChatRoomRepository chatRoomRepository;
   private final RoomParticipantRepository participantRepository;
+
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
 
@@ -250,6 +260,10 @@ public class AdoptionPostService {
   @Transactional(readOnly = true)
   public AdoptionPostDetailDto getDetail(Long id) {
     AdoptionPost info = findEntityById(id);
+    if (info.getDeletedAt() != null) {
+      throw AdoptionPostException.forAdoptionPostDeleted();
+    }
+
     AdoptionPostDetailDto detailResponseDto = AdoptionPostDetailDto.from(info);
 
     if (detailResponseDto.getWriter() != null
@@ -302,40 +316,39 @@ public class AdoptionPostService {
     info.updateStatus(status);
   }
 
+  @Transactional
   public void delete(Long id, Long userId) {
-    List<String> imagesToDelete =
-        transactionTemplate.execute(
-            status -> {
-              AdoptionPost info = findEntityById(id);
+    transactionTemplate.executeWithoutResult(
+        status -> {
+          AdoptionPost info = findEntityById(id);
 
-              if (info.getDeletedAt() != null) {
-                throw AdoptionPostException.forAdoptionPostDeleted();
-              }
+          if (info.getDeletedAt() != null) {
+            throw AdoptionPostException.forAdoptionPostDeleted();
+          }
 
-              validateWriter(info, userId);
+          validateWriter(info, userId);
 
-              // 삭제 전 이미지 리스트 추출 (영속성 컨텍스트가 살아있을 때 수행)
-              List<String> dtoList =
-                  info.getImages() != null && info.getImages().size() > 1
-                      ? info.getImages().subList(1, info.getImages().size()).stream()
-                          .map(AdoptionPostImage::getStoredFileName)
-                          .collect(Collectors.toList())
-                      : Collections.emptyList();
+          // 성능상 트랜잭션에서 저장소에 접근하지 않고 이벤트를 호출하여 분리
+          List<String> imagesToDelete = new ArrayList<>();
+          if (info.getImages() != null) {
+            imagesToDelete.addAll(
+                info.getImages().stream()
+                    .map(AdoptionPostImage::getStoredFileName)
+                    .filter(Objects::nonNull)
+                    .toList());
+          }
 
-              info.softDelete();
+          // 댓글 삭제
+          adoptionCommentService.deleteCommentsByPostId(id);
+          // 채팅방 종료
+          chatService.closeAllChatRoomsByPostId(id);
 
-              // 연관 채팅방 종료
-              List<ChatRoom> chatRooms = chatRoomRepository.findAllByAdoptionPostId(id);
-              for (ChatRoom room : chatRooms) {
-                room.close();
-              }
+          info.softDelete();
 
-              return dtoList;
-            });
-
-    if (imagesToDelete != null && !imagesToDelete.isEmpty()) {
-      eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
-    }
+          if (!imagesToDelete.isEmpty()) {
+            eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
+          }
+        });
   }
 
   public void validateWriter(AdoptionPost info, Long userId) {

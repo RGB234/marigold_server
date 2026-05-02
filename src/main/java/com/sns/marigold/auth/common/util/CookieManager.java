@@ -17,6 +17,7 @@ import org.springframework.web.util.WebUtils;
 public class CookieManager {
 
   public static final String REFRESH_TOKEN_NAME = "refresh_token";
+  public static final String RECENT_AUTH_TOKEN_NAME = "recent_auth";
 
   /**
    * HttpOnly, Secure 쿠키 추가

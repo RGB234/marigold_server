@@ -26,6 +26,10 @@ public class AuthException extends BusinessException {
     return new AuthException(ErrorCode.AUTH_TOKEN_EXPIRED);
   }
 
+  public static AuthException forRecentAuthRequired() {
+    return new AuthException(ErrorCode.AUTH_RECENT_AUTH_REQUIRED);
+  }
+
   public static AuthException forInternalServerError() {
     return new AuthException(ErrorCode.AUTH_INTERNAL_SERVER_ERROR);
   }

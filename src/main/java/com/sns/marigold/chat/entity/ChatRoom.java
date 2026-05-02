@@ -54,16 +54,8 @@ public class ChatRoom {
     this.status = ChatRoomStatus.CLOSED;
   }
 
-  public static ChatRoom create(User user1, User user2, AdoptionPost adoptionPost) {
-    // Ensure user1.id < user2.id for consistent room identification
-    if (user1.getId() > user2.getId()) {
-      User temp = user1;
-      user1 = user2;
-      user2 = temp;
-    }
+  public static ChatRoom create(AdoptionPost adoptionPost) {
     return ChatRoom.builder()
-        // .user1(user1)
-        // .user2(user2)
         .adoptionPost(adoptionPost)
         .build();
   }

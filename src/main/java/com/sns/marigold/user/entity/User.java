@@ -119,28 +119,14 @@ public class User {
   }
 
   public void softDelete() {
-    this.nickname = "deleted-user-" + TSID.from(this.id).toString();
+    this.nickname = "deleted-user-" + TSID.from(this.id);
     this.image = null;
     this.providerInfo = null;
     this.providerId = null;
+    this.email = null;
+    this.password = null;
     this.status = UserStatus.DELETED;
     this.deletedAt = LocalDateTime.now();
-  }
-
-  public void ban() {
-    this.status = UserStatus.BANNED;
-  }
-
-  public void sleep() {
-    this.status = UserStatus.SLEEP;
-  }
-
-  public void activate() {
-    this.status = UserStatus.ACTIVE;
-  }
-
-  public boolean isActive() {
-    return this.status == UserStatus.ACTIVE;
   }
 
   public String getDisplayNickname() {

@@ -6,12 +6,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import com.sns.marigold.adoption.repository.AdoptionPostImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.chat.entity.ChatRoom;
-import com.sns.marigold.chat.enums.ChatRoomStatus;
-import com.sns.marigold.chat.repository.ChatRoomRepository;
+import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.service.S3Service;
@@ -33,8 +32,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -50,7 +47,9 @@ class UserServiceTest {
 
   @Mock private AdoptionPostRepository adoptionPostRepository;
 
-  @Mock private ChatRoomRepository chatRoomRepository;
+  @Mock private AdoptionPostImageRepository adoptionPostImageRepository;
+
+  @Mock private ChatService chatService;
 
   @Mock private S3Service s3Service;
 
@@ -351,21 +350,23 @@ class UserServiceTest {
     testUser.update(
         "tester",
         UserImage.builder().storedFileName("old.jpg").originalFileName("old.jpg").build());
-    ChatRoom chatRoom = ChatRoom.builder().id(200L).status(ChatRoomStatus.ACTIVE).build();
 
     given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
-    given(chatRoomRepository.findAllByUser(eq(testUser), any(Pageable.class)))
-        .willReturn(new PageImpl<>(List.of(chatRoom)));
+    given(adoptionPostImageRepository.findStoredFileNamesByWriter(1L))
+        .willReturn(List.of("post-image.jpg"));
 
     // when
-    userService.deleteUser(1L, 1L);
+    userService.deleteUser(1L);
 
     // then
-    verify(adoptionPostRepository, times(1)).softDeleteByWriter(1L);
+    verify(adoptionPostRepository, times(1)).setDeletedTimeByWriter(1L);
+    verify(adoptionPostImageRepository, times(1)).deleteImagesByWriter(1L);
+    verify(chatService, times(1)).closeAllChatRoomsByUserId(1L);
     assertThat(testUser.getStatus().name()).isEqualTo("DELETED");
-    assertThat(chatRoom.getStatus()).isEqualTo(ChatRoomStatus.CLOSED); // 채팅방 종료 검증
     verify(userRepository, times(1)).save(testUser);
-    verify(eventPublisher, times(1))
-        .publishEvent(any(DeleteOldStorageFilesEvent.class)); // 유저 프로필 이미지가 존재할 경우 이미지 삭제 이벤트 발생
+    ArgumentCaptor<DeleteOldStorageFilesEvent> eventCaptor =
+        ArgumentCaptor.forClass(DeleteOldStorageFilesEvent.class);
+    verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().fileNames()).contains("old.jpg", "post-image.jpg");
   }
 }

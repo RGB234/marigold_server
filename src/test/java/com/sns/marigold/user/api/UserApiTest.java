@@ -87,6 +87,7 @@ public class UserApiTest extends ApiIntegrationTest {
         .perform(
             post(UrlConstants.USER_BASE + "/credentials")
                 .header("Authorization", "Bearer " + getAccessToken(user))
+                .cookie(getRecentAuthCookie(user))
                 .contentType("application/json")
                 .content(requestBody))
         .andExpect(status().isOk())
@@ -97,15 +98,95 @@ public class UserApiTest extends ApiIntegrationTest {
   }
 
   @Test
+  @DisplayName("Recent auth 없이 이메일 비밀번호 로그인 정보를 등록할 수 없다")
+  void registerCredentials_RecentAuthRequired() throws Exception {
+    User user = java.util.Objects.requireNonNull(tester1);
+    String requestBody =
+        """
+        {
+          "email": "tester1@example.com",
+          "password": "password123!"
+        }
+        """;
+
+    mockMvc
+        .perform(
+            post(UrlConstants.USER_BASE + "/credentials")
+                .header("Authorization", "Bearer " + getAccessToken(user))
+                .contentType("application/json")
+                .content(requestBody))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.errorCode").value("AUTH_RECENT_AUTH_REQUIRED"));
+  }
+
+  @Test
+  @DisplayName("Recent auth는 실패한 제출 후에도 TTL 동안 재사용할 수 있다")
+  void registerCredentials_RecentAuthReusableAfterFailedSubmission() throws Exception {
+    User user = java.util.Objects.requireNonNull(tester1);
+    User otherUser = java.util.Objects.requireNonNull(tester2);
+    otherUser.addEmailAndPassword("used@example.com", "encoded-password");
+    userRepository.save(otherUser);
+
+    var recentAuthCookie = getRecentAuthCookie(user);
+    String duplicateRequestBody =
+        """
+        {
+          "email": "used@example.com",
+          "password": "password123!"
+        }
+        """;
+    String validRequestBody =
+        """
+        {
+          "email": "tester1@example.com",
+          "password": "password123!"
+        }
+        """;
+
+    mockMvc
+        .perform(
+            post(UrlConstants.USER_BASE + "/credentials")
+                .header("Authorization", "Bearer " + getAccessToken(user))
+                .cookie(recentAuthCookie)
+                .contentType("application/json")
+                .content(duplicateRequestBody))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errorCode").value("USER_ALREADY_EXISTS"));
+
+    mockMvc
+        .perform(
+            post(UrlConstants.USER_BASE + "/credentials")
+                .header("Authorization", "Bearer " + getAccessToken(user))
+                .cookie(recentAuthCookie)
+                .contentType("application/json")
+                .content(validRequestBody))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value(200));
+  }
+
+  @Test
   @DisplayName("인증된 사용자는 본인 계정을 삭제할 수 있다")
   void deleteUser_Success() throws Exception {
     User user = java.util.Objects.requireNonNull(tester1);
     mockMvc
         .perform(
             delete(UrlConstants.USER_BASE + "/delete")
-                .header("Authorization", "Bearer " + getAccessToken(user)))
+                .header("Authorization", "Bearer " + getAccessToken(user))
+                .cookie(getRecentAuthCookie(user)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value(200));
+  }
+
+  @Test
+  @DisplayName("Recent auth 없이 본인 계정을 삭제할 수 없다")
+  void deleteUser_RecentAuthRequired() throws Exception {
+    User user = java.util.Objects.requireNonNull(tester1);
+    mockMvc
+        .perform(
+            delete(UrlConstants.USER_BASE + "/delete")
+                .header("Authorization", "Bearer " + getAccessToken(user)))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.errorCode").value("AUTH_RECENT_AUTH_REQUIRED"));
   }
 
   @Test

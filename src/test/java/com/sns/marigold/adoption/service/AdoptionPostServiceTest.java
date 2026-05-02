@@ -14,13 +14,17 @@ import com.sns.marigold.adoption.enums.AdoptionPostStatus;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
+import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.adoption.repository.AdoptionAdopterRepository;
+import com.sns.marigold.adoption.repository.AdoptionCommentImageRepository;
+import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
+import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.service.S3Service;
@@ -53,9 +57,17 @@ class AdoptionPostServiceTest {
 
   @Mock private S3Service s3Service;
 
+  @Mock private AdoptionCommentService adoptionCommentService;
+
+  @Mock private ChatService chatService;
+
   @Mock private AdoptionPostRepository adoptionPostRepository;
 
   @Mock private AdoptionAdopterRepository adoptionAdopterRepository;
+
+  @Mock private AdoptionCommentRepository adoptionCommentRepository;
+
+  @Mock private AdoptionCommentImageRepository adoptionCommentImageRepository;
 
   @Mock private ChatRoomRepository chatRoomRepository;
 
@@ -272,7 +284,7 @@ class AdoptionPostServiceTest {
   }
 
   @Test
-  @DisplayName("게시글 삭제 시 상태가 변경되고 연관 채팅방이 종료된다.")
+  @DisplayName("게시글 삭제 시 원문, 댓글, 이미지가 삭제되고 연관 채팅방이 종료된다.")
   void delete_Success() {
     // given
     testPost.addImage(AdoptionPostImage.builder().storedFileName("img1.jpg").build());
@@ -280,7 +292,6 @@ class AdoptionPostServiceTest {
     testPost.addImage(AdoptionPostImage.builder().storedFileName("img3.jpg").build());
 
     given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
-    given(chatRoomRepository.findAllByAdoptionPostId(100L)).willReturn(List.of());
 
     // when
     adoptionPostService.delete(100L, 1L);
@@ -289,10 +300,72 @@ class AdoptionPostServiceTest {
     ArgumentCaptor<DeleteOldStorageFilesEvent> eventCaptor =
         ArgumentCaptor.forClass(DeleteOldStorageFilesEvent.class);
     assertThat(testPost.getDeletedAt()).isNotNull();
+    assertThat(testPost.getTitle()).isEqualTo("삭제된 게시글입니다");
+    assertThat(testPost.getFeatures()).isEqualTo("삭제된 게시글입니다");
+    assertThat(testPost.getArea()).isEqualTo("비공개");
+    assertThat(testPost.getImages()).isEmpty();
+    verify(adoptionCommentService, times(1)).deleteCommentsByPostId(100L);
+    verify(chatService, times(1)).closeAllChatRoomsByPostId(100L);
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
-    assertThat(eventCaptor.getValue().fileNames()).hasSize(4);
+    assertThat(eventCaptor.getValue().fileNames()).hasSize(5);
     assertThat(eventCaptor.getValue().fileNames())
-        .contains("img1.jpg", "img2.jpg", "img3.jpg", "old2.jpg");
-    assertThat(eventCaptor.getValue().fileNames()).doesNotContain("old1.jpg");
+        .contains("old1.jpg", "old2.jpg", "img1.jpg", "img2.jpg", "img3.jpg");
+  }
+
+  @Test
+  @DisplayName("삭제된 게시글을 다시 삭제할 수 없다.")
+  void delete_AlreadyDeleted() {
+    // given
+    testPost.softDelete();
+    given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
+
+    // when & then
+    assertThatThrownBy(() -> adoptionPostService.delete(100L, 1L))
+        .isInstanceOf(AdoptionPostException.class)
+        .hasMessageContaining(AdoptionPostException.forAdoptionPostDeleted().getMessage());
+    verify(adoptionCommentService, never()).deleteCommentsByPostId(any());
+    verify(chatService, never()).closeAllChatRoomsByPostId(any());
+  }
+
+  @Test
+  @DisplayName("작성자가 아니라면 게시글을 삭제할 수 없다.")
+  void delete_NotWriter() {
+    // given
+    given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
+
+    // when & then
+    assertThatThrownBy(() -> adoptionPostService.delete(100L, 2L))
+        .isInstanceOf(AuthException.class)
+        .hasMessageContaining(AuthException.forAccessDenied().getMessage());
+    verify(adoptionCommentService, never()).deleteCommentsByPostId(any());
+    verify(chatService, never()).closeAllChatRoomsByPostId(any());
+  }
+
+  @Test
+  @DisplayName("입양 확정 취소 시 입양자 엔터티를 삭제하고 게시글 상태를 진행 중으로 되돌린다.")
+  void cancelAdoption_Success() {
+    // given
+    testPost.updateStatus(AdoptionPostStatus.COMPLETED);
+    given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
+
+    // when
+    adoptionPostService.cancelAdoption(100L, 1L);
+
+    // then
+    assertThat(testPost.getStatus()).isEqualTo(AdoptionPostStatus.PROCEEDING);
+    verify(adoptionAdopterRepository, times(1)).deleteByAdoptionPostId(100L);
+  }
+
+  @Test
+  @DisplayName("입양 완료 상태가 아니라면 입양자 엔터티를 삭제할 수 없다.")
+  void cancelAdoption_NotCompleted() {
+    // given
+    given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
+
+    // when & then
+    assertThatThrownBy(() -> adoptionPostService.cancelAdoption(100L, 1L))
+        .isInstanceOf(AdoptionPostException.class)
+        .hasMessageContaining(AdoptionPostException.forAdoptionPostNotCompleted().getMessage());
+    verify(adoptionAdopterRepository, never()).deleteByAdoptionPostId(any());
   }
 }

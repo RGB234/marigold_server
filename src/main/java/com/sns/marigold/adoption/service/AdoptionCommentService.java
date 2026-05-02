@@ -8,6 +8,7 @@ import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.exception.AdoptionCommentException;
 import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.adoption.repository.AdoptionAdopterRepository;
+import com.sns.marigold.adoption.repository.AdoptionCommentImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
@@ -44,6 +45,7 @@ public class AdoptionCommentService {
   private final S3Service s3Service;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
+  private final AdoptionCommentImageRepository adoptionCommentImageRepository;
 
   @Transactional(readOnly = true)
   public AdoptionComment findEntityById(Long id) {
@@ -164,32 +166,43 @@ public class AdoptionCommentService {
   }
 
   public void deleteComment(Long commentId, Long userId) {
+    transactionTemplate.executeWithoutResult(
+        status -> {
+          AdoptionComment comment = findEntityById(commentId);
+
+          if (comment.getDeletedAt() != null) {
+            throw AdoptionCommentException.forAdoptionCommentDeleted();
+          }
+
+          if (!comment.getWriter().getId().equals(userId)) {
+            throw AuthException.forAccessDenied();
+          }
+
+          List<String> imagesToDelete =
+              comment.getImages().stream()
+                  .map(AdoptionCommentImage::getStoredFileName)
+                  .collect(Collectors.toList());
+
+          comment.softDelete();
+          comment.getImages().clear();
+
+          if (!imagesToDelete.isEmpty()) {
+            // 삭제된 댓글의 이미지는 커밋 이후 S3에서도 삭제
+            eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
+          }
+        });
+  }
+
+  @Transactional
+  public void deleteCommentsByPostId(Long postId) {
     List<String> imagesToDelete =
-        transactionTemplate.execute(
-            status -> {
-              AdoptionComment comment = findEntityById(commentId);
+        adoptionCommentImageRepository.findStoredFileNamesByAdoptionPostId(postId);
 
-              if (comment.getDeletedAt() != null) {
-                throw AdoptionCommentException.forAdoptionCommentDeleted();
-              }
+    adoptionCommentImageRepository.deleteByAdoptionPostId(postId);
+    adoptionCommentRepository.clearParentByAdoptionPostId(postId); // self FK 끊기 - 삭제 시 FK 로 인한 삭제 실패 방지
+    adoptionCommentRepository.deleteByAdoptionPostId(postId);
 
-              if (!comment.getWriter().getId().equals(userId)) {
-                throw AuthException.forAccessDenied();
-              }
-
-              List<String> dtoList =
-                  comment.getImages().stream()
-                      .map(AdoptionCommentImage::getStoredFileName)
-                      .collect(Collectors.toList());
-
-              comment.softDelete();
-              comment.getImages().clear();
-
-              return dtoList;
-            });
-
-    if (imagesToDelete != null && !imagesToDelete.isEmpty()) {
-      // 삭제된 댓글의 이미지는 S3에서도 삭제
+    if (imagesToDelete != null) {
       eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
     }
   }

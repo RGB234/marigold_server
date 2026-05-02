@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -103,4 +104,28 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 
   @Query("SELECT COUNT(cr) FROM ChatRoom cr WHERE cr.adoptionPost.id = :postId")
   Integer countByAdoptionPostId(@Param("postId") Long postId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      """
+      UPDATE ChatRoom cr
+      SET cr.status = com.sns.marigold.chat.enums.ChatRoomStatus.CLOSED
+      WHERE cr.adoptionPost.id = :postId
+      """)
+  void closeAllByAdoptionPostId(@Param("postId") Long postId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      """
+      UPDATE ChatRoom cr
+      SET cr.status = com.sns.marigold.chat.enums.ChatRoomStatus.CLOSED
+      WHERE cr.status <> com.sns.marigold.chat.enums.ChatRoomStatus.CLOSED
+        AND EXISTS (
+          SELECT 1
+          FROM RoomParticipant rp
+          WHERE rp.chatRoom = cr
+            AND rp.user.id = :userId
+        )
+      """)
+  void closeAllActiveByUserId(@Param("userId") Long userId);
 }

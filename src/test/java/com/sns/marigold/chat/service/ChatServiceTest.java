@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
+import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.entity.ChatMessage;
@@ -59,6 +60,7 @@ class ChatServiceTest {
 
   private User user1;
   private User user2;
+  private User user3;
   private AdoptionPost post;
   private ChatRoom chatRoom;
 
@@ -71,6 +73,10 @@ class ChatServiceTest {
     user2 = mock(User.class);
     lenient().when(user2.getId()).thenReturn(2L);
     lenient().when(user2.getDisplayNickname()).thenReturn("User2");
+
+    user3 = mock(User.class);
+    lenient().when(user3.getId()).thenReturn(3L);
+    lenient().when(user3.getDisplayNickname()).thenReturn("User3");
 
     post = mock(AdoptionPost.class);
     lenient().when(post.getId()).thenReturn(10L);
@@ -97,13 +103,14 @@ class ChatServiceTest {
   void getChatRoom_Success() {
     // given
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 1L)).willReturn(true);
 
     RoomParticipant p1 = createParticipant(chatRoom, user1);
     RoomParticipant p2 = createParticipant(chatRoom, user2);
     given(participantRepository.findAllByChatRoom(chatRoom)).willReturn(List.of(p1, p2));
 
     // when
-    ChatRoomDto result = chatService.getChatRoom(100L);
+    ChatRoomDto result = chatService.getChatRoom(100L, 1L);
 
     // then
     assertThat(result.getId()).isEqualTo(100L);
@@ -120,9 +127,23 @@ class ChatServiceTest {
     given(chatRoomRepository.findById(999L)).willReturn(Optional.empty());
 
     // when & then
-    assertThatThrownBy(() -> chatService.getChatRoom(999L))
+    assertThatThrownBy(() -> chatService.getChatRoom(999L, 1L))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Chat room not found: 999");
+  }
+
+  @Test
+  @DisplayName("참여자가 아니라면 채팅방을 조회할 수 없다.")
+  void getChatRoom_NotParticipant() {
+    // given
+    given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 3L)).willReturn(false);
+
+    // when & then
+    assertThatThrownBy(() -> chatService.getChatRoom(100L, 3L))
+        .isInstanceOf(AuthException.class)
+        .hasMessageContaining(AuthException.forAccessDenied().getMessage());
+    verify(participantRepository, times(0)).findAllByChatRoom(chatRoom);
   }
 
   @Test
@@ -131,13 +152,14 @@ class ChatServiceTest {
     // given
     given(post.getDeletedAt()).willReturn(LocalDateTime.now());
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 1L)).willReturn(true);
 
     RoomParticipant p1 = createParticipant(chatRoom, user1);
     RoomParticipant p2 = createParticipant(chatRoom, user2);
     given(participantRepository.findAllByChatRoom(chatRoom)).willReturn(List.of(p1, p2));
 
     // when
-    ChatRoomDto result = chatService.getChatRoom(100L);
+    ChatRoomDto result = chatService.getChatRoom(100L, 1L);
 
     // then
     assertThat(result.getPostTitle()).isEqualTo("삭제된 게시글입니다");
@@ -148,12 +170,13 @@ class ChatServiceTest {
   void getChatRoom_InvalidParticipantCount() {
     // given
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 1L)).willReturn(true);
 
     RoomParticipant p1 = createParticipant(chatRoom, user1);
     given(participantRepository.findAllByChatRoom(chatRoom)).willReturn(List.of(p1)); // 1명만 참가
 
     // when & then
-    assertThatThrownBy(() -> chatService.getChatRoom(100L))
+    assertThatThrownBy(() -> chatService.getChatRoom(100L, 1L))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("1:1 채팅방은 참가자 2명이어야 합니다");
   }
@@ -294,6 +317,7 @@ class ChatServiceTest {
   void getRoomMessages_Success() {
     // given
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 1L)).willReturn(true);
 
     ChatMessage msg = mock(ChatMessage.class);
     given(msg.getChatRoom()).willReturn(chatRoom);
@@ -305,7 +329,7 @@ class ChatServiceTest {
         .willReturn(List.of(msg));
 
     // when
-    List<ChatMessageDto> result = chatService.getRoomMessages(100L);
+    List<ChatMessageDto> result = chatService.getRoomMessages(100L, 1L);
 
     // then
     assertThat(result).hasSize(1);
@@ -314,11 +338,25 @@ class ChatServiceTest {
   }
 
   @Test
-  @DisplayName("메시지를 정상적으로 저장한다.")
+  @DisplayName("참여자가 아니라면 채팅방 메시지 목록을 조회할 수 없다.")
+  void getRoomMessages_NotParticipant() {
+    // given
+    given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 3L)).willReturn(false);
+
+    // when & then
+    assertThatThrownBy(() -> chatService.getRoomMessages(100L, 3L))
+        .isInstanceOf(AuthException.class)
+        .hasMessageContaining(AuthException.forAccessDenied().getMessage());
+    verify(chatMessageRepository, times(0)).findAllByChatRoomOrderByCreatedAtAsc(chatRoom);
+  }
+
+  @Test
+  @DisplayName("메시지는 인증된 사용자를 발신자로 저장한다.")
   void saveMessage_Success() {
     // given
     ChatMessageDto reqDto =
-        ChatMessageDto.builder().roomId(100L).senderId(1L).message("Test Msg").build();
+        ChatMessageDto.builder().roomId(100L).senderId(2L).message("Test Msg").build();
 
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
@@ -334,13 +372,32 @@ class ChatServiceTest {
     given(participantRepository.findByChatRoomAndUser(chatRoom, user2)).willReturn(Optional.of(p2));
 
     // when
-    ChatMessageDto result = chatService.saveMessage(reqDto);
+    ChatMessageDto result = chatService.saveMessage(reqDto, 1L);
 
     // then
     assertThat(result.getMessage()).isEqualTo("Test Msg");
+    assertThat(result.getSenderId()).isEqualTo(1L);
     verify(chatMessageRepository, times(1)).save(any(ChatMessage.class));
     verify(p1, times(1)).reJoin(); // 방 활성화 검증
     verify(p2, times(1)).reJoin();
+  }
+
+  @Test
+  @DisplayName("참여자가 아니라면 메시지를 보낼 수 없다.")
+  void saveMessage_NotParticipant() {
+    // given
+    ChatMessageDto reqDto =
+        ChatMessageDto.builder().roomId(100L).senderId(1L).message("Test Msg").build();
+
+    given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(userRepository.findById(3L)).willReturn(Optional.of(user3));
+    given(participantRepository.findByChatRoomAndUser(chatRoom, user3)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> chatService.saveMessage(reqDto, 3L))
+        .isInstanceOf(AuthException.class)
+        .hasMessageContaining(AuthException.forAccessDenied().getMessage());
+    verify(chatMessageRepository, times(0)).save(any(ChatMessage.class));
   }
 
   @Test
@@ -351,12 +408,68 @@ class ChatServiceTest {
         ChatMessageDto.builder().roomId(100L).senderId(1L).message("Test Msg").build();
 
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(userRepository.findById(1L)).willReturn(Optional.of(user1));
+    RoomParticipant p1 = mock(RoomParticipant.class);
+    given(participantRepository.findByChatRoomAndUser(chatRoom, user1)).willReturn(Optional.of(p1));
     given(chatRoom.getStatus()).willReturn(ChatRoomStatus.CLOSED);
 
     // when & then
-    assertThatThrownBy(() -> chatService.saveMessage(reqDto))
+    assertThatThrownBy(() -> chatService.saveMessage(reqDto, 1L))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("종료된 채팅방에는 메시지를 보낼 수 없습니다");
+  }
+
+  @Test
+  @DisplayName("참여자는 채팅방을 종료할 수 있다.")
+  void closeChatRoom_Success() {
+    // given
+    given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(userRepository.findById(1L)).willReturn(Optional.of(user1));
+    RoomParticipant participant = createParticipant(chatRoom, user1);
+    given(participantRepository.findByChatRoomAndUser(chatRoom, user1))
+        .willReturn(Optional.of(participant));
+
+    // when
+    chatService.closeChatRoom(100L, 1L);
+
+    // then
+    verify(chatRoom, times(1)).close();
+    verify(chatRoomRepository, times(1)).save(chatRoom);
+  }
+
+  @Test
+  @DisplayName("참여자가 아니라면 채팅방을 종료할 수 없다.")
+  void closeChatRoom_NotParticipant() {
+    // given
+    given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(userRepository.findById(1L)).willReturn(Optional.of(user1));
+    given(participantRepository.findByChatRoomAndUser(chatRoom, user1)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> chatService.closeChatRoom(100L, 1L))
+        .isInstanceOf(AuthException.class)
+        .hasMessageContaining(AuthException.forAccessDenied().getMessage());
+    verify(chatRoom, times(0)).close();
+  }
+
+  @Test
+  @DisplayName("게시글 삭제 시 해당 게시글의 모든 채팅방을 종료한다.")
+  void closeAllChatRoomsByPostId_Success() {
+    // when
+    chatService.closeAllChatRoomsByPostId(10L);
+
+    // then
+    verify(chatRoomRepository, times(1)).closeAllByAdoptionPostId(10L);
+  }
+
+  @Test
+  @DisplayName("회원 탈퇴 시 참여 중인 모든 채팅방을 종료한다.")
+  void closeAllChatRoomsByUserId_Success() {
+    // when
+    chatService.closeAllChatRoomsByUserId(1L);
+
+    // then
+    verify(chatRoomRepository, times(1)).closeAllActiveByUserId(1L);
   }
 
   @Test
