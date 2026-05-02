@@ -14,7 +14,6 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 class JwtManagerTest {
@@ -64,22 +63,6 @@ class JwtManagerTest {
     assertThat(claims.getSubject()).isEqualTo("1");
     // Refresh token should not have authorities
     assertThat(claims.get(JwtManager.AUTHORITIES_KEY)).isNull();
-  }
-
-  @Test
-  @DisplayName("토큰으로부터 Authentication 객체 생성")
-  void getAuthentication() {
-    // given
-    String token = jwtManager.createAccessToken(testPrincipal);
-
-    // when
-    Authentication authentication = jwtManager.getAuthentication(token);
-
-    // then
-    assertThat(authentication.getPrincipal()).isInstanceOf(CustomPrincipal.class);
-    CustomPrincipal principal = (CustomPrincipal) authentication.getPrincipal();
-    assertThat(principal.getUserId()).isEqualTo(1L);
-    assertThat(authentication.getAuthorities()).hasSize(1);
   }
 
   @Test

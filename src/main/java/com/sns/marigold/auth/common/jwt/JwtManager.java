@@ -12,8 +12,6 @@ import javax.crypto.SecretKey;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
@@ -36,18 +34,6 @@ public class JwtManager {
     this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     this.accessTokenValidityInMilliseconds = accessTokenValidityInSeconds * 1000;
     this.refreshTokenValidityInMilliseconds = refreshTokenValidityInSeconds * 1000;
-  }
-
-  /*
-   * 토큰 payload 정보를 바탕으로 Authentication 객체를 생성하여 반환
-   */
-  public Authentication getAuthentication(String token) {
-    // 토큰이 유효한 경우 Claims 추출. 유효하지 않은 경우 예외 발생
-    Claims claims = getClaims(token);
-    Long userId = getUserId(claims);
-    List<SimpleGrantedAuthority> authorities = getAuthorities(claims);
-    return new UsernamePasswordAuthenticationToken(
-        new CustomPrincipal(userId, authorities, null, null), "", authorities);
   }
 
   /** Access Token 생성 */

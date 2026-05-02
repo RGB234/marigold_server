@@ -1,7 +1,7 @@
 package com.sns.marigold.chat.config;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.jwt.JwtManager;
+import com.sns.marigold.auth.common.service.JwtAuthenticationService;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import io.hypersistence.tsid.TSID;
 import java.security.Principal;
@@ -35,7 +35,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
   private static final String CHAT_ROOM_SUBSCRIPTION_PREFIX = "/sub/chat/room/";
 
-  private final JwtManager jwtManager;
+  private final JwtAuthenticationService jwtAuthenticationService;
   private final RoomParticipantRepository participantRepository;
 
   @Override
@@ -109,7 +109,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     String token = authorizationHeader.substring(7);
     try {
-      Authentication authentication = jwtManager.getAuthentication(token);
+      Authentication authentication = jwtAuthenticationService.getAuthentication(token);
       accessor.setUser(authentication);
     } catch (Exception e) {
       log.error("WebSocket token authentication failed: {}", e.getMessage());

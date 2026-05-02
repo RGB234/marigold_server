@@ -1,6 +1,10 @@
 package com.sns.marigold.auth.common.jwt;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sns.marigold.auth.common.service.JwtAuthenticationService;
+import com.sns.marigold.global.dto.ApiResponse;
 import com.sns.marigold.global.error.ErrorCode;
+import com.sns.marigold.global.error.exception.BusinessException;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -10,6 +14,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
@@ -28,7 +33,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-  private final JwtManager jwtManager;
+  private final JwtAuthenticationService jwtAuthenticationService;
+  private final ObjectMapper objectMapper;
 
   @Override
   protected void doFilterInternal(
@@ -46,9 +52,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 유효한 토큰인 경우 인증 객체 생성. 아닐 경우 예외 발생
         // 예외 발생 시 인증 객체가 빈 값이 되므로, 컨트롤러의 @PreAuthorize 어노테이션에서 403에러가 발생하게 된다.
         // 발생한 403에러는 ControllerAdvice로 등록된 GlobalExceptionHandler 내부 처리에 의해 401에러로 변환된다.
-        Authentication authentication = jwtManager.getAuthentication(accessToken);
+        Authentication authentication = jwtAuthenticationService.getAuthentication(accessToken);
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
+      } catch (BusinessException e) {
+        ErrorCode errorCode = e.getErrorCode();
+        log.info("JWT 사용자 상태 검증 실패: {}", errorCode.getCode());
+        SecurityContextHolder.clearContext();
+        writeErrorResponse(response, errorCode);
+        return;
       } catch (ExpiredJwtException e) {
         log.info("Access Token 만료: {}", e.getMessage());
         request.setAttribute("exception", ErrorCode.AUTH_TOKEN_EXPIRED);
@@ -60,6 +72,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     // 3. 다음 필터로 진행
     filterChain.doFilter(request, response);
+  }
+
+  private void writeErrorResponse(HttpServletResponse response, ErrorCode errorCode)
+      throws IOException {
+    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+    response.setCharacterEncoding("UTF-8");
+    response.setStatus(errorCode.getStatus().value());
+    response.getWriter().write(objectMapper.writeValueAsString(ApiResponse.error(errorCode)));
   }
 
   /** Request Header에서 JWT 토큰 추출 */

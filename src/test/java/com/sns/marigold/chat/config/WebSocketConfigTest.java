@@ -6,7 +6,7 @@ import static org.mockito.BDDMockito.given;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.AuthStatus;
-import com.sns.marigold.auth.common.jwt.JwtManager;
+import com.sns.marigold.auth.common.service.JwtAuthenticationService;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import io.hypersistence.tsid.TSID;
 import java.util.List;
@@ -27,7 +27,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 @ExtendWith(MockitoExtension.class)
 class WebSocketConfigTest {
 
-  @Mock private JwtManager jwtManager;
+  @Mock private JwtAuthenticationService jwtAuthenticationService;
 
   @Mock private RoomParticipantRepository participantRepository;
 
@@ -35,7 +35,7 @@ class WebSocketConfigTest {
 
   @BeforeEach
   void setUp() {
-    webSocketConfig = new WebSocketConfig(jwtManager, participantRepository);
+    webSocketConfig = new WebSocketConfig(jwtAuthenticationService, participantRepository);
   }
 
   @Test
@@ -46,7 +46,8 @@ class WebSocketConfigTest {
     given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 1L)).willReturn(true);
 
     // when & then
-    assertThatCode(() -> webSocketConfig.authorizeSubscription(accessor)).doesNotThrowAnyException();
+    assertThatCode(() -> webSocketConfig.authorizeSubscription(accessor))
+        .doesNotThrowAnyException();
   }
 
   @Test
