@@ -2,6 +2,7 @@ package com.sns.marigold.adoption.controller;
 
 import com.sns.marigold.adoption.dto.AdoptionCommentCreateDto;
 import com.sns.marigold.adoption.dto.AdoptionCommentResponseDto;
+import com.sns.marigold.adoption.dto.AdoptionCommentUpdateDto;
 import com.sns.marigold.adoption.service.AdoptionCommentService;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.exception.AuthException;
@@ -20,6 +21,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -50,6 +52,23 @@ public class AdoptionCommentController {
         .body(
             ApiResponse.success(
                 HttpStatus.CREATED, "Comment created successfully", Map.of("id", commentId)));
+  }
+
+  @PreAuthorize("isAuthenticated()")
+  @PatchMapping(value = "/{commentId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<ApiResponse<?>> updateComment(
+      @PathVariable("postId") Long postId,
+      @PathVariable("commentId") Long commentId,
+      @ModelAttribute @Validated({Default.class}) AdoptionCommentUpdateDto dto,
+      @AuthenticationPrincipal CustomPrincipal principal) {
+    Long userId = principal.getUserId();
+    if (userId == null) {
+      throw AuthException.forUnauthorized();
+    }
+
+    adoptionCommentService.updateComment(postId, commentId, userId, dto);
+    return ResponseEntity.status(HttpStatus.OK)
+        .body(ApiResponse.success(HttpStatus.OK, "Comment updated successfully"));
   }
 
   @PreAuthorize("permitAll()")

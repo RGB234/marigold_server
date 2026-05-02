@@ -18,20 +18,29 @@ import org.springframework.web.multipart.MultipartFile;
 @Getter
 @Setter
 @NoArgsConstructor
-@Builder
 @AllArgsConstructor
+@Builder
 @ValidImageCount(min = 0, max = 1)
-public class AdoptionCommentCreateDto implements ImageCountValidatable {
-
-  private Long parentId;
+public class AdoptionCommentUpdateDto implements ImageCountValidatable {
 
   @NotBlank(message = "내용이 비어있습니다.")
   @Size(max = 1000, message = "댓글은 1000자 이하여야 합니다.")
   private String content;
 
-  @Schema(description = "업로드할 이미지 파일들 (최대 1개)", type = "string", format = "binary")
-  @ValidImageFiles()
+  @Schema(description = "기존 댓글 이미지를 삭제할지 여부", defaultValue = "false")
+  private Boolean removeImage;
+
+  @Schema(description = "새로 업로드할 댓글 이미지 파일 (최대 1개)", type = "string", format = "binary")
+  @ValidImageFiles
   private List<MultipartFile> images;
+
+  public boolean shouldRemoveImage() {
+    return Boolean.TRUE.equals(removeImage);
+  }
+
+  public boolean hasNewImages() {
+    return getImages().stream().anyMatch(file -> file != null && !file.isEmpty());
+  }
 
   public List<String> getImagesToKeep() {
     return Collections.emptyList();

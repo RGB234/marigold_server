@@ -87,6 +87,7 @@ public class AdoptionComment {
 
   public void update(String content) {
     this.content = content;
+    this.modifiedAt = LocalDateTime.now();
   }
 
   public void softDelete() {

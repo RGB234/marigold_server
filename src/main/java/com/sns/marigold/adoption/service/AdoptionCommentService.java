@@ -2,6 +2,7 @@ package com.sns.marigold.adoption.service;
 
 import com.sns.marigold.adoption.dto.AdoptionCommentCreateDto;
 import com.sns.marigold.adoption.dto.AdoptionCommentResponseDto;
+import com.sns.marigold.adoption.dto.AdoptionCommentUpdateDto;
 import com.sns.marigold.adoption.entity.AdoptionComment;
 import com.sns.marigold.adoption.entity.AdoptionCommentImage;
 import com.sns.marigold.adoption.entity.AdoptionPost;
@@ -128,6 +129,88 @@ public class AdoptionCommentService {
       }
       throw InternalServerException.forInternalServerError(e);
     }
+  }
+
+  public void updateComment(
+      Long postId, Long commentId, Long userId, AdoptionCommentUpdateDto dto) {
+    List<MultipartFile> newImageFiles =
+        dto.getImages().stream().filter(file -> file != null && !file.isEmpty()).toList();
+
+    if (!newImageFiles.isEmpty()) {
+      transactionTemplate.executeWithoutResult(
+          status -> getUpdatableComment(postId, commentId, userId));
+    }
+
+    List<ImageUploadDto> uploadedImages =
+        newImageFiles.isEmpty()
+            ? Collections.emptyList()
+            : s3Service.uploadImagesToS3(newImageFiles);
+
+    try {
+      transactionTemplate.executeWithoutResult(
+          status -> {
+            AdoptionComment comment = getUpdatableComment(postId, commentId, userId);
+
+            comment.update(dto.getContent());
+
+            if (!uploadedImages.isEmpty() || dto.shouldRemoveImage()) {
+              List<String> imagesToDelete =
+                  comment.getImages().stream()
+                      .map(AdoptionCommentImage::getStoredFileName)
+                      .collect(Collectors.toList());
+
+              List<AdoptionCommentImage> newImages =
+                  uploadedImages.stream()
+                      .map(
+                          image ->
+                              AdoptionCommentImage.builder()
+                                  .storedFileName(image.getStoredFileName())
+                                  .originalFileName(image.getOriginalFileName())
+                                  .build())
+                      .collect(Collectors.toList());
+
+              comment.changeImages(newImages);
+
+              if (!imagesToDelete.isEmpty()) {
+                eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
+              }
+            }
+          });
+    } catch (Exception e) {
+      if (!uploadedImages.isEmpty()) {
+        log.error("Comment update failed. Deleting uploaded S3 files... error: {}", e.getMessage());
+        try {
+          s3Service.deleteUploadedImagesFromS3(uploadedImages);
+        } catch (Exception s3Ex) {
+          log.error(
+              "Failed to delete S3 images during comment update rollback. Files: {}",
+              uploadedImages,
+              s3Ex);
+        }
+      }
+      if (e instanceof RuntimeException runtimeException) {
+        throw runtimeException;
+      }
+      throw InternalServerException.forInternalServerError(e);
+    }
+  }
+
+  private AdoptionComment getUpdatableComment(Long postId, Long commentId, Long userId) {
+    AdoptionComment comment = findEntityById(commentId);
+
+    if (comment.getDeletedAt() != null) {
+      throw AdoptionCommentException.forAdoptionCommentDeleted();
+    }
+
+    if (!comment.getAdoptionPost().getId().equals(postId)) {
+      throw AdoptionCommentException.forAdoptionCommentPostMismatch();
+    }
+
+    if (!comment.getWriter().getId().equals(userId)) {
+      throw AuthException.forAccessDenied();
+    }
+
+    return comment;
   }
 
   @Transactional(readOnly = true)
