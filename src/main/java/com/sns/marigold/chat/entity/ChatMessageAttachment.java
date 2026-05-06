@@ -1,19 +1,14 @@
 package com.sns.marigold.chat.entity;
 
-import com.sns.marigold.user.entity.User;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
-import java.util.ArrayList;
-import java.util.List;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -29,8 +24,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @AllArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
-@Table(name = "chat_messages")
-public class ChatMessage {
+@Table(name = "chat_message_attachments")
+public class ChatMessageAttachment {
 
   @Id
   @Tsid
@@ -38,26 +33,26 @@ public class ChatMessage {
   private Long id;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "chat_room_id", nullable = false)
-  private ChatRoom chatRoom;
+  @JoinColumn(name = "chat_message_id", nullable = false)
+  private ChatMessage chatMessage;
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "sender_id", nullable = false)
-  private User sender;
+  @Column(nullable = false)
+  private String storedFileName;
 
-  @Column(columnDefinition = "TEXT", nullable = false)
-  private String message;
+  @Column(nullable = false)
+  private String originalFileName;
 
-  @OneToMany(mappedBy = "chatMessage", cascade = CascadeType.ALL, orphanRemoval = true)
-  @Builder.Default
-  private List<ChatMessageAttachment> attachments = new ArrayList<>();
+  @Column(nullable = false)
+  private String contentType;
+
+  @Column(nullable = false)
+  private long fileSize;
 
   @CreatedDate
   @Column(updatable = false)
   private LocalDateTime createdAt;
 
-  public void addAttachment(ChatMessageAttachment attachment) {
-    attachments.add(attachment);
-    attachment.setChatMessage(this);
+  public void setChatMessage(ChatMessage chatMessage) {
+    this.chatMessage = chatMessage;
   }
 }

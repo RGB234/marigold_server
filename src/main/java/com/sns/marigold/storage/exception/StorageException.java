@@ -22,6 +22,10 @@ public class StorageException extends BusinessException {
     return new StorageException(ErrorCode.FILE_INVALID, "the file is invalid", null);
   }
 
+  public static StorageException forFileNotFound() {
+    return new StorageException(ErrorCode.FILE_NOT_FOUND, "the file is not found", null);
+  }
+
   public static StorageException forFileUploadFailed(String fileName, Throwable cause) {
     return new StorageException(ErrorCode.FILE_UPLOAD_FAILED, "filename: " + fileName, cause);
   }

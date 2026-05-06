@@ -3,37 +3,84 @@ package com.sns.marigold.chat.service;
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
+import com.sns.marigold.chat.dto.ChatAttachmentDto;
 import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.entity.ChatMessage;
+import com.sns.marigold.chat.entity.ChatMessageAttachment;
 import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.chat.entity.RoomParticipant;
 import com.sns.marigold.chat.enums.ChatRoomStatus;
 import com.sns.marigold.chat.enums.ChatRoomType;
+import com.sns.marigold.chat.repository.ChatMessageAttachmentRepository;
 import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
+import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.S3Service;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.apache.tika.Tika;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ChatService {
 
+  private static final int MAX_CHAT_ATTACHMENT_COUNT = 5;
+  private static final long MAX_CHAT_ATTACHMENT_SIZE = 10L * 1024 * 1024;
+  private static final long MAX_CHAT_ATTACHMENT_TOTAL_SIZE = 30L * 1024 * 1024;
+  private static final Map<String, Set<String>> ALLOWED_CHAT_ATTACHMENT_MIME_TYPES =
+      Map.ofEntries(
+          Map.entry("jpg", Set.of("image/jpeg")),
+          Map.entry("jpeg", Set.of("image/jpeg")),
+          Map.entry("png", Set.of("image/png")),
+          Map.entry("webp", Set.of("image/webp")),
+          Map.entry("pdf", Set.of("application/pdf")),
+          Map.entry(
+              "docx",
+              Set.of(
+                  "application/x-tika-ooxml",
+                  "application/zip",
+                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document")),
+          Map.entry(
+              "xlsx",
+              Set.of(
+                  "application/x-tika-ooxml",
+                  "application/zip",
+                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
+          Map.entry(
+              "pptx",
+              Set.of(
+                  "application/x-tika-ooxml",
+                  "application/zip",
+                  "application/vnd.openxmlformats-officedocument.presentationml.presentation")),
+          Map.entry("txt", Set.of("text/plain")),
+          Map.entry("csv", Set.of("text/csv", "text/plain", "application/csv")),
+          Map.entry("hwpx", Set.of("application/zip", "application/vnd.hancom.hwpx")));
+
   private final ChatRoomRepository chatRoomRepository;
   private final ChatMessageRepository chatMessageRepository;
+  private final ChatMessageAttachmentRepository chatMessageAttachmentRepository;
   private final UserRepository userRepository;
   private final AdoptionPostRepository adoptionPostRepository;
   private final RoomParticipantRepository participantRepository;
@@ -144,35 +191,78 @@ public class ChatService {
   @Transactional
   public ChatMessageDto saveMessage(ChatMessageDto messageDto, @NonNull Long currentUserId) {
     ChatRoom chatRoom = findChatRoom(Objects.requireNonNull(messageDto.getRoomId()));
-    User sender =
-        userRepository
-            .findById(currentUserId)
-            .orElseThrow(() -> new IllegalArgumentException("Sender not found: " + currentUserId));
-
-    participantRepository
-        .findByChatRoomAndUser(chatRoom, sender)
-        .orElseThrow(AuthException::forAccessDenied);
-
-    if (chatRoom.getStatus() == ChatRoomStatus.CLOSED) {
-      throw new IllegalStateException("종료된 채팅방에는 메시지를 보낼 수 없습니다.");
-    }
+    User sender = findSender(currentUserId);
+    validateCanSendMessage(chatRoom, sender);
 
     ChatMessage chatMessage =
         ChatMessage.builder()
             .chatRoom(chatRoom)
             .sender(sender)
-            .message(messageDto.getMessage())
+            .message(Objects.requireNonNullElse(messageDto.getMessage(), ""))
             .build();
 
     chatMessageRepository.save(Objects.requireNonNull(chatMessage));
-
-    // Re-activate room for both participants
-    List<RoomParticipant> participants = participantRepository.findAllByChatRoom(chatRoom);
-    for (RoomParticipant participant : participants) {
-      ensureParticipant(chatRoom, participant.getUser());
-    }
+    reactivateParticipants(chatRoom);
 
     return convertToMessageDto(chatMessage);
+  }
+
+  @Transactional
+  public ChatMessageDto saveFileMessage(
+      @NonNull Long roomId,
+      String message,
+      List<MultipartFile> files,
+      @NonNull Long currentUserId) {
+    ChatRoom chatRoom = findChatRoom(roomId);
+    User sender = findSender(currentUserId);
+    validateCanSendMessage(chatRoom, sender);
+
+    List<MultipartFile> validFiles = validateChatAttachmentFiles(files);
+    String normalizedMessage = Objects.requireNonNullElse(message, "");
+    if (!StringUtils.hasText(normalizedMessage) && validFiles.isEmpty()) {
+      throw StorageException.forFileInvalid("message and files are empty");
+    }
+
+    List<FileUploadDto> uploadedFiles = storageService.uploadFilesToS3(validFiles);
+    try {
+      ChatMessage chatMessage =
+          ChatMessage.builder()
+              .chatRoom(chatRoom)
+              .sender(sender)
+              .message(normalizedMessage)
+              .build();
+
+      for (FileUploadDto uploadedFile : uploadedFiles) {
+        chatMessage.addAttachment(
+            ChatMessageAttachment.builder()
+                .storedFileName(uploadedFile.getStoredFileName())
+                .originalFileName(uploadedFile.getOriginalFileName())
+                .contentType(uploadedFile.getContentType())
+                .fileSize(uploadedFile.getFileSize())
+                .build());
+      }
+
+      ChatMessage savedMessage = chatMessageRepository.saveAndFlush(chatMessage);
+      reactivateParticipants(chatRoom);
+      return convertToMessageDto(savedMessage);
+    } catch (RuntimeException e) {
+      storageService.deleteUploadedFilesFromS3(uploadedFiles);
+      throw e;
+    }
+  }
+
+  public String getAttachmentDownloadUrl(
+      @NonNull Long roomId, @NonNull Long attachmentId, @NonNull Long currentUserId) {
+    ChatRoom chatRoom = findChatRoom(roomId);
+    validateParticipant(chatRoom, currentUserId);
+
+    ChatMessageAttachment attachment =
+        chatMessageAttachmentRepository
+            .findByIdAndChatMessage_ChatRoom(attachmentId, chatRoom)
+            .orElseThrow(StorageException::forFileNotFound);
+
+    return storageService.getPresignedDownloadObject(
+        attachment.getStoredFileName(), attachment.getOriginalFileName());
   }
 
   @Transactional
@@ -232,7 +322,95 @@ public class ChatService {
     }
   }
 
+  private User findSender(@NonNull Long currentUserId) {
+    return userRepository
+        .findById(currentUserId)
+        .orElseThrow(() -> new IllegalArgumentException("Sender not found: " + currentUserId));
+  }
+
+  private void validateCanSendMessage(@NonNull ChatRoom chatRoom, @NonNull User sender) {
+    participantRepository
+        .findByChatRoomAndUser(chatRoom, sender)
+        .orElseThrow(AuthException::forAccessDenied);
+
+    if (chatRoom.getStatus() == ChatRoomStatus.CLOSED) {
+      throw new IllegalStateException("종료된 채팅방에는 메시지를 보낼 수 없습니다.");
+    }
+  }
+
+  private void reactivateParticipants(ChatRoom chatRoom) {
+    List<RoomParticipant> participants = participantRepository.findAllByChatRoom(chatRoom);
+    for (RoomParticipant participant : participants) {
+      ensureParticipant(chatRoom, participant.getUser());
+    }
+  }
+
+  private List<MultipartFile> validateChatAttachmentFiles(List<MultipartFile> files) {
+    List<MultipartFile> nonEmptyFiles =
+        files == null
+            ? Collections.emptyList()
+            : files.stream().filter(file -> file != null && !file.isEmpty()).toList();
+
+    if (nonEmptyFiles.isEmpty()) {
+      throw StorageException.forFileInvalid("files are empty");
+    }
+    if (nonEmptyFiles.size() > MAX_CHAT_ATTACHMENT_COUNT) {
+      throw StorageException.forFileInvalid("max file count: " + MAX_CHAT_ATTACHMENT_COUNT);
+    }
+
+    long totalSize = 0L;
+    Tika tika = new Tika();
+    for (MultipartFile file : nonEmptyFiles) {
+      if (file.getSize() > MAX_CHAT_ATTACHMENT_SIZE) {
+        throw StorageException.forFileInvalid(file.getOriginalFilename());
+      }
+      totalSize += file.getSize();
+      if (totalSize > MAX_CHAT_ATTACHMENT_TOTAL_SIZE) {
+        throw StorageException.forFileInvalid("max total file size exceeded");
+      }
+
+      String extension = getFileExtension(file);
+      Set<String> allowedMimeTypes = ALLOWED_CHAT_ATTACHMENT_MIME_TYPES.get(extension);
+      if (allowedMimeTypes == null) {
+        throw StorageException.forFileInvalid(file.getOriginalFilename());
+      }
+
+      try (InputStream inputStream = file.getInputStream()) {
+        String detectedMimeType = tika.detect(inputStream);
+        if (!allowedMimeTypes.contains(detectedMimeType)) {
+          throw StorageException.forFileInvalid(file.getOriginalFilename());
+        }
+      } catch (IOException e) {
+        throw StorageException.forFileUploadFailed(file.getOriginalFilename(), e);
+      }
+    }
+
+    return nonEmptyFiles;
+  }
+
+  private String getFileExtension(MultipartFile file) {
+    String originalFilename = file.getOriginalFilename();
+    int extensionStart = originalFilename == null ? -1 : originalFilename.lastIndexOf(".");
+    if (extensionStart < 0 || extensionStart == originalFilename.length() - 1) {
+      throw StorageException.forFileInvalid(originalFilename);
+    }
+    return originalFilename.substring(extensionStart + 1).toLowerCase(Locale.ROOT);
+  }
+
   private ChatMessageDto convertToMessageDto(ChatMessage message) {
+    List<ChatAttachmentDto> attachments =
+        getAttachments(message).stream()
+            .map(
+                attachment ->
+                    ChatAttachmentDto.builder()
+                        .id(attachment.getId())
+                        .originalFileName(attachment.getOriginalFileName())
+                        .contentType(attachment.getContentType())
+                        .fileSize(attachment.getFileSize())
+                        .downloadUrl(storageService.getPresignedGetObject(attachment.getStoredFileName()))
+                        .build())
+            .collect(Collectors.toList());
+
     return ChatMessageDto.builder()
         .roomId(message.getChatRoom().getId())
         .senderId(message.getSender().getId())
@@ -243,7 +421,13 @@ public class ChatService {
                     message.getSender().getImage().getStoredFileName())
                 : null)
         .message(message.getMessage())
+        .messageType(attachments.isEmpty() ? "TEXT" : "FILE")
+        .attachments(attachments)
         .createdAt(message.getCreatedAt())
         .build();
+  }
+
+  private List<ChatMessageAttachment> getAttachments(ChatMessage message) {
+    return message.getAttachments() == null ? Collections.emptyList() : message.getAttachments();
   }
 }

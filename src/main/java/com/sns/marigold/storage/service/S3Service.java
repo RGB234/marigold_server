@@ -1,12 +1,15 @@
 package com.sns.marigold.storage.service;
 
 import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.exception.StorageException;
 import io.awspring.cloud.s3.ObjectMetadata;
 import io.awspring.cloud.s3.S3Exception;
 import io.awspring.cloud.s3.S3Template;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,12 +42,22 @@ public class S3Service {
   private String region;
 
   public ImageUploadDto uploadFile(MultipartFile file) {
+    FileUploadDto uploadedFile = uploadFileWithMetadata(file);
+    return ImageUploadDto.builder()
+        .storedFileName(uploadedFile.getStoredFileName())
+        .originalFileName(uploadedFile.getOriginalFileName())
+        .build();
+  }
+
+  public FileUploadDto uploadFileWithMetadata(MultipartFile file) {
     if (file == null || file.isEmpty()) {
       throw StorageException.forFileInvalid();
     }
 
     String originalFilename = file.getOriginalFilename();
     String key = Objects.requireNonNull(createFileName(originalFilename)); // Random UUID + 파일 확장자
+    String contentType =
+        file.getContentType() != null ? file.getContentType() : "application/octet-stream";
 
     try (InputStream inputStream = file.getInputStream()) {
       s3Template.upload(
@@ -52,7 +65,7 @@ public class S3Service {
           key,
           inputStream,
           ObjectMetadata.builder()
-              .contentType(file.getContentType())
+              .contentType(contentType)
               .contentLength(file.getSize())
               .build());
     } catch (IOException | S3Exception e) {
@@ -60,7 +73,12 @@ public class S3Service {
       throw StorageException.forFileUploadFailed(e);
     }
 
-    return ImageUploadDto.builder().storedFileName(key).originalFileName(originalFilename).build();
+    return FileUploadDto.builder()
+        .storedFileName(key)
+        .originalFileName(originalFilename)
+        .contentType(contentType)
+        .fileSize(file.getSize())
+        .build();
   }
 
   public void deleteFile(String storedFileName) {
@@ -94,6 +112,22 @@ public class S3Service {
     return result;
   }
 
+  public List<FileUploadDto> uploadFilesToS3(List<MultipartFile> files) {
+    if (files == null || files.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<FileUploadDto> result = new ArrayList<>();
+    try {
+      for (MultipartFile file : files) {
+        result.add(this.uploadFileWithMetadata(file));
+      }
+    } catch (StorageException e) {
+      this.deleteUploadedFilesFromS3(result);
+      throw StorageException.forFileUploadFailed(e.getCause());
+    }
+    return result;
+  }
+
   public void deleteUploadedImagesFromS3(List<ImageUploadDto> images) {
     for (ImageUploadDto dto : images) {
       this.deleteFile(dto.getStoredFileName());
@@ -103,6 +137,12 @@ public class S3Service {
   public void deleteUploadedImagesFromS3ByStoredFileNames(List<String> storedFileNames) {
     for (String storedFileName : storedFileNames) {
       this.deleteFile(storedFileName);
+    }
+  }
+
+  public void deleteUploadedFilesFromS3(List<FileUploadDto> files) {
+    for (FileUploadDto dto : files) {
+      this.deleteFile(dto.getStoredFileName());
     }
   }
 
@@ -130,6 +170,42 @@ public class S3Service {
     PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
     return presignedRequest.url().toString();
     // return Map.of("url", presignedRequest.url().toString(), "filename", storedFileName);
+  }
+
+  public String getPresignedDownloadObject(String storedFileName, String originalFileName) {
+    if (storedFileName == null || storedFileName.isEmpty()) {
+      return null;
+    }
+    String safeBucketName = Objects.requireNonNull(bucketName, "bucketName must not be null");
+    String safeFileName = sanitizeContentDispositionFileName(originalFileName);
+    String fallbackFileName = safeFileName.replaceAll("[^\\x20-\\x7E]", "_");
+    String encodedFileName =
+        URLEncoder.encode(safeFileName, StandardCharsets.UTF_8).replace("+", "%20");
+    String contentDisposition =
+        "attachment; filename=\"" + fallbackFileName + "\"; filename*=UTF-8''" + encodedFileName;
+
+    GetObjectRequest objectRequest =
+        GetObjectRequest.builder()
+            .bucket(safeBucketName)
+            .key(storedFileName)
+            .responseContentDisposition(contentDisposition)
+            .build();
+
+    GetObjectPresignRequest presignRequest =
+        GetObjectPresignRequest.builder()
+            .signatureDuration(Duration.ofMinutes(10))
+            .getObjectRequest(objectRequest)
+            .build();
+
+    PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
+    return presignedRequest.url().toString();
+  }
+
+  private String sanitizeContentDispositionFileName(String fileName) {
+    if (fileName == null || fileName.isBlank()) {
+      return "download";
+    }
+    return fileName.replace("\\", "_").replace("\"", "_").replace("\r", "_").replace("\n", "_");
   }
 
   private String createFileName(String fileName) {

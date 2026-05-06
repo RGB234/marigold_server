@@ -22,9 +22,12 @@ import com.sns.marigold.chat.enums.ChatRoomType;
 import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
+import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.S3Service;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -40,6 +43,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.mock.web.MockMultipartFile;
 
 @ExtendWith(MockitoExtension.class)
 class ChatServiceTest {
@@ -380,6 +384,81 @@ class ChatServiceTest {
     verify(chatMessageRepository, times(1)).save(any(ChatMessage.class));
     verify(p1, times(1)).reJoin(); // 방 활성화 검증
     verify(p2, times(1)).reJoin();
+  }
+
+  @Test
+  @DisplayName("파일 메시지는 여러 첨부파일을 저장한다.")
+  void saveFileMessage_Success() {
+    // given
+    MockMultipartFile textFile =
+        new MockMultipartFile(
+            "files", "note.txt", "text/plain", "hello".getBytes(StandardCharsets.UTF_8));
+    MockMultipartFile csvFile =
+        new MockMultipartFile(
+            "files", "memo.csv", "text/csv", "a,b".getBytes(StandardCharsets.UTF_8));
+
+    given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(userRepository.findById(1L)).willReturn(Optional.of(user1));
+
+    RoomParticipant p1 = createParticipant(chatRoom, user1);
+    RoomParticipant p2 = createParticipant(chatRoom, user2);
+    given(participantRepository.findByChatRoomAndUser(chatRoom, user1)).willReturn(Optional.of(p1));
+    given(participantRepository.findByChatRoomAndUser(chatRoom, user2)).willReturn(Optional.of(p2));
+    given(participantRepository.findAllByChatRoom(chatRoom)).willReturn(List.of(p1, p2));
+
+    given(storageService.uploadFilesToS3(any()))
+        .willReturn(
+            List.of(
+                FileUploadDto.builder()
+                    .storedFileName("stored-note.txt")
+                    .originalFileName("note.txt")
+                    .contentType("text/plain")
+                    .fileSize(textFile.getSize())
+                    .build(),
+                FileUploadDto.builder()
+                    .storedFileName("stored-memo.csv")
+                    .originalFileName("memo.csv")
+                    .contentType("text/csv")
+                    .fileSize(csvFile.getSize())
+                    .build()));
+    given(chatMessageRepository.saveAndFlush(any(ChatMessage.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+    given(storageService.getPresignedGetObject("stored-note.txt")).willReturn("https://file/1");
+    given(storageService.getPresignedGetObject("stored-memo.csv")).willReturn("https://file/2");
+
+    // when
+    ChatMessageDto result =
+        chatService.saveFileMessage(100L, "첨부 확인", List.of(textFile, csvFile), 1L);
+
+    // then
+    assertThat(result.getMessage()).isEqualTo("첨부 확인");
+    assertThat(result.getMessageType()).isEqualTo("FILE");
+    assertThat(result.getAttachments()).hasSize(2);
+    assertThat(result.getAttachments().get(0).getOriginalFileName()).isEqualTo("note.txt");
+    assertThat(result.getAttachments().get(1).getDownloadUrl()).isEqualTo("https://file/2");
+    verify(chatMessageRepository, times(1)).saveAndFlush(any(ChatMessage.class));
+    verify(p1, times(1)).reJoin();
+    verify(p2, times(1)).reJoin();
+  }
+
+  @Test
+  @DisplayName("허용하지 않는 확장자의 파일 메시지는 저장하지 않는다.")
+  void saveFileMessage_InvalidExtension() {
+    // given
+    MockMultipartFile invalidFile =
+        new MockMultipartFile(
+            "files", "script.exe", "application/octet-stream", "echo".getBytes(StandardCharsets.UTF_8));
+
+    given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(userRepository.findById(1L)).willReturn(Optional.of(user1));
+    RoomParticipant p1 = createParticipant(chatRoom, user1);
+    given(participantRepository.findByChatRoomAndUser(chatRoom, user1)).willReturn(Optional.of(p1));
+
+    // when & then
+    assertThatThrownBy(() -> chatService.saveFileMessage(100L, "", List.of(invalidFile), 1L))
+        .isInstanceOf(StorageException.class);
+    verify(storageService, times(0)).uploadFilesToS3(any());
+    verify(chatMessageRepository, times(0)).saveAndFlush(any(ChatMessage.class));
   }
 
   @Test
