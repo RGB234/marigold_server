@@ -3,10 +3,21 @@ export const WS_BASE_URL = __ENV.WS_BASE_URL || 'ws://localhost:8080/ws/websocke
 export const API_VERSION = '/api/v1';
 
 // 공통 테스트 데이터 및 유틸리티
+const DEFAULT_TEST_PASSWORD = __ENV.LOAD_TEST_USER_PASSWORD || '';
+
 export const TEST_USERS = [
-  { email: 'user1@example.com', password: '!password123' },
-  { email: 'user2@example.com', password: '!password123' },
-  { email: 'user3@example.com', password: '!password123' },
+  {
+    email: __ENV.LOAD_TEST_USER1_EMAIL || 'user1@example.com',
+    password: __ENV.LOAD_TEST_USER1_PASSWORD || DEFAULT_TEST_PASSWORD,
+  },
+  {
+    email: __ENV.LOAD_TEST_USER2_EMAIL || 'user2@example.com',
+    password: __ENV.LOAD_TEST_USER2_PASSWORD || DEFAULT_TEST_PASSWORD,
+  },
+  {
+    email: __ENV.LOAD_TEST_USER3_EMAIL || 'user3@example.com',
+    password: __ENV.LOAD_TEST_USER3_PASSWORD || DEFAULT_TEST_PASSWORD,
+  },
 ];
 
 export function getRandomUser() {

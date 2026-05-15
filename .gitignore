@@ -37,6 +37,10 @@ out/
 .vscode/
 
 ### ###
+../secrets/back/.env
+.env.*
+!.env.example
 /src/main/resources/*.yml
+!/src/main/resources/application.yml
 
 /src/test/resources/*

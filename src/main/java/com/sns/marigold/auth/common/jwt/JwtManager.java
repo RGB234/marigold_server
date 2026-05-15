@@ -28,7 +28,7 @@ public class JwtManager {
   @Getter public final long refreshTokenValidityInMilliseconds;
 
   public JwtManager(
-      @Value("${jwt.secret.defaultSecretKeyForDevelopmentOnlyChangeInProduction}") String secret,
+      @Value("${jwt.secret-key}") String secret,
       @Value("${jwt.access-token-validity-in-seconds}") long accessTokenValidityInSeconds,
       @Value("${jwt.refresh-token-validity-in-seconds}") long refreshTokenValidityInSeconds) {
     this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));

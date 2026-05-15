@@ -18,14 +18,15 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 class JwtManagerTest {
 
+  private static final String TEST_SECRET = "a".repeat(64);
+
   private JwtManager jwtManager;
   private CustomPrincipal testPrincipal;
 
   @BeforeEach
   void setUp() {
     // 256bit 이상의 비밀키 (32 bytes)
-    String secret = "this-is-a-very-long-secret-key-for-testing-purpose-only";
-    jwtManager = new JwtManager(secret, 3600, 86400);
+    jwtManager = new JwtManager(TEST_SECRET, 3600, 86400);
 
     List<SimpleGrantedAuthority> authorities =
         Collections.singletonList(new SimpleGrantedAuthority("ROLE_PERSON"));
@@ -81,8 +82,7 @@ class JwtManagerTest {
   void parseExpiredToken() throws InterruptedException {
     // given
     // 유효시간이 0인 JwtManager 생성 (테스트용)
-    JwtManager expiredJwtManager =
-        new JwtManager("this-is-a-very-long-secret-key-for-testing-purpose-only", 0, 0);
+    JwtManager expiredJwtManager = new JwtManager(TEST_SECRET, 0, 0);
     String token = expiredJwtManager.createAccessToken(testPrincipal);
 
     // when & then
