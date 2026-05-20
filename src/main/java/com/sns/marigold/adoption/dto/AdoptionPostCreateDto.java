@@ -7,6 +7,7 @@ import com.sns.marigold.adoption.enums.Species;
 import com.sns.marigold.global.annotation.EnumType;
 import com.sns.marigold.global.annotation.ValidImageCount;
 import com.sns.marigold.global.annotation.ValidImageFiles;
+import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.global.validator.ImageCountValidatable;
 import com.sns.marigold.user.entity.User;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -28,7 +29,9 @@ import org.springframework.web.multipart.MultipartFile;
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
-@ValidImageCount(min = 1, max = 8)
+@ValidImageCount(
+    min = ValidationPolicy.AdoptionPost.IMAGE_MIN_COUNT,
+    max = ValidationPolicy.AdoptionPost.IMAGE_MAX_COUNT)
 public class AdoptionPostCreateDto implements ImageCountValidatable {
 
   @NotNull(message = "값이 비어있습니다.")
@@ -36,7 +39,7 @@ public class AdoptionPostCreateDto implements ImageCountValidatable {
   private Species species;
 
   @NotNull(message = "값이 비어있습니다.")
-  @Min(value = 0, message = "나이는 0 이상이어야 합니다.")
+  @Min(value = ValidationPolicy.AdoptionPost.AGE_MIN, message = "나이는 0 이상이어야 합니다.")
   @Builder.Default
   private Integer age = 0;
 
@@ -48,11 +51,11 @@ public class AdoptionPostCreateDto implements ImageCountValidatable {
   private String area;
 
   @NotBlank(message = "값이 비어있습니다.")
-  @Size(max = 16, message = "제목은 16자 이하여야 합니다.")
+  @Size(max = ValidationPolicy.AdoptionPost.TITLE_MAX_LENGTH, message = "제목은 16자 이하여야 합니다.")
   private String title;
 
   @NotNull(message = "값이 비어있습니다.")
-  @Min(value = 0, message = "무게는 0 이상이어야 합니다.")
+  @Min(value = ValidationPolicy.AdoptionPost.WEIGHT_MIN, message = "무게는 0 이상이어야 합니다.")
   @Builder.Default
   private Double weight = 0.0;
 
@@ -60,8 +63,11 @@ public class AdoptionPostCreateDto implements ImageCountValidatable {
   @EnumType(target = Neutering.class)
   private Neutering neutering;
 
-  @NotNull(message = "값이 비어있습니다.")
-  @Size(min = 20, max = 500, message = "20자 이상 500자 이하여야 합니다.")
+  @NotBlank(message = "값이 비어있습니다.")
+  @Size(
+      min = ValidationPolicy.AdoptionPost.FEATURES_MIN_LENGTH,
+      max = ValidationPolicy.AdoptionPost.FEATURES_MAX_LENGTH,
+      message = "20자 이상 500자 이하여야 합니다.")
   private String features;
 
   @Schema(description = "업로드할 이미지 파일들", type = "string", format = "binary")

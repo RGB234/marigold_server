@@ -5,6 +5,7 @@ import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
 import com.sns.marigold.adoption.exception.AdoptionPostException;
+import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.user.entity.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -44,8 +45,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @DynamicUpdate // 변경된 필드만 UPDATE 쿼리 생성
 public class AdoptionPost {
 
-  public static final int MIN_IMAGE_COUNT = 1;
-  public static final int MAX_IMAGE_COUNT = 8;
+  public static final int MIN_IMAGE_COUNT = ValidationPolicy.AdoptionPost.IMAGE_MIN_COUNT;
+  public static final int MAX_IMAGE_COUNT = ValidationPolicy.AdoptionPost.IMAGE_MAX_COUNT;
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY) // Auto increment

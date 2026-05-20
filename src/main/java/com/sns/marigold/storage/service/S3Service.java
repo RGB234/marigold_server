@@ -1,7 +1,8 @@
 package com.sns.marigold.storage.service;
 
-import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.exception.StorageException;
 import io.awspring.cloud.s3.ObjectMetadata;
 import io.awspring.cloud.s3.S3Exception;
@@ -64,10 +65,7 @@ public class S3Service {
           Objects.requireNonNull(bucketName),
           key,
           inputStream,
-          ObjectMetadata.builder()
-              .contentType(contentType)
-              .contentLength(file.getSize())
-              .build());
+          ObjectMetadata.builder().contentType(contentType).contentLength(file.getSize()).build());
     } catch (IOException | S3Exception e) {
       log.error("S3 upload failed", e);
       throw StorageException.forFileUploadFailed(e);
@@ -221,12 +219,11 @@ public class S3Service {
 
   public void validateRealImageFiles(List<MultipartFile> files) {
     Tika tika = new Tika();
-    List<String> allowedMimeTypes = List.of("image/jpeg", "image/png", "image/webp");
     // 파일의 실제 InputStream을 읽어 MIME 타입을 추론
     for (MultipartFile file : files) {
       try (InputStream inputStream = file.getInputStream()) {
         String detectType = tika.detect(inputStream);
-        if (!allowedMimeTypes.contains(detectType)) {
+        if (!ValidationPolicy.Image.ALLOWED_MIME_TYPES.contains(detectType)) {
           throw StorageException.forFileInvalid(file.getOriginalFilename());
         }
       } catch (IOException e) {

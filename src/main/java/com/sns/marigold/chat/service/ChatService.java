@@ -16,6 +16,7 @@ import com.sns.marigold.chat.repository.ChatMessageAttachmentRepository;
 import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
+import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.S3Service;
@@ -29,7 +30,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.tika.Tika;
@@ -46,37 +46,13 @@ import org.springframework.web.multipart.MultipartFile;
 @Transactional(readOnly = true)
 public class ChatService {
 
-  private static final int MAX_CHAT_ATTACHMENT_COUNT = 5;
-  private static final long MAX_CHAT_ATTACHMENT_SIZE = 10L * 1024 * 1024;
-  private static final long MAX_CHAT_ATTACHMENT_TOTAL_SIZE = 30L * 1024 * 1024;
-  private static final Map<String, Set<String>> ALLOWED_CHAT_ATTACHMENT_MIME_TYPES =
-      Map.ofEntries(
-          Map.entry("jpg", Set.of("image/jpeg")),
-          Map.entry("jpeg", Set.of("image/jpeg")),
-          Map.entry("png", Set.of("image/png")),
-          Map.entry("webp", Set.of("image/webp")),
-          Map.entry("pdf", Set.of("application/pdf")),
-          Map.entry(
-              "docx",
-              Set.of(
-                  "application/x-tika-ooxml",
-                  "application/zip",
-                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document")),
-          Map.entry(
-              "xlsx",
-              Set.of(
-                  "application/x-tika-ooxml",
-                  "application/zip",
-                  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
-          Map.entry(
-              "pptx",
-              Set.of(
-                  "application/x-tika-ooxml",
-                  "application/zip",
-                  "application/vnd.openxmlformats-officedocument.presentationml.presentation")),
-          Map.entry("txt", Set.of("text/plain")),
-          Map.entry("csv", Set.of("text/csv", "text/plain", "application/csv")),
-          Map.entry("hwpx", Set.of("application/zip", "application/vnd.hancom.hwpx")));
+  private static final int MAX_CHAT_ATTACHMENT_COUNT = ValidationPolicy.ChatAttachment.MAX_COUNT;
+  private static final long MAX_CHAT_ATTACHMENT_SIZE =
+      ValidationPolicy.ChatAttachment.MAX_FILE_SIZE_BYTES;
+  private static final long MAX_CHAT_ATTACHMENT_TOTAL_SIZE =
+      ValidationPolicy.ChatAttachment.MAX_TOTAL_SIZE_BYTES;
+  private static final Map<String, List<String>> ALLOWED_CHAT_ATTACHMENT_MIME_TYPES =
+      ValidationPolicy.ChatAttachment.ALLOWED_MIME_TYPES_BY_EXTENSION;
 
   private final ChatRoomRepository chatRoomRepository;
   private final ChatMessageRepository chatMessageRepository;
@@ -370,7 +346,7 @@ public class ChatService {
       }
 
       String extension = getFileExtension(file);
-      Set<String> allowedMimeTypes = ALLOWED_CHAT_ATTACHMENT_MIME_TYPES.get(extension);
+      List<String> allowedMimeTypes = ALLOWED_CHAT_ATTACHMENT_MIME_TYPES.get(extension);
       if (allowedMimeTypes == null) {
         throw StorageException.forFileInvalid(file.getOriginalFilename());
       }

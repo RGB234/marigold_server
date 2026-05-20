@@ -1,6 +1,7 @@
 package com.sns.marigold.auth.common;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,10 +15,11 @@ import org.springframework.web.cors.CorsConfigurationSource;
 public class CustomCorsConfigurationSource implements CorsConfigurationSource {
 
   private final String ALLOWED_ORIGIN;
-  private final List<String> ALLOWED_METHODS = List.of("GET", "POST", "PATCH", "OPTION", "DELETE");
+  private final List<String> ALLOWED_METHODS = List.of("GET", "POST", "PATCH", "OPTIONS", "DELETE");
 
-  public CustomCorsConfigurationSource(@Value("${url.frontend.domain}") String baseUrl) {
-    ALLOWED_ORIGIN = baseUrl;
+  public CustomCorsConfigurationSource(@Value("${url.frontend.origin}") String frontendOrigin) {
+    URI frontendUri = URI.create(frontendOrigin);
+    ALLOWED_ORIGIN = frontendUri.getScheme() + "://" + frontendUri.getAuthority();
   }
 
   @Override

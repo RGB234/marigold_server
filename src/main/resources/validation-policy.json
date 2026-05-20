@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "email": {
+    "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+  },
+  "password": {
+    "minLength": 8
+  },
+  "user": {
+    "nickname": {
+      "minLength": 2,
+      "maxLength": 12,
+      "allowedPattern": "^[a-zA-Z가-힣0-9]+$"
+    }
+  },
+  "adoptionPost": {
+    "age": {
+      "min": 0
+    },
+    "weight": {
+      "min": 0
+    },
+    "title": {
+      "maxLength": 16
+    },
+    "features": {
+      "minLength": 20,
+      "maxLength": 500
+    },
+    "images": {
+      "minCount": 1,
+      "maxCount": 8
+    }
+  },
+  "comment": {
+    "content": {
+      "maxLength": 1000
+    },
+    "images": {
+      "minCount": 0,
+      "maxCount": 1
+    }
+  },
+  "image": {
+    "maxSizeMb": 5,
+    "maxSizeBytes": 5242880,
+    "allowedMimeTypes": [
+      "image/jpeg",
+      "image/png",
+      "image/webp"
+    ],
+    "allowedExtensions": [
+      "jpg",
+      "jpeg",
+      "png",
+      "webp"
+    ]
+  },
+  "chatAttachment": {
+    "maxCount": 6,
+    "maxFileSizeBytes": 5242880,
+    "maxTotalSizeBytes": 31457280,
+    "allowedExtensions": [
+      "csv",
+      "docx",
+      "hwpx",
+      "jpeg",
+      "jpg",
+      "pdf",
+      "png",
+      "pptx",
+      "txt",
+      "webp",
+      "xlsx"
+    ],
+    "allowedMimeTypesByExtension": {
+      "jpg": [
+        "image/jpeg"
+      ],
+      "jpeg": [
+        "image/jpeg"
+      ],
+      "png": [
+        "image/png"
+      ],
+      "webp": [
+        "image/webp"
+      ],
+      "pdf": [
+        "application/pdf"
+      ],
+      "docx": [
+        "application/x-tika-ooxml",
+        "application/zip",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ],
+      "xlsx": [
+        "application/x-tika-ooxml",
+        "application/zip",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ],
+      "pptx": [
+        "application/x-tika-ooxml",
+        "application/zip",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+      ],
+      "txt": [
+        "text/plain"
+      ],
+      "csv": [
+        "text/csv",
+        "text/plain",
+        "application/csv"
+      ],
+      "hwpx": [
+        "application/zip",
+        "application/vnd.hancom.hwpx"
+      ]
+    }
+  },
+  "tsid": {
+    "base32Length": 13,
+    "base32Pattern": "^[0-9ABCDEFGHJKMNPQRSTVWXYZ]{13}$"
+  }
+}

@@ -1,6 +1,7 @@
 package com.sns.marigold.global.validator;
 
 import com.sns.marigold.global.annotation.ValidImageFiles;
+import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.S3Service;
 import jakarta.validation.ConstraintValidator;
@@ -16,6 +17,11 @@ public class ImageFilesValidatorForSingle
   @Override
   public boolean isValid(MultipartFile file, ConstraintValidatorContext context) {
     if (file == null || file.isEmpty()) return true;
+
+    if (file.getSize() > ValidationPolicy.Image.MAX_SIZE_BYTES) {
+      replaceMessage(context, "파일 크기는 최대 " + ValidationPolicy.Image.MAX_SIZE_MB + "MB까지 가능합니다.");
+      return false;
+    }
 
     List<MultipartFile> nonEmptyFiles = List.of(file);
 

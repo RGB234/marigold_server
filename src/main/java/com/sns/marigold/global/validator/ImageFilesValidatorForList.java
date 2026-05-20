@@ -1,6 +1,7 @@
 package com.sns.marigold.global.validator;
 
 import com.sns.marigold.global.annotation.ValidImageFiles;
+import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.S3Service;
 import jakarta.validation.ConstraintValidator;
@@ -28,6 +29,12 @@ public class ImageFilesValidatorForList
 
     if (nonEmptyFiles.isEmpty()) {
       return true;
+    }
+
+    if (nonEmptyFiles.stream()
+        .anyMatch(file -> file.getSize() > ValidationPolicy.Image.MAX_SIZE_BYTES)) {
+      replaceMessage(ctx, "파일 크기는 최대 " + ValidationPolicy.Image.MAX_SIZE_MB + "MB까지 가능합니다.");
+      return false;
     }
 
     // Tika로 실제 파일 바이트를 분석해 이미지인지 검증

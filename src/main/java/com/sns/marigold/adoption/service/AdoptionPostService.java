@@ -338,37 +338,34 @@ public class AdoptionPostService {
 
   @Transactional
   public void delete(Long id, Long userId) {
-    transactionTemplate.executeWithoutResult(
-        status -> {
-          AdoptionPost info = findEntityById(id);
+    AdoptionPost info = findEntityById(id);
 
-          if (info.getDeletedAt() != null) {
-            throw AdoptionPostException.forAdoptionPostDeleted();
-          }
+    if (info.getDeletedAt() != null) {
+      throw AdoptionPostException.forAdoptionPostDeleted();
+    }
 
-          validateWriter(info, userId);
+    validateWriter(info, userId);
 
-          // 성능상 트랜잭션에서 저장소에 접근하지 않고 이벤트를 호출하여 분리
-          List<String> imagesToDelete = new ArrayList<>();
-          if (info.getImages() != null) {
-            imagesToDelete.addAll(
-                info.getImages().stream()
-                    .map(AdoptionPostImage::getStoredFileName)
-                    .filter(Objects::nonNull)
-                    .toList());
-          }
+    // 성능상 트랜잭션에서 저장소에 접근하지 않고 이벤트를 호출하여 분리
+    List<String> imagesToDelete = new ArrayList<>();
+    if (info.getImages() != null) {
+      imagesToDelete.addAll(
+          info.getImages().stream()
+              .map(AdoptionPostImage::getStoredFileName)
+              .filter(Objects::nonNull)
+              .toList());
+    }
 
-          // 댓글 삭제
-          adoptionCommentService.deleteCommentsByPostId(id);
-          // 채팅방 종료
-          chatService.closeAllChatRoomsByPostId(id);
+    // 댓글 삭제
+    adoptionCommentService.deleteCommentsByPostId(id);
+    // 게시글 삭제
+    info.softDelete();
+    // 채팅방 종료
+    chatService.closeAllChatRoomsByPostId(id);
 
-          info.softDelete();
-
-          if (!imagesToDelete.isEmpty()) {
-            eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
-          }
-        });
+    if (!imagesToDelete.isEmpty()) {
+      eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
+    }
   }
 
   public void validateWriter(AdoptionPost info, Long userId) {

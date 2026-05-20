@@ -11,9 +11,11 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
+@Profile("dev")
 // @ConfigurationProperties(prefix = "ssh") // application.properties 값 사용
 public class SshTunnelingInitializer {
 
@@ -42,7 +44,7 @@ public class SshTunnelingInitializer {
 
   @PreDestroy
   public void closeSSH() {
-    if (session.isConnected()) {
+    if (session != null && session.isConnected()) {
       session.disconnect();
     }
   }
