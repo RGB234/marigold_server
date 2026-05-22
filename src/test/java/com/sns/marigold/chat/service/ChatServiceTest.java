@@ -447,7 +447,10 @@ class ChatServiceTest {
     // given
     MockMultipartFile invalidFile =
         new MockMultipartFile(
-            "files", "script.exe", "application/octet-stream", "echo".getBytes(StandardCharsets.UTF_8));
+            "files",
+            "script.exe",
+            "application/octet-stream",
+            "echo".getBytes(StandardCharsets.UTF_8));
 
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
@@ -470,7 +473,8 @@ class ChatServiceTest {
 
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(3L)).willReturn(Optional.of(user3));
-    given(participantRepository.findByChatRoomAndUser(chatRoom, user3)).willReturn(Optional.empty());
+    given(participantRepository.findByChatRoomAndUser(chatRoom, user3))
+        .willReturn(Optional.empty());
 
     // when & then
     assertThatThrownBy(() -> chatService.saveMessage(reqDto, 3L))
@@ -522,7 +526,8 @@ class ChatServiceTest {
     // given
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
-    given(participantRepository.findByChatRoomAndUser(chatRoom, user1)).willReturn(Optional.empty());
+    given(participantRepository.findByChatRoomAndUser(chatRoom, user1))
+        .willReturn(Optional.empty());
 
     // when & then
     assertThatThrownBy(() -> chatService.closeChatRoom(100L, 1L))

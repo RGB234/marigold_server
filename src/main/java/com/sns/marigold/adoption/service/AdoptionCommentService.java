@@ -282,7 +282,8 @@ public class AdoptionCommentService {
         adoptionCommentImageRepository.findStoredFileNamesByAdoptionPostId(postId);
 
     adoptionCommentImageRepository.deleteByAdoptionPostId(postId);
-    adoptionCommentRepository.clearParentByAdoptionPostId(postId); // self FK 끊기 - 삭제 시 FK 로 인한 삭제 실패 방지
+    adoptionCommentRepository.clearParentByAdoptionPostId(
+        postId); // self FK 끊기 - 삭제 시 FK 로 인한 삭제 실패 방지
     adoptionCommentRepository.deleteByAdoptionPostId(postId);
 
     if (imagesToDelete != null) {

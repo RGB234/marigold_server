@@ -32,13 +32,10 @@ import org.springframework.mock.web.MockMultipartFile;
 
 public class AdoptionApiTest extends ApiIntegrationTest {
 
-  @Autowired
-  private AdoptionPostRepository adoptionPostRepository;
+  @Autowired private AdoptionPostRepository adoptionPostRepository;
 
-  @Nullable
-  private AdoptionPost defaultPost;
-  @Nullable
-  private MockMultipartFile defaultImage;
+  @Nullable private AdoptionPost defaultPost;
+  @Nullable private MockMultipartFile defaultImage;
 
   @BeforeEach
   void setUp() {

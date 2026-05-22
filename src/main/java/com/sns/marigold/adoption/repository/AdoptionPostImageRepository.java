@@ -1,6 +1,5 @@
 package com.sns.marigold.adoption.repository;
 
-import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.entity.AdoptionPostImage;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;

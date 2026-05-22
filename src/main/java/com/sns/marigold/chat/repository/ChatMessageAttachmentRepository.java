@@ -8,6 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ChatMessageAttachmentRepository
     extends JpaRepository<ChatMessageAttachment, Long> {
 
-  Optional<ChatMessageAttachment> findByIdAndChatMessage_ChatRoom(
-      Long id, ChatRoom chatRoom);
+  Optional<ChatMessageAttachment> findByIdAndChatMessage_ChatRoom(Long id, ChatRoom chatRoom);
 }

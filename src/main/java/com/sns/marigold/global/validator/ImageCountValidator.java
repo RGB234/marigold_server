@@ -41,10 +41,7 @@ public class ImageCountValidator
     int newImageCount =
         images == null || images.isEmpty()
             ? 0
-            : (int)
-                images.stream()
-                    .filter(f -> f != null && !f.isEmpty())
-                    .count();
+            : (int) images.stream().filter(f -> f != null && !f.isEmpty()).count();
 
     int totalImageCount = storedImageCount + newImageCount;
 

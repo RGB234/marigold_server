@@ -1,7 +1,6 @@
 package com.sns.marigold.adoption.repository;
 
 import com.sns.marigold.adoption.entity.AdoptionPost;
-import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,7 +14,6 @@ public interface AdoptionPostRepository
 
   Page<AdoptionPost> findByWriter_IdAndDeletedAtIsNull(
       @Param("writerId") Long writerId, Pageable pageable);
-
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("UPDATE AdoptionPost a SET a.deletedAt = CURRENT_TIMESTAMP WHERE a.writer.id = :writerId")

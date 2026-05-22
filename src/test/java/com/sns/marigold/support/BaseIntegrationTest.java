@@ -9,21 +9,21 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest
-@Testcontainers
 @ActiveProfiles("test")
 public abstract class BaseIntegrationTest {
 
-  @Container
-  @SuppressWarnings("resource") // Testcontainers이므로 자동으로 .close() 호출됨.
-  static MySQLContainer<?> mysql =
+  @SuppressWarnings("resource") // 테스트 JVM 동안 공유하고 Ryuk이 종료 시 정리함.
+  private static final MySQLContainer<?> mysql =
       new MySQLContainer<>("mysql:8.0.32")
           .withDatabaseName("marigold_test")
           .withUsername("test")
           .withPassword("test");
+
+  static {
+    mysql.start();
+  }
 
   @MockitoBean protected S3Service s3Service;
 

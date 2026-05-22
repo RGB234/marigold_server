@@ -8,10 +8,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.sns.marigold.adoption.dto.AdoptionCommentUpdateDto;
 import com.sns.marigold.adoption.entity.AdoptionComment;
 import com.sns.marigold.adoption.entity.AdoptionCommentImage;
 import com.sns.marigold.adoption.entity.AdoptionPost;
-import com.sns.marigold.adoption.dto.AdoptionCommentUpdateDto;
 import com.sns.marigold.adoption.exception.AdoptionCommentException;
 import com.sns.marigold.adoption.repository.AdoptionAdopterRepository;
 import com.sns.marigold.adoption.repository.AdoptionCommentImageRepository;
@@ -26,8 +26,8 @@ import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -82,7 +82,8 @@ class AdoptionCommentServiceTest {
     writer = User.builder().id(1L).nickname("writer").role(Role.ROLE_PERSON).build();
     post = AdoptionPost.builder().writer(writer).title("post").build();
     ReflectionTestUtils.setField(post, "id", 100L);
-    comment = AdoptionComment.builder().adoptionPost(post).writer(writer).content("comment").build();
+    comment =
+        AdoptionComment.builder().adoptionPost(post).writer(writer).content("comment").build();
     comment.addImage(
         AdoptionCommentImage.builder()
             .storedFileName("comment-image-1.jpg")

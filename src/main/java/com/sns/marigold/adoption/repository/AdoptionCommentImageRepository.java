@@ -11,9 +11,9 @@ public interface AdoptionCommentImageRepository extends JpaRepository<AdoptionCo
 
   @Query(
       "SELECT i.storedFileName FROM AdoptionCommentImage i "
-            + "WHERE i.adoptionComment.id IN ("
-            + "  SELECT c.id FROM AdoptionComment c WHERE c.adoptionPost.id = :postId"
-            + ")")
+          + "WHERE i.adoptionComment.id IN ("
+          + "  SELECT c.id FROM AdoptionComment c WHERE c.adoptionPost.id = :postId"
+          + ")")
   List<String> findStoredFileNamesByAdoptionPostId(@Param("postId") Long postId);
 
   @Modifying

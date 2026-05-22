@@ -25,20 +25,15 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 public abstract class ApiIntegrationTest extends BaseIntegrationTest {
 
-  @Autowired
-  protected MockMvc mockMvc;
+  @Autowired protected MockMvc mockMvc;
 
-  @Autowired
-  protected ObjectMapper objectMapper;
+  @Autowired protected ObjectMapper objectMapper;
 
-  @Autowired
-  protected JwtManager jwtManager;
+  @Autowired protected JwtManager jwtManager;
 
-  @Autowired
-  protected RecentAuthStore recentAuthStore;
+  @Autowired protected RecentAuthStore recentAuthStore;
 
-  @Autowired
-  protected UserRepository userRepository;
+  @Autowired protected UserRepository userRepository;
 
   protected User tester1;
   protected User tester2;

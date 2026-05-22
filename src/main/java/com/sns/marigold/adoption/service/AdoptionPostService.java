@@ -18,7 +18,6 @@ import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.adoption.specification.AdoptionPostSpecification;
 import com.sns.marigold.auth.exception.AuthException;
-import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.chat.entity.RoomParticipant;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
@@ -124,7 +123,8 @@ public class AdoptionPostService {
     validateWriter(adoptionPost, userId);
 
     List<String> imagesToKeep = normalizeImagesToKeep(dto.getImagesToKeep());
-    List<MultipartFile> images = dto.getImages() != null ? dto.getImages() : Collections.emptyList();
+    List<MultipartFile> images =
+        dto.getImages() != null ? dto.getImages() : Collections.emptyList();
     adoptionPost.validateImageReplacement(imagesToKeep, countNewImages(images));
 
     // 1. 새 이미지 S3 업로드 (실패 시 예외 발생, 파일 자동 삭제됨)

@@ -101,7 +101,10 @@ public class ChatService {
             .findById(roomId)
             .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
 
-    User user = userRepository.findById(currentUserId).orElseThrow(() -> new IllegalArgumentException("User not found: " + currentUserId));
+    User user =
+        userRepository
+            .findById(currentUserId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + currentUserId));
 
     // 권한 체크
     participantRepository
@@ -155,8 +158,7 @@ public class ChatService {
     };
   }
 
-  public List<ChatMessageDto> getRoomMessages(
-      @NonNull Long roomId, @NonNull Long currentUserId) {
+  public List<ChatMessageDto> getRoomMessages(@NonNull Long roomId, @NonNull Long currentUserId) {
     ChatRoom chatRoom = findChatRoom(roomId);
     validateParticipant(chatRoom, currentUserId);
     return chatMessageRepository.findAllByChatRoomOrderByCreatedAtAsc(chatRoom).stream()
@@ -383,7 +385,8 @@ public class ChatService {
                         .originalFileName(attachment.getOriginalFileName())
                         .contentType(attachment.getContentType())
                         .fileSize(attachment.getFileSize())
-                        .downloadUrl(storageService.getPresignedGetObject(attachment.getStoredFileName()))
+                        .downloadUrl(
+                            storageService.getPresignedGetObject(attachment.getStoredFileName()))
                         .build())
             .collect(Collectors.toList());
 

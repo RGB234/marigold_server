@@ -2,7 +2,6 @@ package com.sns.marigold.chat.entity;
 
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.chat.enums.ChatRoomStatus;
-import com.sns.marigold.user.entity.User;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -55,8 +54,6 @@ public class ChatRoom {
   }
 
   public static ChatRoom create(AdoptionPost adoptionPost) {
-    return ChatRoom.builder()
-        .adoptionPost(adoptionPost)
-        .build();
+    return ChatRoom.builder().adoptionPost(adoptionPost).build();
   }
 }
