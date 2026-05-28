@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: marigold
+  profiles:
+    include: oauth
+
+server:
+  servlet:
+    session:
+      timeout: 30m # 30분 (JWT 사용 시 의미없는 설정. 현재는 JWT 사용 중이므로 직접적으로 HttpSession을 생성하지 않음.)
+  tomcat:
+    max-part-count: 20
+
+# JWT 설정
+jwt:
+  secret-key: ${JWT_SECRET_KEY}
+  access-token-validity-in-seconds: ${JWT_ACCESS_TOKEN_VALIDITY_SECONDS:3600}
+  refresh-token-validity-in-seconds: ${JWT_REFRESH_TOKEN_VALIDITY_SECONDS:86400}

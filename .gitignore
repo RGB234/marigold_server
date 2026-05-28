@@ -42,6 +42,9 @@ out/
 !.env.example
 /src/main/resources/*.yml
 /src/main/resources/*.yaml
+!/src/main/resources/application.yml
+!/src/main/resources/application-prod.yml
+!/src/main/resources/application-oauth.yml
 /src/test/resources/*
 !/src/test/resources/application-test.yaml
 

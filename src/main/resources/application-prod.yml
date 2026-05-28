@@ -1,0 +1,60 @@
+server:
+  port: 8080
+  address: 0.0.0.0
+
+spring:
+  config:
+    import:
+      - optional:file:/opt/spring-app/app.env[.properties]
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: none
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  cloud:
+    aws:
+      s3:
+        bucket: ${AWS_S3_BUCKET}
+      credentials:
+        access-key: ${AWS_ACCESS_KEY}
+        secret-key: ${AWS_SECRET_KEY}
+      region.static: ${AWS_REGION}
+
+logging:
+  level:
+    org:
+      springframework:
+        security: INFO
+        web.client.RestTemplate: INFO
+      hibernate:
+        SQL: WARN
+        orm:
+          jdbc:
+            bind: OFF
+    com.sns.marigold: INFO
+
+
+url:
+  frontend:
+    origin: ${FRONTEND_ORIGIN}
+    base: ${FRONTEND_BASE}
+    auth:
+      login: ${url.frontend.base}/auth/login
+      signup: ${url.frontend.base}/auth/signup
+      callback: ${url.frontend.base}/auth/callback
+  backend:
+    api-prefix: /api/v1
+    auth:
+      oauth2:
+        base: /oauth2
+        endpoint:
+          base: ${url.backend.auth.oauth2.base}/authorization
+          naver: ${url.backend.auth.oauth2.endpoint.base}/naver
+          kakao: ${url.backend.auth.oauth2.endpoint.base}/kakao
+        redirection: ${url.backend.auth.oauth2.base}/code/*
