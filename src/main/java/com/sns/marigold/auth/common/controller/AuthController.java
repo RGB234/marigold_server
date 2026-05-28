@@ -61,13 +61,13 @@ public class AuthController {
   @PreAuthorize("permitAll()")
   @GetMapping("/status")
   public ResponseEntity<ApiResponse<UserAuthStatusDto>> getAuthStatus(
-      Authentication authentication) {
+      Authentication authentication, HttpServletRequest request) {
     return ResponseEntity.status(HttpStatus.OK)
         .body(
             ApiResponse.success(
                 HttpStatus.OK,
                 "get auth status successfully",
-                authService.getAuthStatus(authentication)));
+                authService.getAuthStatus(authentication, request)));
   }
 
   @PreAuthorize("permitAll()")

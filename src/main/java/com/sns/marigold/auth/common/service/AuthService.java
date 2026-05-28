@@ -46,12 +46,16 @@ public class AuthService {
   // OAuth2 로그인/로그아웃 & 회원가입 -> Spring security 에서 처리 (SecurityConfig &
   // OAuth2UserService)
 
-  public UserAuthStatusDto getAuthStatus(Authentication authentication) {
+  public UserAuthStatusDto getAuthStatus(
+      Authentication authentication, HttpServletRequest request) {
+    boolean refreshTokenPresent =
+        cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME) != null;
+
     // JwtAuthenticationFilter에서 Authentication 객체 생성 후 SecurityContext에 저장함
     // Spring Security에서 'anonymousUser'는 String 타입이므로 instanceof 체크 필수
     if (authentication == null || !(authentication.getPrincipal() instanceof CustomPrincipal)) {
 
-      return new UserAuthStatusDto(null, Collections.emptyList());
+      return new UserAuthStatusDto(null, Collections.emptyList(), refreshTokenPresent);
     }
 
     // 안전하게 캐스팅
@@ -61,7 +65,9 @@ public class AuthService {
     // JWT 필터를 통과했다면 이미 검증된 사용자라고 신뢰함.
     // 보안상 민감한 부분에서는 추후 DB에서 사용자 정보를 조회하여 검증하도록 함.
     return new UserAuthStatusDto(
-        userPrincipal.getUserId(), userPrincipal.getAuthorities().stream().toList());
+        userPrincipal.getUserId(),
+        userPrincipal.getAuthorities().stream().toList(),
+        refreshTokenPresent);
   }
 
   @Transactional

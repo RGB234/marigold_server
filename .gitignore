@@ -37,10 +37,18 @@ out/
 .vscode/
 
 ### ###
-../secrets/back/.env
+.env
 .env.*
 !.env.example
 /src/main/resources/*.yml
-/src/main/resuorces/*.yaml
+/src/main/resources/*.yaml
 /src/test/resources/*
 !/src/test/resources/application-test.yaml
+
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+.aws/
+.ssh/

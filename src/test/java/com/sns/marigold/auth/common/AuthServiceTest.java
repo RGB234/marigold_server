@@ -27,6 +27,8 @@ import com.sns.marigold.user.enums.UserStatus;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
 import io.hypersistence.tsid.TSID;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.Optional;
@@ -260,14 +262,16 @@ class AuthServiceTest {
             AuthStatus.LOGIN_SUCCESS);
     Authentication authentication =
         new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+    HttpServletRequest request = mock(HttpServletRequest.class);
 
     // when
-    UserAuthStatusDto statusDto = authService.getAuthStatus(authentication);
+    UserAuthStatusDto statusDto = authService.getAuthStatus(authentication, request);
 
     // then
     assertThat(statusDto.getUserId()).isEqualTo(TSID.from(1L).toString());
     assertThat(statusDto.getAuthorities()).hasSize(1);
     assertThat(statusDto.getAuthorities().get(0)).isEqualTo(Role.ROLE_PERSON.name());
+    assertThat(statusDto.isRefreshTokenPresent()).isFalse();
   }
 
   @Test
@@ -277,23 +281,43 @@ class AuthServiceTest {
     Authentication authentication =
         new AnonymousAuthenticationToken(
             "key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")));
+    HttpServletRequest request = mock(HttpServletRequest.class);
 
     // when
-    UserAuthStatusDto statusDto = authService.getAuthStatus(authentication);
+    UserAuthStatusDto statusDto = authService.getAuthStatus(authentication, request);
 
     // then
     assertThat(statusDto.getUserId()).isNull();
     assertThat(statusDto.getAuthorities()).isEmpty();
+    assertThat(statusDto.isRefreshTokenPresent()).isFalse();
   }
 
   @Test
   @DisplayName("인증 정보 자체가 null일 경우 빈 상태 정보를 반환한다.")
   void getAuthStatus_NullAuthentication() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+
     // when
-    UserAuthStatusDto statusDto = authService.getAuthStatus(null);
+    UserAuthStatusDto statusDto = authService.getAuthStatus(null, request);
 
     // then
     assertThat(statusDto.getUserId()).isNull();
     assertThat(statusDto.getAuthorities()).isEmpty();
+    assertThat(statusDto.isRefreshTokenPresent()).isFalse();
+  }
+
+  @Test
+  @DisplayName("Refresh Token 쿠키가 있으면 세션 복구 가능 상태를 반환한다.")
+  void getAuthStatus_RefreshTokenPresent() {
+    // given
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    given(cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME))
+        .willReturn(new Cookie(CookieManager.REFRESH_TOKEN_NAME, "refresh-token"));
+
+    // when
+    UserAuthStatusDto statusDto = authService.getAuthStatus(null, request);
+
+    // then
+    assertThat(statusDto.isRefreshTokenPresent()).isTrue();
   }
 }
