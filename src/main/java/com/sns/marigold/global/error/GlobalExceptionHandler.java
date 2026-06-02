@@ -17,6 +17,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** 전역 예외 처리를 담당하는 Advice 클래스입니다. */
 @Slf4j
@@ -83,6 +84,15 @@ public class GlobalExceptionHandler {
     log.error("MethodArgumentTypeMismatchException occurred", e);
     return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
         .body(ApiResponse.error(ErrorCode.INVALID_INPUT_VALUE));
+  }
+
+  /** 존재하지 않는 정적 리소스 요청 처리 */
+  @ExceptionHandler(NoResourceFoundException.class)
+  public ResponseEntity<ApiResponse<?>> handleNoResourceFoundException(
+      final NoResourceFoundException e) {
+    log.debug("No resource found: {} {}", e.getHttpMethod(), e.getResourcePath());
+    return ResponseEntity.status(ErrorCode.RESOURCE_NOT_FOUND.getStatus())
+        .body(ApiResponse.error(ErrorCode.RESOURCE_NOT_FOUND));
   }
 
   /** 그 외 처리되지 않은 모든 예외 처리 */
