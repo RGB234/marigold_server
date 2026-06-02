@@ -30,7 +30,6 @@ jwt:
 url:
   frontend:
     origin: "http://localhost:3000"
-    base: "http://localhost:3000"
     auth:
       login: "http://localhost:3000/auth/login"
       signup: "http://localhost:3000/auth/signup"

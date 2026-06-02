@@ -5,7 +5,8 @@ server:
 spring:
   config:
     import:
-      - optional:file:/opt/spring-app/app.env[.properties]
+      - optional:file:/home/ec2-user/app.env[.properties]
+      #      - optional:file:/opt/spring-app/app.env[.properties]
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
@@ -43,11 +44,10 @@ logging:
 url:
   frontend:
     origin: ${FRONTEND_ORIGIN}
-    base: ${FRONTEND_BASE}
     auth:
-      login: ${url.frontend.base}/auth/login
-      signup: ${url.frontend.base}/auth/signup
-      callback: ${url.frontend.base}/auth/callback
+      login: ${url.frontend.origin}/auth/login
+      signup: ${url.frontend.origin}/auth/signup
+      callback: ${url.frontend.origin}/auth/callback
   backend:
     api-prefix: /api/v1
     auth:

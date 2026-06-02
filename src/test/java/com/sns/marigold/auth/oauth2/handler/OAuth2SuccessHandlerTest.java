@@ -45,7 +45,6 @@ class OAuth2SuccessHandlerTest {
         new UrlProperties(
             new UrlProperties.Frontend(
                 "http://localhost:5173",
-                "http://localhost:5173",
                 new UrlProperties.Frontend.Auth(
                     "http://localhost:5173/login",
                     "http://localhost:5173/signup",

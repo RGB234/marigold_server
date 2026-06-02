@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record UrlProperties(Frontend frontend, Backend backend) {
 
   // 1. 프론트엔드 설정
-  public record Frontend(String origin, String base, Auth auth) {
+  public record Frontend(String origin, Auth auth) {
 
     public record Auth(String login, String signup, String callback) {}
   }
