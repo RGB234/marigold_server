@@ -1,13 +1,15 @@
 package com.sns.marigold.global.annotation;
 
-import com.sns.marigold.global.validator.ImageFilesValidatorForList;
-import com.sns.marigold.global.validator.ImageFilesValidatorForSingle;
-import jakarta.validation.Constraint;
-import jakarta.validation.Payload;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+
+import com.sns.marigold.global.validator.ImageFilesValidatorForList;
+import com.sns.marigold.global.validator.ImageFilesValidatorForSingle;
+
+import jakarta.validation.Constraint;
+import jakarta.validation.Payload;
 
 @Constraint(validatedBy = {ImageFilesValidatorForList.class, ImageFilesValidatorForSingle.class})
 @Target({ElementType.FIELD, ElementType.PARAMETER})

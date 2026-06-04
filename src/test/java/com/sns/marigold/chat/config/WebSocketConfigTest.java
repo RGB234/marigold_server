@@ -4,13 +4,9 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
-import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.enums.AuthStatus;
-import com.sns.marigold.auth.common.service.JwtAuthenticationService;
-import com.sns.marigold.chat.repository.RoomParticipantRepository;
-import io.hypersistence.tsid.TSID;
 import java.util.List;
 import java.util.Map;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +19,13 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.common.enums.AuthStatus;
+import com.sns.marigold.auth.common.service.JwtAuthenticationService;
+import com.sns.marigold.chat.repository.RoomParticipantRepository;
+
+import io.hypersistence.tsid.TSID;
 
 @ExtendWith(MockitoExtension.class)
 class WebSocketConfigTest {

@@ -1,6 +1,5 @@
 package com.sns.marigold.adoption.repository;
 
-import com.sns.marigold.adoption.entity.AdoptionPost;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import com.sns.marigold.adoption.entity.AdoptionPost;
 
 public interface AdoptionPostRepository
     extends JpaRepository<AdoptionPost, Long>, JpaSpecificationExecutor<AdoptionPost> {

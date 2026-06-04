@@ -3,6 +3,7 @@ package com.sns.marigold.auth.common.recent;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+
 import org.junit.jupiter.api.Test;
 
 class InMemoryRecentAuthStoreTest {

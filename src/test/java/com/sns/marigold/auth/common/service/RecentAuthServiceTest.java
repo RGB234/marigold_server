@@ -9,19 +9,22 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.sns.marigold.auth.common.recent.RecentAuthStore;
-import com.sns.marigold.auth.common.util.CookieManager;
-import com.sns.marigold.auth.exception.AuthException;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.time.Instant;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import com.sns.marigold.auth.common.recent.RecentAuthStore;
+import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.auth.exception.AuthException;
+
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @ExtendWith(MockitoExtension.class)
 class RecentAuthServiceTest {

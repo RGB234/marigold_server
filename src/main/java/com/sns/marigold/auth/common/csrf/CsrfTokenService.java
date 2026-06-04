@@ -1,12 +1,15 @@
 package com.sns.marigold.auth.common.csrf;
 
-import com.sns.marigold.auth.common.util.CookieManager;
-import jakarta.servlet.http.HttpServletResponse;
 import java.security.SecureRandom;
 import java.util.Base64;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import com.sns.marigold.auth.common.util.CookieManager;
+
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor

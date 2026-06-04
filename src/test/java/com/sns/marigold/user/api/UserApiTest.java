@@ -7,14 +7,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.support.ApiIntegrationTest;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.exception.UserException;
+
 import io.hypersistence.tsid.TSID;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 
 public class UserApiTest extends ApiIntegrationTest {
 

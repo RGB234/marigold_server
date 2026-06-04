@@ -1,8 +1,10 @@
 package com.sns.marigold.global.error.exception;
 
-import com.sns.marigold.global.error.ErrorCode;
-import lombok.Getter;
 import org.springframework.lang.NonNull;
+
+import com.sns.marigold.global.error.ErrorCode;
+
+import lombok.Getter;
 
 @Getter
 public class BusinessException extends RuntimeException {

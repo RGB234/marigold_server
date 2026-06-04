@@ -1,5 +1,24 @@
 package com.sns.marigold.chat.service;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import org.apache.tika.Tika;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
@@ -22,24 +41,8 @@ import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.S3Service;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
+
 import lombok.RequiredArgsConstructor;
-import org.apache.tika.Tika;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.lang.NonNull;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -284,7 +287,7 @@ public class ChatService {
         .user2Id(user2.getId())
         .user2Nickname(user2.getDisplayNickname())
         .createdAt(chatRoom.getCreatedAt())
-        .status(chatRoom.getStatus().name())
+        .status(chatRoom.getStatus())
         .build();
   }
 

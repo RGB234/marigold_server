@@ -7,17 +7,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.csrf.CsrfTokenService;
-import com.sns.marigold.auth.common.enums.AuthStatus;
-import com.sns.marigold.auth.common.enums.Role;
-import com.sns.marigold.auth.common.jwt.JwtManager;
-import com.sns.marigold.auth.common.service.RecentAuthService;
-import com.sns.marigold.auth.common.util.CookieManager;
-import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
-import com.sns.marigold.global.config.UrlProperties;
 import java.util.List;
 import java.util.Map;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +21,16 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.common.csrf.CsrfTokenService;
+import com.sns.marigold.auth.common.enums.AuthStatus;
+import com.sns.marigold.auth.common.enums.Role;
+import com.sns.marigold.auth.common.jwt.JwtManager;
+import com.sns.marigold.auth.common.service.RecentAuthService;
+import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
+import com.sns.marigold.global.config.UrlProperties;
 
 @ExtendWith(MockitoExtension.class)
 class OAuth2SuccessHandlerTest {

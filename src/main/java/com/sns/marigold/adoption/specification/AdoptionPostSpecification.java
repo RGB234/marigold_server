@@ -1,9 +1,10 @@
 package com.sns.marigold.adoption.specification;
 
+import org.springframework.data.jpa.domain.Specification;
+
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
-import org.springframework.data.jpa.domain.Specification;
 
 public class AdoptionPostSpecification {
 

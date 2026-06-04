@@ -40,6 +40,11 @@ logging:
             bind: OFF
     com.sns.marigold: INFO
 
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 
 url:
   frontend:

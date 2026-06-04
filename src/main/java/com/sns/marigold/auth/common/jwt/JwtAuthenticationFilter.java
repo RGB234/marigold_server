@@ -1,19 +1,7 @@
 package com.sns.marigold.auth.common.jwt;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sns.marigold.auth.common.service.JwtAuthenticationService;
-import com.sns.marigold.global.dto.ApiResponse;
-import com.sns.marigold.global.error.ErrorCode;
-import com.sns.marigold.global.error.exception.BusinessException;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.JwtException;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
@@ -22,6 +10,21 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sns.marigold.auth.common.service.JwtAuthenticationService;
+import com.sns.marigold.global.dto.ApiResult;
+import com.sns.marigold.global.error.ErrorCode;
+import com.sns.marigold.global.error.exception.BusinessException;
+
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /*
  * 동작: 요청에 포함된 JWT 토큰을 꺼내서 유효한지 검사하고, 유효하다면 SecurityContextHolder에 인증 객체(Authentication)를 저장.
@@ -79,7 +82,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
     response.setCharacterEncoding("UTF-8");
     response.setStatus(errorCode.getStatus().value());
-    response.getWriter().write(objectMapper.writeValueAsString(ApiResponse.error(errorCode)));
+    response.getWriter().write(objectMapper.writeValueAsString(ApiResult.error(errorCode)));
   }
 
   /** Request Header에서 JWT 토큰 추출 */

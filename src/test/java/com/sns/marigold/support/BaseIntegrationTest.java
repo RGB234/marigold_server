@@ -1,6 +1,5 @@
 package com.sns.marigold.support;
 
-import com.sns.marigold.storage.service.S3Service;
 import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -9,6 +8,8 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.MySQLContainer;
+
+import com.sns.marigold.storage.service.S3Service;
 
 @SpringBootTest
 @ActiveProfiles("test")

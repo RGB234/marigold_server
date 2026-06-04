@@ -1,16 +1,18 @@
 package com.sns.marigold.chat.repository;
 
-import com.sns.marigold.adoption.entity.AdoptionPost;
-import com.sns.marigold.chat.entity.ChatRoom;
-import com.sns.marigold.user.entity.User;
 import java.util.List;
 import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import com.sns.marigold.adoption.entity.AdoptionPost;
+import com.sns.marigold.chat.entity.ChatRoom;
+import com.sns.marigold.user.entity.User;
 
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 

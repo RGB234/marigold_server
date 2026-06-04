@@ -1,10 +1,12 @@
 package com.sns.marigold.auth.oauth2;
 
-import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.global.error.ErrorCode;
 import java.util.Map;
+
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
+
+import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+import com.sns.marigold.global.error.ErrorCode;
 
 public class OAuth2UserInfoFactory {
 

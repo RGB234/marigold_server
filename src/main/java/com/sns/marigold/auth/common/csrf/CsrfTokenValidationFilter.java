@@ -1,23 +1,26 @@
 package com.sns.marigold.auth.common.csrf;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Set;
+
+import org.springframework.http.MediaType;
+import org.springframework.lang.NonNull;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.auth.common.util.CookieManager;
-import com.sns.marigold.global.dto.ApiResponse;
+import com.sns.marigold.global.dto.ApiResult;
 import com.sns.marigold.global.error.ErrorCode;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.MediaType;
-import org.springframework.lang.NonNull;
-import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 @RequiredArgsConstructor
@@ -72,6 +75,6 @@ public class CsrfTokenValidationFilter extends OncePerRequestFilter {
     response.setCharacterEncoding(StandardCharsets.UTF_8.name());
     response
         .getWriter()
-        .write(objectMapper.writeValueAsString(ApiResponse.error(ErrorCode.AUTH_ACCESS_DENIED)));
+        .write(objectMapper.writeValueAsString(ApiResult.error(ErrorCode.AUTH_ACCESS_DENIED)));
   }
 }

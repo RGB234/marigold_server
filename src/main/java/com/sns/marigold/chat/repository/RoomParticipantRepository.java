@@ -1,13 +1,15 @@
 package com.sns.marigold.chat.repository;
 
-import com.sns.marigold.chat.entity.ChatRoom;
-import com.sns.marigold.chat.entity.RoomParticipant;
-import com.sns.marigold.user.entity.User;
 import java.util.List;
 import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import com.sns.marigold.chat.entity.ChatRoom;
+import com.sns.marigold.chat.entity.RoomParticipant;
+import com.sns.marigold.user.entity.User;
 
 public interface RoomParticipantRepository extends JpaRepository<RoomParticipant, Long> {
 

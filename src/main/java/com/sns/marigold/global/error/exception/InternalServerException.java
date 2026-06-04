@@ -1,7 +1,8 @@
 package com.sns.marigold.global.error.exception;
 
-import com.sns.marigold.global.error.ErrorCode;
 import org.springframework.lang.NonNull;
+
+import com.sns.marigold.global.error.ErrorCode;
 
 public class InternalServerException extends BusinessException {
 

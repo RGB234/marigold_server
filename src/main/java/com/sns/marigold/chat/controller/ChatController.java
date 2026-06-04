@@ -1,18 +1,21 @@
 package com.sns.marigold.chat.controller;
 
-import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.exception.AuthException;
-import com.sns.marigold.chat.dto.ChatMessageDto;
-import com.sns.marigold.chat.service.ChatService;
-import io.hypersistence.tsid.TSID;
 import java.security.Principal;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
+
+import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.exception.AuthException;
+import com.sns.marigold.chat.dto.ChatMessageDto;
+import com.sns.marigold.chat.service.ChatService;
+
+import io.hypersistence.tsid.TSID;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Controller

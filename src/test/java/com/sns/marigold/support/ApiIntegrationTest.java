@@ -1,5 +1,18 @@
 package com.sns.marigold.support;
 
+import java.time.Instant;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.lang.NonNull;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.web.servlet.MockMvc;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.AuthStatus;
@@ -9,18 +22,8 @@ import com.sns.marigold.auth.common.recent.RecentAuthStore;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
+
 import jakarta.servlet.http.Cookie;
-import java.time.Instant;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.lang.NonNull;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.test.web.servlet.MockMvc;
 
 @AutoConfigureMockMvc
 public abstract class ApiIntegrationTest extends BaseIntegrationTest {

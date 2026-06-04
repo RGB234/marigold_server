@@ -1,7 +1,8 @@
 package com.sns.marigold;
 
-import com.sns.marigold.support.BaseIntegrationTest;
 import org.junit.jupiter.api.Test;
+
+import com.sns.marigold.support.BaseIntegrationTest;
 
 class MarigoldApplicationTests extends BaseIntegrationTest {
 

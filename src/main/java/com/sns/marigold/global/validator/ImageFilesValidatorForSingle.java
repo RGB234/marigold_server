@@ -1,14 +1,17 @@
 package com.sns.marigold.global.validator;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.sns.marigold.global.annotation.ValidImageFiles;
 import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.S3Service;
+
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
-import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.multipart.MultipartFile;
 
 public class ImageFilesValidatorForSingle
     implements ConstraintValidator<ValidImageFiles, MultipartFile> {

@@ -10,6 +10,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
+import java.util.Objects;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.lang.Nullable;
+import org.springframework.mock.web.MockMultipartFile;
+
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
@@ -19,16 +31,6 @@ import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.support.ApiIntegrationTest;
-import java.util.List;
-import java.util.Objects;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.lang.Nullable;
-import org.springframework.mock.web.MockMultipartFile;
 
 public class AdoptionApiTest extends ApiIntegrationTest {
 

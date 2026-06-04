@@ -1,13 +1,16 @@
 package com.sns.marigold.auth.common;
 
-import com.sns.marigold.auth.common.enums.AuthStatus;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
-import lombok.Getter;
+
 import org.springframework.lang.NonNull;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+
+import com.sns.marigold.auth.common.enums.AuthStatus;
+
+import lombok.Getter;
 
 @Getter
 public class CustomPrincipal implements OAuth2User {

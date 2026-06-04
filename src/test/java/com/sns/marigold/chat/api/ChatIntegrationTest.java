@@ -3,25 +3,6 @@ package com.sns.marigold.chat.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sns.marigold.adoption.entity.AdoptionPost;
-import com.sns.marigold.adoption.enums.Neutering;
-import com.sns.marigold.adoption.enums.Sex;
-import com.sns.marigold.adoption.enums.Species;
-import com.sns.marigold.adoption.repository.AdoptionPostRepository;
-import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.enums.AuthStatus;
-import com.sns.marigold.auth.common.enums.Role;
-import com.sns.marigold.auth.common.jwt.JwtManager;
-import com.sns.marigold.chat.dto.ChatMessageDto;
-import com.sns.marigold.chat.entity.ChatRoom;
-import com.sns.marigold.chat.entity.RoomParticipant;
-import com.sns.marigold.chat.repository.ChatRoomRepository;
-import com.sns.marigold.chat.repository.RoomParticipantRepository;
-import com.sns.marigold.support.BaseIntegrationTest;
-import com.sns.marigold.user.entity.User;
-import com.sns.marigold.user.repository.UserRepository;
-import io.hypersistence.tsid.TSID;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Map;
@@ -30,7 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -49,6 +30,28 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sns.marigold.adoption.entity.AdoptionPost;
+import com.sns.marigold.adoption.enums.Neutering;
+import com.sns.marigold.adoption.enums.Sex;
+import com.sns.marigold.adoption.enums.Species;
+import com.sns.marigold.adoption.repository.AdoptionPostRepository;
+import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.common.enums.AuthStatus;
+import com.sns.marigold.auth.common.enums.Role;
+import com.sns.marigold.auth.common.jwt.JwtManager;
+import com.sns.marigold.chat.dto.ChatMessageDto;
+import com.sns.marigold.chat.entity.ChatRoom;
+import com.sns.marigold.chat.entity.RoomParticipant;
+import com.sns.marigold.chat.repository.ChatRoomRepository;
+import com.sns.marigold.chat.repository.RoomParticipantRepository;
+import com.sns.marigold.support.BaseIntegrationTest;
+import com.sns.marigold.user.entity.User;
+import com.sns.marigold.user.repository.UserRepository;
+
+import io.hypersistence.tsid.TSID;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @SpringBootTest(webEnvironment = RANDOM_PORT)

@@ -1,6 +1,7 @@
 package com.sns.marigold.global.validator;
 
 import com.sns.marigold.global.annotation.EnumType;
+
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 

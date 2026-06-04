@@ -1,12 +1,7 @@
 package com.sns.marigold.chat.config;
 
-import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.service.JwtAuthenticationService;
-import com.sns.marigold.chat.repository.RoomParticipantRepository;
-import io.hypersistence.tsid.TSID;
 import java.security.Principal;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
@@ -26,6 +21,14 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+
+import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.common.service.JwtAuthenticationService;
+import com.sns.marigold.chat.repository.RoomParticipantRepository;
+
+import io.hypersistence.tsid.TSID;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Configuration

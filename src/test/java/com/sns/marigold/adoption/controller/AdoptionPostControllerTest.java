@@ -5,10 +5,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.sns.marigold.adoption.exception.AdoptionPostException;
-import com.sns.marigold.adoption.service.AdoptionPostService;
-import com.sns.marigold.global.UrlConstants;
-import com.sns.marigold.global.error.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +13,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import com.sns.marigold.adoption.exception.AdoptionPostException;
+import com.sns.marigold.adoption.service.AdoptionPostService;
+import com.sns.marigold.global.UrlConstants;
+import com.sns.marigold.global.error.GlobalExceptionHandler;
 
 @ExtendWith(MockitoExtension.class)
 class AdoptionPostControllerTest {

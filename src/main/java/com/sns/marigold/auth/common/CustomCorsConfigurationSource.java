@@ -1,16 +1,19 @@
 package com.sns.marigold.auth.common;
 
-import com.sns.marigold.auth.common.csrf.CsrfTokenService;
-import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
+
+import com.sns.marigold.auth.common.csrf.CsrfTokenService;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @Component
 public class CustomCorsConfigurationSource implements CorsConfigurationSource {

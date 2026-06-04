@@ -6,24 +6,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
-import com.sns.marigold.adoption.repository.AdoptionPostImageRepository;
-import com.sns.marigold.adoption.repository.AdoptionPostRepository;
-import com.sns.marigold.auth.common.enums.Role;
-import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.chat.service.ChatService;
-import com.sns.marigold.storage.dto.ImageUploadDto;
-import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.service.S3Service;
-import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
-import com.sns.marigold.user.dto.update.UserUpdateDto;
-import com.sns.marigold.user.entity.User;
-import com.sns.marigold.user.entity.UserImage;
-import com.sns.marigold.user.exception.UserException;
-import com.sns.marigold.user.repository.UserRepository;
-import io.hypersistence.tsid.TSID;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,6 +26,23 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.sns.marigold.adoption.repository.AdoptionPostImageRepository;
+import com.sns.marigold.adoption.repository.AdoptionPostRepository;
+import com.sns.marigold.auth.common.enums.Role;
+import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+import com.sns.marigold.chat.service.ChatService;
+import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
+import com.sns.marigold.user.dto.update.UserUpdateDto;
+import com.sns.marigold.user.entity.User;
+import com.sns.marigold.user.entity.UserImage;
+import com.sns.marigold.user.exception.UserException;
+import com.sns.marigold.user.repository.UserRepository;
+
+import io.hypersistence.tsid.TSID;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {

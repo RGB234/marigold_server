@@ -5,13 +5,9 @@ import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
-import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.enums.AuthStatus;
-import com.sns.marigold.chat.dto.ChatMessageDto;
-import com.sns.marigold.chat.service.ChatService;
-import io.hypersistence.tsid.TSID;
 import java.util.List;
 import java.util.Map;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +18,13 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.common.enums.AuthStatus;
+import com.sns.marigold.chat.dto.ChatMessageDto;
+import com.sns.marigold.chat.service.ChatService;
+
+import io.hypersistence.tsid.TSID;
 
 @ExtendWith(MockitoExtension.class)
 class ChatControllerTest {

@@ -37,7 +37,7 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8") // Swagger
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17") // OpenAPI / Swagger UI
     implementation("org.springframework.boot:spring-boot-starter-validation")
     
     implementation("com.github.mwiede:jsch:2.27.2") // SSH tunneling (ED25519 support)
@@ -79,5 +79,6 @@ spotless {
         removeUnusedImports()
         googleJavaFormat()
         endWithNewline()
+        importOrder("java", "javax", "org", "com")
     }
 }

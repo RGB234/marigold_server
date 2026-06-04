@@ -1,12 +1,14 @@
 package com.sns.marigold.global.util;
 
-import io.hypersistence.tsid.TSID;
 import java.text.ParseException;
 import java.util.Locale;
 import java.util.Objects;
+
 import org.springframework.format.Formatter;
 import org.springframework.lang.NonNull;
 import org.springframework.util.StringUtils;
+
+import io.hypersistence.tsid.TSID;
 
 /*
 Formatter의 경우 URI나 폼 데이터의 경우에 호출. WebConfig로 등록하여 전역으로 적용.

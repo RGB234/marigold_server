@@ -15,6 +15,12 @@ logging:
   level:
     root: INFO
 
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 # JWT 설정
 jwt:
   secret-key: ${JWT_SECRET_KEY}

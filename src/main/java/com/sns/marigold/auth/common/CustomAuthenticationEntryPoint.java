@@ -1,17 +1,20 @@
 package com.sns.marigold.auth.common;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sns.marigold.global.dto.ApiResponse;
-import com.sns.marigold.global.error.ErrorCode;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sns.marigold.global.dto.ApiResult;
+import com.sns.marigold.global.error.ErrorCode;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 
 /*
  인증 실패 시 처리
@@ -36,7 +39,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
       errorCode = ErrorCode.AUTH_UNAUTHORIZED;
     }
 
-    ApiResponse<Object> responseBody = ApiResponse.error(errorCode);
+    ApiResult<Object> responseBody = ApiResult.error(errorCode);
 
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
     response.setCharacterEncoding("UTF-8");

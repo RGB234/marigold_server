@@ -1,12 +1,5 @@
 package com.sns.marigold.auth.common;
 
-import com.sns.marigold.auth.common.csrf.CsrfTokenValidationFilter;
-import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
-import com.sns.marigold.auth.common.handler.CustomLogoutHandler;
-import com.sns.marigold.auth.common.handler.CustomLogoutSuccessHandler;
-import com.sns.marigold.global.UrlConstants;
-import com.sns.marigold.global.config.UrlProperties;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -18,6 +11,15 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.web.cors.CorsUtils;
+
+import com.sns.marigold.auth.common.csrf.CsrfTokenValidationFilter;
+import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
+import com.sns.marigold.auth.common.handler.CustomLogoutHandler;
+import com.sns.marigold.auth.common.handler.CustomLogoutSuccessHandler;
+import com.sns.marigold.global.UrlConstants;
+import com.sns.marigold.global.config.UrlProperties;
+
+import lombok.RequiredArgsConstructor;
 
 /** 일반 API 요청을 위한 SecurityFilterChain OAuth2 경로를 제외한 모든 경로에 적용됩니다. */
 @Configuration
@@ -57,7 +59,7 @@ public class CommonSecurityConfig {
                 auth.requestMatchers(CorsUtils::isPreFlightRequest)
                     .permitAll()
                     // Swagger
-                    .requestMatchers("/v3/api-docs/**", "/swagger-ui/**")
+                    .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**")
                     .permitAll()
                     // 구체적인 권한 제어는 Controller의 @PreAuthorize에서 처리하므로
                     // 필터 체인 레벨에서는 모든 요청을 통과.

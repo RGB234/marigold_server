@@ -1,21 +1,24 @@
 package com.sns.marigold.auth.common.handler;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sns.marigold.global.dto.ApiResponse;
-import com.sns.marigold.global.error.ErrorCode;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sns.marigold.global.dto.ApiResult;
+import com.sns.marigold.global.error.ErrorCode;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /*
  * 호출 시점: 모든 필터를 거친 후, 마지막 권한 체크 단계(AuthorizationFilter 등)에서 "인증은 되었으나 해당 리소스에 접근할 권한이 없을 때" 호출됩니다.
@@ -56,7 +59,7 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
     response.setCharacterEncoding("UTF-8");
     response.setStatus(errorCode.getStatus().value()); // HTTP 상태 코드 설정
 
-    ApiResponse<Object> responseBody = ApiResponse.error(errorCode);
+    ApiResult<Object> responseBody = ApiResult.error(errorCode);
     response.getWriter().write(objectMapper.writeValueAsString(responseBody));
   }
 }

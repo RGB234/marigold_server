@@ -9,11 +9,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.sns.marigold.storage.dto.ImageUploadDto;
-import com.sns.marigold.storage.exception.StorageException;
-import io.awspring.cloud.s3.S3Template;
 import java.io.ByteArrayInputStream;
 import java.net.URL;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,6 +22,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.exception.StorageException;
+
+import io.awspring.cloud.s3.S3Template;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;

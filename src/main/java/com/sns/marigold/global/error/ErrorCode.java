@@ -1,10 +1,13 @@
 package com.sns.marigold.global.error;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Schema(description = "공통 에러 코드")
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {
@@ -77,7 +80,15 @@ public enum ErrorCode {
   ADOPTION_COMMENT_POST_MISMATCH(
       HttpStatus.BAD_REQUEST, "ADOPTION_COMMENT_POST_MISMATCH", "해당 게시글의 댓글이 아닙니다.");
 
-  @NonNull private final HttpStatus status;
-  @NonNull private final String code;
-  @NonNull private final String message;
+  @Schema(description = "HTTP 상태")
+  @NonNull
+  private final HttpStatus status;
+
+  @Schema(description = "API 에러 코드", example = "AUTH_UNAUTHORIZED")
+  @NonNull
+  private final String code;
+
+  @Schema(description = "에러 메시지", example = "인증이 필요합니다.")
+  @NonNull
+  private final String message;
 }

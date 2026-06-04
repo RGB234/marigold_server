@@ -1,14 +1,17 @@
 package com.sns.marigold.global.util;
 
+import java.io.IOException;
+
+import org.springframework.util.ObjectUtils;
+
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
+
 import io.hypersistence.tsid.TSID;
-import java.io.IOException;
-import org.springframework.util.ObjectUtils;
 
 /*
 @RequestBody 기반의 JSON 포맷 데이터를 담당.

@@ -1,23 +1,26 @@
 package com.sns.marigold.auth.oauth2.handler;
 
-import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
-import com.sns.marigold.global.config.UrlProperties;
-import com.sns.marigold.global.error.ErrorCode;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
+import com.sns.marigold.global.config.UrlProperties;
+import com.sns.marigold.global.error.ErrorCode;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /** 통합 OAuth2 실패 Handler 인증 실패 시 에러 정보를 포함하여 프론트엔드로 리다이렉트합니다. */
 @Component

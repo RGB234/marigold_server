@@ -1,10 +1,12 @@
 package com.sns.marigold.user.repository;
 
-import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.user.entity.User;
 import java.util.List;
 import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+import com.sns.marigold.user.entity.User;
 
 public interface UserRepository extends JpaRepository<User, Long> {
   List<User> findPersonalUsersByNickname(String nickname);

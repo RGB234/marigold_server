@@ -1,6 +1,7 @@
 package com.sns.marigold.auth.oauth2;
 
 import java.util.Random;
+
 import org.springframework.stereotype.Component;
 
 @Component

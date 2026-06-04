@@ -3,6 +3,7 @@ package com.sns.marigold.adoption.entity;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
+
 import lombok.Builder;
 import lombok.Getter;
 

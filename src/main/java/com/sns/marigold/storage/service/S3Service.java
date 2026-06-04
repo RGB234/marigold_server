@@ -1,12 +1,5 @@
 package com.sns.marigold.storage.service;
 
-import com.sns.marigold.global.validation.ValidationPolicy;
-import com.sns.marigold.storage.dto.FileUploadDto;
-import com.sns.marigold.storage.dto.ImageUploadDto;
-import com.sns.marigold.storage.exception.StorageException;
-import io.awspring.cloud.s3.ObjectMetadata;
-import io.awspring.cloud.s3.S3Exception;
-import io.awspring.cloud.s3.S3Template;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
@@ -17,12 +10,22 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.sns.marigold.global.validation.ValidationPolicy;
+import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.exception.StorageException;
+
+import io.awspring.cloud.s3.ObjectMetadata;
+import io.awspring.cloud.s3.S3Exception;
+import io.awspring.cloud.s3.S3Template;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;

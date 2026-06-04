@@ -2,13 +2,16 @@ package com.sns.marigold.user.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
+
 import com.sns.marigold.user.dto.create.LocalSignupDto;
+
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
-import java.util.Set;
-import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 class LocalSignupDtoValidationTest {
 

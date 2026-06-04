@@ -1,11 +1,8 @@
 package com.sns.marigold.global.error;
 
-import com.sns.marigold.global.dto.ApiResponse;
-import com.sns.marigold.global.error.dto.FieldErrorDetail;
-import com.sns.marigold.global.error.exception.BusinessException;
 import java.util.List;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -19,6 +16,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import com.sns.marigold.global.dto.ApiResult;
+import com.sns.marigold.global.error.dto.FieldErrorDetail;
+import com.sns.marigold.global.error.exception.BusinessException;
+
+import lombok.extern.slf4j.Slf4j;
+
 /** 전역 예외 처리를 담당하는 Advice 클래스입니다. */
 @Slf4j
 @RestControllerAdvice
@@ -26,16 +29,15 @@ public class GlobalExceptionHandler {
 
   /** 비즈니스 예외 처리. 모든 커스텀 예외는 BusinessException을 상속합니다. */
   @ExceptionHandler(BusinessException.class)
-  public ResponseEntity<ApiResponse<?>> handleBusinessException(
-      @NonNull final BusinessException e) {
+  public ResponseEntity<ApiResult<?>> handleBusinessException(@NonNull final BusinessException e) {
     log.error("Exception occurred: {}", e.getErrorCode().getCode(), e);
     return ResponseEntity.status(e.getErrorCode().getStatus())
-        .body(ApiResponse.error(e.getErrorCode()));
+        .body(ApiResult.error(e.getErrorCode()));
   }
 
   /** Spring Security의 @PreAuthorize 등에서 발생하는 인가 예외 처리 */
   @ExceptionHandler(org.springframework.security.authorization.AuthorizationDeniedException.class)
-  public ResponseEntity<ApiResponse<?>> handleAuthorizationDeniedException(
+  public ResponseEntity<ApiResult<?>> handleAuthorizationDeniedException(
       org.springframework.security.authorization.AuthorizationDeniedException e) {
 
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -44,26 +46,26 @@ public class GlobalExceptionHandler {
         || !authentication.isAuthenticated()) {
       log.error("Unauthorized access attempt: {}", e.getMessage());
       return ResponseEntity.status(ErrorCode.AUTH_UNAUTHORIZED.getStatus())
-          .body(ApiResponse.error(ErrorCode.AUTH_UNAUTHORIZED));
+          .body(ApiResult.error(ErrorCode.AUTH_UNAUTHORIZED));
     }
 
     log.error("Access denied for user {}: {}", authentication.getName(), e.getMessage());
     return ResponseEntity.status(ErrorCode.AUTH_ACCESS_DENIED.getStatus())
-        .body(ApiResponse.error(ErrorCode.AUTH_ACCESS_DENIED));
+        .body(ApiResult.error(ErrorCode.AUTH_ACCESS_DENIED));
   }
 
   /** SecurityContext가 비어 있는 상태에서 @PreAuthorize가 실행되면 401로 변환 */
   @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
-  public ResponseEntity<ApiResponse<?>> handleAuthenticationCredentialsNotFoundException(
+  public ResponseEntity<ApiResult<?>> handleAuthenticationCredentialsNotFoundException(
       AuthenticationCredentialsNotFoundException e) {
     log.error("Authentication not found in security context: {}", e.getMessage());
     return ResponseEntity.status(ErrorCode.AUTH_UNAUTHORIZED.getStatus())
-        .body(ApiResponse.error(ErrorCode.AUTH_UNAUTHORIZED));
+        .body(ApiResult.error(ErrorCode.AUTH_UNAUTHORIZED));
   }
 
   /** Request Body 필드 검증 실패 (@Valid) 처리 */
   @ExceptionHandler(MethodArgumentNotValidException.class)
-  public ResponseEntity<ApiResponse<?>> handleMethodArgumentNotValidException(
+  public ResponseEntity<ApiResult<?>> handleMethodArgumentNotValidException(
       final MethodArgumentNotValidException e) {
     log.error("MethodArgumentNotValidException occurred", e);
 
@@ -74,30 +76,30 @@ public class GlobalExceptionHandler {
             .collect(Collectors.toList());
 
     return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
-        .body(ApiResponse.error(ErrorCode.INVALID_INPUT_VALUE, errors));
+        .body(ApiResult.error(ErrorCode.INVALID_INPUT_VALUE, errors));
   }
 
   /** Request Parameter 바인딩 타입 변환 실패 (예: Enum 타입 오류) 처리 */
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-  public ResponseEntity<ApiResponse<?>> handleMethodArgumentTypeMismatchException(
+  public ResponseEntity<ApiResult<?>> handleMethodArgumentTypeMismatchException(
       final MethodArgumentTypeMismatchException e) {
     log.error("MethodArgumentTypeMismatchException occurred", e);
     return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
-        .body(ApiResponse.error(ErrorCode.INVALID_INPUT_VALUE));
+        .body(ApiResult.error(ErrorCode.INVALID_INPUT_VALUE));
   }
 
   /** 존재하지 않는 정적 리소스 요청 처리 */
   @ExceptionHandler(NoResourceFoundException.class)
-  public ResponseEntity<ApiResponse<?>> handleNoResourceFoundException(
+  public ResponseEntity<ApiResult<?>> handleNoResourceFoundException(
       final NoResourceFoundException e) {
     log.debug("No resource found: {} {}", e.getHttpMethod(), e.getResourcePath());
     return ResponseEntity.status(ErrorCode.RESOURCE_NOT_FOUND.getStatus())
-        .body(ApiResponse.error(ErrorCode.RESOURCE_NOT_FOUND));
+        .body(ApiResult.error(ErrorCode.RESOURCE_NOT_FOUND));
   }
 
   /** 그 외 처리되지 않은 모든 예외 처리 */
   @ExceptionHandler(Exception.class)
-  protected ResponseEntity<ApiResponse<?>> handleException(Exception e) {
+  protected ResponseEntity<ApiResult<?>> handleException(Exception e) {
     log.error("Unhandled Exception occurred", e);
 
     log.error("Exception class: {}", e.getClass());
@@ -105,6 +107,6 @@ public class GlobalExceptionHandler {
     log.error("Exception message: {}", e.getMessage());
 
     return ResponseEntity.status(ErrorCode.INTERNAL_SERVER_ERROR.getStatus())
-        .body(ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR));
+        .body(ApiResult.error(ErrorCode.INTERNAL_SERVER_ERROR));
   }
 }

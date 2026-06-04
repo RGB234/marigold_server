@@ -1,12 +1,14 @@
 package com.sns.marigold.global.annotation;
 
-import com.sns.marigold.global.validator.EnumValidator;
-import jakarta.validation.Constraint;
-import jakarta.validation.Payload;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+
+import com.sns.marigold.global.validator.EnumValidator;
+
+import jakarta.validation.Constraint;
+import jakarta.validation.Payload;
 
 /*
   컨트롤러에 전달된 String format의 Enum 값을 검증하여 전달하는 어노테이션
