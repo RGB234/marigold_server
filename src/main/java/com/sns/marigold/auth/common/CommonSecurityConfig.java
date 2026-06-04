@@ -1,5 +1,6 @@
 package com.sns.marigold.auth.common;
 
+import com.sns.marigold.auth.common.csrf.CsrfTokenValidationFilter;
 import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutSuccessHandler;
@@ -15,6 +16,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.web.cors.CorsUtils;
 
 /** 일반 API 요청을 위한 SecurityFilterChain OAuth2 경로를 제외한 모든 경로에 적용됩니다. */
@@ -29,6 +31,7 @@ public class CommonSecurityConfig {
   private final CustomAccessDeniedHandler customAccessDeniedHandler;
   private final CustomLogoutHandler customLogoutHandler;
   private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
+  private final CsrfTokenValidationFilter csrfTokenValidationFilter;
 
   private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
   private final UrlProperties urlProperties;
@@ -61,6 +64,7 @@ public class CommonSecurityConfig {
                     .anyRequest()
                     .permitAll())
         .formLogin(AbstractHttpConfigurer::disable)
+        .addFilterBefore(csrfTokenValidationFilter, LogoutFilter.class)
         .logout(
             logout ->
                 logout

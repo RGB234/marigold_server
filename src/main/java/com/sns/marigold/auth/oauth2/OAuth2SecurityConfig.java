@@ -1,6 +1,7 @@
 package com.sns.marigold.auth.oauth2;
 
 import com.sns.marigold.auth.common.CustomCorsConfigurationSource;
+import com.sns.marigold.auth.common.csrf.CsrfTokenValidationFilter;
 import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
 import com.sns.marigold.auth.oauth2.handler.OAuth2FailureHandler;
 import com.sns.marigold.auth.oauth2.handler.OAuth2SuccessHandler;
@@ -16,6 +17,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.web.cors.CorsUtils;
 
 /** 통합 OAuth2 SecurityFilterChain /oauth2/** 경로에 적용됩니다. */
@@ -25,6 +27,7 @@ import org.springframework.web.cors.CorsUtils;
 public class OAuth2SecurityConfig {
 
   private final CustomCorsConfigurationSource customCorsConfigurationSource;
+  private final CsrfTokenValidationFilter csrfTokenValidationFilter;
 
   private final CustomOAuth2UserService customOAuth2UserService;
   private final OAuth2SuccessHandler oAuth2SuccessHandler;
@@ -58,6 +61,7 @@ public class OAuth2SecurityConfig {
                     .permitAll() // OAuth2 경로는 모두 허용 (인증은 소셜 로그인 창에서 이루어짐)
             )
         .formLogin(AbstractHttpConfigurer::disable)
+        .addFilterBefore(csrfTokenValidationFilter, LogoutFilter.class)
         // 통합 OAuth2 설정
         .oauth2Login(
             oauth2 ->

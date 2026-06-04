@@ -11,6 +11,10 @@ server:
   tomcat:
     max-part-count: 20
 
+logging:
+  level:
+    root: INFO
+
 # JWT 설정
 jwt:
   secret-key: ${JWT_SECRET_KEY}

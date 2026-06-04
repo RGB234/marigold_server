@@ -1,6 +1,7 @@
 package com.sns.marigold.auth.oauth2.handler;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.service.RecentAuthService;
@@ -26,6 +27,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
   private final JwtManager jwtManager;
   private final CookieManager cookieManager;
+  private final CsrfTokenService csrfTokenService;
   private final RecentAuthService recentAuthService;
   private final UrlProperties urlProperties;
   private final HttpCookieOAuth2AuthorizationRequestRepository
@@ -55,6 +57,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
           CookieManager.REFRESH_TOKEN_NAME,
           refreshToken,
           jwtManager.getRefreshTokenValidityInSeconds());
+      csrfTokenService.issue(response);
       recentAuthService.issue(response, principal.getUserId());
     }
 

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.common.jwt.JwtManager;
@@ -34,6 +35,7 @@ class OAuth2SuccessHandlerTest {
 
   @Mock private JwtManager jwtManager;
   @Mock private CookieManager cookieManager;
+  @Mock private CsrfTokenService csrfTokenService;
   @Mock private RecentAuthService recentAuthService;
   @Mock private HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
 
@@ -55,6 +57,7 @@ class OAuth2SuccessHandlerTest {
         new OAuth2SuccessHandler(
             jwtManager,
             cookieManager,
+            csrfTokenService,
             recentAuthService,
             urlProperties,
             authorizationRequestRepository);
@@ -87,6 +90,7 @@ class OAuth2SuccessHandlerTest {
         .addCookie(
             eq(response), eq(CookieManager.REFRESH_TOKEN_NAME), eq("refresh-token"), eq(86400L));
     verify(recentAuthService).issue(response, 1L);
+    verify(csrfTokenService).issue(response);
     verify(jwtManager, never()).createAccessToken(any(CustomPrincipal.class));
 
     assertThat(response.getRedirectedUrl())

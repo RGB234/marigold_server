@@ -1,5 +1,6 @@
 package com.sns.marigold.auth.common;
 
+import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.Collections;
@@ -31,6 +32,7 @@ public class CustomCorsConfigurationSource implements CorsConfigurationSource {
     config.setAllowCredentials(true);
     //
     config.setAllowedHeaders(Collections.singletonList("*"));
+    config.setExposedHeaders(Collections.singletonList(CsrfTokenService.CSRF_TOKEN_HEADER_NAME));
     config.setMaxAge(3600L); // 1h
     return config;
   }

@@ -1,5 +1,6 @@
 package com.sns.marigold.auth.common.controller;
 
+import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.dto.LocalLoginDto;
 import com.sns.marigold.auth.common.dto.LoginResponseDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
@@ -35,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
   private final AuthService authService;
+  private final CsrfTokenService csrfTokenService;
 
   @PreAuthorize("permitAll()")
   @PostMapping("/signup")
@@ -49,6 +51,7 @@ public class AuthController {
   public ResponseEntity<ApiResponse<LoginResponseDto>> localLogin(
       @Valid @RequestBody LocalLoginDto dto, HttpServletResponse response) {
     LoginResponseDto loginResponse = authService.localLogin(dto, response);
+    csrfTokenService.issue(response);
     return ResponseEntity.status(HttpStatus.OK)
         .body(ApiResponse.success(HttpStatus.OK, "local login successfully", loginResponse));
   }
@@ -61,13 +64,14 @@ public class AuthController {
   @PreAuthorize("permitAll()")
   @GetMapping("/status")
   public ResponseEntity<ApiResponse<UserAuthStatusDto>> getAuthStatus(
-      Authentication authentication, HttpServletRequest request) {
+      Authentication authentication, HttpServletRequest request, HttpServletResponse response) {
+    UserAuthStatusDto authStatus = authService.getAuthStatus(authentication, request);
+    if (authStatus.isRefreshTokenPresent()) {
+      csrfTokenService.issue(response);
+    }
+
     return ResponseEntity.status(HttpStatus.OK)
-        .body(
-            ApiResponse.success(
-                HttpStatus.OK,
-                "get auth status successfully",
-                authService.getAuthStatus(authentication, request)));
+        .body(ApiResponse.success(HttpStatus.OK, "get auth status successfully", authStatus));
   }
 
   @PreAuthorize("permitAll()")
@@ -75,6 +79,7 @@ public class AuthController {
   public ResponseEntity<ApiResponse<LoginResponseDto>> refresh(
       HttpServletRequest request, HttpServletResponse response) {
     LoginResponseDto loginResponse = authService.reissue(request, response);
+    csrfTokenService.issue(response);
     return ResponseEntity.status(HttpStatus.OK)
         .body(ApiResponse.success(HttpStatus.OK, "token refreshed successfully", loginResponse));
   }

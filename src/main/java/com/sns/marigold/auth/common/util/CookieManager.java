@@ -28,6 +28,16 @@ public class CookieManager {
    * @param maxAge 만료 시간(초)
    */
   public void addCookie(HttpServletResponse response, String name, String value, long maxAge) {
+    addCookie(response, name, value, maxAge, true);
+  }
+
+  public void addReadableCookie(
+      HttpServletResponse response, String name, String value, long maxAge) {
+    addCookie(response, name, value, maxAge, false);
+  }
+
+  private void addCookie(
+      HttpServletResponse response, String name, String value, long maxAge, boolean httpOnly) {
     if (response == null || name == null || value == null) {
       log.warn("쿠키 추가 실패: null 파라미터");
       return;
@@ -36,9 +46,9 @@ public class CookieManager {
     ResponseCookie cookie =
         ResponseCookie.from(name, value)
             .path("/")
-            .httpOnly(true)
+            .httpOnly(httpOnly)
             .secure(true) // HTTPS 환경에서만 사용
-            .sameSite("Lax") // 같은 도메인 + 외부 링크에서 접속하는 경우에만 사용 가능
+            .sameSite("None") // cross-site 프론트엔드 요청에도 인증 쿠키를 전송
             .maxAge(maxAge)
             .build();
 
@@ -63,7 +73,7 @@ public class CookieManager {
             .path("/") // 생성했을 때와 동일한 경로
             .httpOnly(true) // 생성 옵션과 동일하게
             .secure(true)
-            .sameSite("Lax")
+            .sameSite("None")
             .maxAge(0) // 즉시 만료
             .build();
 
