@@ -11,14 +11,17 @@ function createStompFrame(command, headers = {}, body = '') {
   return frame;
 }
 
-export function chatSession(token, userId, roomId) {
-  if (!token || !userId || !roomId) {
+export function chatSession(token, csrfToken, userId, roomId) {
+  if (!token || !csrfToken || !userId || !roomId) {
     // If not authenticated or missing room, skip chat test
     return;
   }
 
   const url = WS_BASE_URL;
   const params = {
+    headers: {
+      Cookie: `XSRF-TOKEN=${csrfToken}`,
+    },
     tags: { my_tag: 'websocket' }
   };
 
@@ -28,7 +31,8 @@ export function chatSession(token, userId, roomId) {
       const connectFrame = createStompFrame('CONNECT', {
         'accept-version': '1.1,1.2',
         'heart-beat': '10000,10000',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'X-CSRF-TOKEN': csrfToken
       });
       socket.send(connectFrame);
     });

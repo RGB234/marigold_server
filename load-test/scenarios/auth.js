@@ -27,13 +27,15 @@ export function login(user = null) {
   // ApiResponse 구조 (global/dto/ApiResponse.java)
   // { success: true, message: "...", data: { accessToken: "..." } }
   let token = null;
+  let csrfToken = null;
   if (isSuccessful) {
     try {
       token = res.json('data.accessToken');
+      csrfToken = res.headers['X-CSRF-TOKEN'] || res.cookies['XSRF-TOKEN']?.[0]?.value || null;
     } catch (e) {
       // JSON 파싱 실패
     }
   }
 
-  return { token, targetUser };
+  return { token, csrfToken, targetUser };
 }

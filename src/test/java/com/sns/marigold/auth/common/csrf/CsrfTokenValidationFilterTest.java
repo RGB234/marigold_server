@@ -65,4 +65,15 @@ class CsrfTokenValidationFilterTest {
 
     verify(filterChain).doFilter(request, response);
   }
+
+  @Test
+  void unsafeSockJsRequestWithCookieAuth_PassesWithoutToken() throws Exception {
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/ws/123/abc/xhr_send");
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    request.setCookies(new Cookie(CookieManager.REFRESH_TOKEN_NAME, "refresh-token"));
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+  }
 }

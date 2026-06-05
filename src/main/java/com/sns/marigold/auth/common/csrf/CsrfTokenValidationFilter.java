@@ -27,9 +27,20 @@ import lombok.RequiredArgsConstructor;
 public class CsrfTokenValidationFilter extends OncePerRequestFilter {
 
   private static final Set<String> UNSAFE_METHODS = Set.of("POST", "PUT", "PATCH", "DELETE");
+  private static final String WEBSOCKET_ENDPOINT = "/ws";
 
   private final CookieManager cookieManager;
   private final ObjectMapper objectMapper;
+
+  @Override
+  protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
+    String path = request.getRequestURI();
+    String contextPath = request.getContextPath();
+    if (contextPath != null && !contextPath.isEmpty() && path.startsWith(contextPath)) {
+      path = path.substring(contextPath.length());
+    }
+    return WEBSOCKET_ENDPOINT.equals(path) || path.startsWith(WEBSOCKET_ENDPOINT + "/");
+  }
 
   @Override
   protected void doFilterInternal(

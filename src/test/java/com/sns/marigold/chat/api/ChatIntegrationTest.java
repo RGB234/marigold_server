@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
@@ -38,6 +39,7 @@ import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.common.jwt.JwtManager;
@@ -129,8 +131,14 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
 
     CompletableFuture<ChatMessageDto> resultKeeper = new CompletableFuture<>();
 
+    String csrfToken = "csrf-token";
     StompHeaders connectHeaders = new StompHeaders();
     connectHeaders.add("Authorization", "Bearer " + token);
+    connectHeaders.add(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfToken);
+
+    WebSocketHttpHeaders webSocketHeaders = new WebSocketHttpHeaders();
+    webSocketHeaders.add(
+        HttpHeaders.COOKIE, CsrfTokenService.CSRF_TOKEN_COOKIE_NAME + "=" + csrfToken);
 
     // WebSocket Config에서 SockJS를 사용 중
     // 따라서 순수 웹소켓 엔드포인트를 사용하려면 접속하는 경로인 /websocket을 URL 뒤에 추가해야 한다.
@@ -139,7 +147,7 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
         client
             .connectAsync(
                 url,
-                new WebSocketHttpHeaders(),
+                webSocketHeaders,
                 connectHeaders,
                 new StompSessionHandlerAdapter() {
                   @Override

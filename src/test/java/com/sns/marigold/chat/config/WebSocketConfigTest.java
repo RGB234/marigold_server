@@ -1,9 +1,11 @@
 package com.sns.marigold.chat.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,8 +23,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
+import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 
 import io.hypersistence.tsid.TSID;
@@ -34,11 +38,48 @@ class WebSocketConfigTest {
 
   @Mock private RoomParticipantRepository participantRepository;
 
+  @Mock private CookieManager cookieManager;
+
   private WebSocketConfig webSocketConfig;
 
   @BeforeEach
   void setUp() {
-    webSocketConfig = new WebSocketConfig(jwtAuthenticationService, participantRepository);
+    webSocketConfig =
+        new WebSocketConfig(jwtAuthenticationService, participantRepository, cookieManager);
+  }
+
+  @Test
+  @DisplayName("WebSocket CONNECT는 CSRF 쿠키와 헤더가 일치하면 통과한다.")
+  void validateCsrf_AllowsMatchingToken() {
+    // given
+    StompHeaderAccessor accessor = connectAccessor("csrf-token", "csrf-token");
+
+    // when & then
+    assertThatCode(() -> webSocketConfig.validateCsrf(accessor)).doesNotThrowAnyException();
+    assertThat(accessor.getSessionAttributes()).containsEntry("csrfValidated", Boolean.TRUE);
+  }
+
+  @Test
+  @DisplayName("WebSocket CONNECT는 CSRF 쿠키와 헤더가 불일치하면 거부한다.")
+  void validateCsrf_DeniesMismatchedToken() {
+    // given
+    StompHeaderAccessor accessor = connectAccessor("csrf-token", "other-token");
+
+    // when & then
+    assertThatThrownBy(() -> webSocketConfig.validateCsrf(accessor))
+        .isInstanceOf(AccessDeniedException.class);
+  }
+
+  @Test
+  @DisplayName("WebSocket SEND/SUBSCRIBE는 CONNECT CSRF 검증이 선행되어야 한다.")
+  void requireCsrfValidated_DeniesWhenConnectWasNotValidated() {
+    // given
+    StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
+    accessor.setSessionAttributes(new HashMap<>());
+
+    // when & then
+    assertThatThrownBy(() -> webSocketConfig.requireCsrfValidated(accessor))
+        .isInstanceOf(AccessDeniedException.class);
   }
 
   @Test
@@ -63,6 +104,15 @@ class WebSocketConfigTest {
     // when & then
     assertThatThrownBy(() -> webSocketConfig.authorizeSubscription(accessor))
         .isInstanceOf(AccessDeniedException.class);
+  }
+
+  private StompHeaderAccessor connectAccessor(String csrfCookie, String csrfHeader) {
+    StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+    Map<String, Object> sessionAttributes = new HashMap<>();
+    sessionAttributes.put(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, csrfCookie);
+    accessor.setSessionAttributes(sessionAttributes);
+    accessor.addNativeHeader(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfHeader);
+    return accessor;
   }
 
   private StompHeaderAccessor chatRoomSubscribeAccessor(Long roomId, Long userId) {

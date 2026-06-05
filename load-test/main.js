@@ -60,15 +60,15 @@ export function authScenario() {
 
 export function chatScenario() {
   // 채팅 통신을 위해 로그인하여 Access Token 발급
-  const { token, targetUser } = login();
+  const { token, csrfToken, targetUser } = login();
   
-  if (token) {
+  if (token && csrfToken) {
     // roomId는 실제 DB에 존재하는 채팅방 ID로 대체 가능 (현재 1로 고정하여 테스트)
     const roomId = 1; 
     // targetUser에 id가 없으면 임의의 senderId(1)를 보냄
     const senderId = targetUser.id || 1;
     
-    chatSession(token, senderId, roomId);
+    chatSession(token, csrfToken, senderId, roomId);
   }
   sleep(1);
 }
