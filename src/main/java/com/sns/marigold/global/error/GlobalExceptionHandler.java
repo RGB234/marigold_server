@@ -3,6 +3,7 @@ package com.sns.marigold.global.error;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -92,8 +93,9 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(NoResourceFoundException.class)
   public ResponseEntity<ApiResult<?>> handleNoResourceFoundException(
       final NoResourceFoundException e) {
-    log.debug("No resource found: {} {}", e.getHttpMethod(), e.getResourcePath());
+    log.warn("No resource found: {} {}", e.getHttpMethod(), e.getResourcePath());
     return ResponseEntity.status(ErrorCode.RESOURCE_NOT_FOUND.getStatus())
+        .contentType(MediaType.APPLICATION_JSON)
         .body(ApiResult.error(ErrorCode.RESOURCE_NOT_FOUND));
   }
 
