@@ -31,10 +31,20 @@ public class ChatController {
   // 호출된다.
   public void message(ChatMessageDto messageDto, Principal principal) {
     log.info("Received message: {}", messageDto);
-    ChatMessageDto savedMessage =
-        chatService.saveMessage(messageDto, getAuthenticatedUserId(principal));
-    String roomIdStr = TSID.from(savedMessage.getRoomId()).toString();
-    messagingTemplate.convertAndSend("/sub/chat/room/" + roomIdStr, savedMessage);
+    try {
+      ChatMessageDto savedMessage =
+          chatService.saveMessage(messageDto, getAuthenticatedUserId(principal));
+      String roomIdStr = TSID.from(savedMessage.getRoomId()).toString();
+      messagingTemplate.convertAndSend("/sub/chat/room/" + roomIdStr, savedMessage);
+    } catch (RuntimeException e) {
+      log.warn(
+          "Failed to process WebSocket chat message. roomId={}, authenticated={}: {}",
+          messageDto == null ? null : messageDto.getRoomId(),
+          principal != null,
+          e.getMessage(),
+          e);
+      throw e;
+    }
   }
 
   private Long getAuthenticatedUserId(Principal principal) {

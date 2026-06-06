@@ -6,6 +6,7 @@ import java.security.MessageDigest;
 import java.security.Principal;
 import java.util.Map;
 
+import java.util.Objects;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.server.ServerHttpRequest;
@@ -81,34 +82,45 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         new ExecutorChannelInterceptor() {
 
           @Override
-          @Nullable
           public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
             StompHeaderAccessor accessor =
                 MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
             if (accessor != null) {
-              if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-                validateCsrf(accessor);
-                authenticate(accessor);
-              }
-
-              if (StompCommand.SEND.equals(accessor.getCommand())
-                  || StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-                requireCsrfValidated(accessor);
-                if (accessor.getUser() == null) {
+              try {
+                if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+                  validateCsrf(accessor);
                   authenticate(accessor);
                 }
-              }
 
-              if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-                authorizeSubscription(accessor);
+                if (StompCommand.SEND.equals(accessor.getCommand())
+                    || StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+                  requireCsrfValidated(accessor);
+                  if (accessor.getUser() == null) {
+                    authenticate(accessor);
+                  }
+                }
+
+                if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+                  authorizeSubscription(accessor);
+                }
+              } catch (RuntimeException e) {
+                log.warn(
+                    "WebSocket inbound message rejected. command={}, destination={}, sessionId={},"
+                        + " hasUser={}: {}",
+                    accessor.getCommand(),
+                    accessor.getDestination(),
+                    accessor.getSessionId(),
+                    accessor.getUser() != null,
+                    e.getMessage(),
+                    e);
+                throw e;
               }
             }
             return message;
           }
 
           @Override
-          @Nullable
           public Message<?> beforeHandle(
               @NonNull Message<?> message,
               @NonNull MessageChannel channel,
@@ -174,7 +186,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
       throw new AccessDeniedException("CSRF token is missing or invalid");
     }
 
-    sessionAttributes.put(CSRF_VALIDATED_SESSION_ATTRIBUTE, Boolean.TRUE);
+    Objects.requireNonNull(sessionAttributes).put(CSRF_VALIDATED_SESSION_ATTRIBUTE, Boolean.TRUE);
   }
 
   void requireCsrfValidated(@NonNull StompHeaderAccessor accessor) {
