@@ -11,10 +11,6 @@ server:
   tomcat:
     max-part-count: 20
 
-logging:
-  level:
-    root: INFO
-
 springdoc:
   api-docs:
     enabled: false

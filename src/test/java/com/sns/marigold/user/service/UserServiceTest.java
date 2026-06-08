@@ -29,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.sns.marigold.adoption.repository.AdoptionPostImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.chat.service.ChatService;
@@ -62,6 +63,8 @@ class UserServiceTest {
   @Mock private ApplicationEventPublisher eventPublisher;
 
   @Mock private PasswordEncoder passwordEncoder;
+
+  @Mock private AuditLogger auditLogger;
 
   @InjectMocks private UserService userService;
 

@@ -17,21 +17,34 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.global.dto.ApiResult;
 import com.sns.marigold.global.error.dto.FieldErrorDetail;
 import com.sns.marigold.global.error.exception.BusinessException;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /** 전역 예외 처리를 담당하는 Advice 클래스입니다. */
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+  private final AuditLogger auditLogger;
 
   /** 비즈니스 예외 처리. 모든 커스텀 예외는 BusinessException을 상속합니다. */
   @ExceptionHandler(BusinessException.class)
   public ResponseEntity<ApiResult<?>> handleBusinessException(@NonNull final BusinessException e) {
-    log.error("Exception occurred: {}", e.getErrorCode().getCode(), e);
+    if (e.getErrorCode().getStatus().is5xxServerError()) {
+      log.error("Business exception occurred: {}", e.getErrorCode().getCode(), e);
+    } else {
+      log.debug(
+          "Business exception occurred: code={}, message={}",
+          e.getErrorCode().getCode(),
+          e.getMessage());
+    }
+
     return ResponseEntity.status(e.getErrorCode().getStatus())
         .body(ApiResult.error(e.getErrorCode()));
   }
@@ -45,12 +58,15 @@ public class GlobalExceptionHandler {
     if (authentication == null
         || authentication instanceof AnonymousAuthenticationToken
         || !authentication.isAuthenticated()) {
-      log.error("Unauthorized access attempt: {}", e.getMessage());
+      log.debug("Unauthorized access attempt: {}", e.getMessage());
+
       return ResponseEntity.status(ErrorCode.AUTH_UNAUTHORIZED.getStatus())
           .body(ApiResult.error(ErrorCode.AUTH_UNAUTHORIZED));
     }
 
-    log.error("Access denied for user {}: {}", authentication.getName(), e.getMessage());
+    auditLogger.warn(
+        "event=authorization_denied user={} reason={}", authentication.getName(), e.getMessage());
+
     return ResponseEntity.status(ErrorCode.AUTH_ACCESS_DENIED.getStatus())
         .body(ApiResult.error(ErrorCode.AUTH_ACCESS_DENIED));
   }
@@ -59,7 +75,8 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
   public ResponseEntity<ApiResult<?>> handleAuthenticationCredentialsNotFoundException(
       AuthenticationCredentialsNotFoundException e) {
-    log.error("Authentication not found in security context: {}", e.getMessage());
+    log.debug("Authentication not found in security context: {}", e.getMessage());
+
     return ResponseEntity.status(ErrorCode.AUTH_UNAUTHORIZED.getStatus())
         .body(ApiResult.error(ErrorCode.AUTH_UNAUTHORIZED));
   }
@@ -68,13 +85,13 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<ApiResult<?>> handleMethodArgumentNotValidException(
       final MethodArgumentNotValidException e) {
-    log.error("MethodArgumentNotValidException occurred", e);
-
     BindingResult bindingResult = e.getBindingResult();
     List<FieldErrorDetail> errors =
         bindingResult.getFieldErrors().stream()
             .map(error -> new FieldErrorDetail(error.getField(), error.getDefaultMessage()))
             .collect(Collectors.toList());
+
+    log.debug("MethodArgumentNotValidException occurred. errorCount={}", errors.size());
 
     return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
         .body(ApiResult.error(ErrorCode.INVALID_INPUT_VALUE, errors));
@@ -84,7 +101,11 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
   public ResponseEntity<ApiResult<?>> handleMethodArgumentTypeMismatchException(
       final MethodArgumentTypeMismatchException e) {
-    log.error("MethodArgumentTypeMismatchException occurred", e);
+    log.debug(
+        "MethodArgumentTypeMismatchException occurred. name={}, requiredType={}",
+        e.getName(),
+        e.getRequiredType());
+
     return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
         .body(ApiResult.error(ErrorCode.INVALID_INPUT_VALUE));
   }
@@ -93,7 +114,8 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(NoResourceFoundException.class)
   public ResponseEntity<ApiResult<?>> handleNoResourceFoundException(
       final NoResourceFoundException e) {
-    log.warn("No resource found: {} {}", e.getHttpMethod(), e.getResourcePath());
+    log.debug("No resource found: {} {}", e.getHttpMethod(), e.getResourcePath());
+
     return ResponseEntity.status(ErrorCode.RESOURCE_NOT_FOUND.getStatus())
         .contentType(MediaType.APPLICATION_JSON)
         .body(ApiResult.error(ErrorCode.RESOURCE_NOT_FOUND));
@@ -103,10 +125,6 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(Exception.class)
   protected ResponseEntity<ApiResult<?>> handleException(Exception e) {
     log.error("Unhandled Exception occurred", e);
-
-    log.error("Exception class: {}", e.getClass());
-    log.error("Exception cause: {}", e.getCause());
-    log.error("Exception message: {}", e.getMessage());
 
     return ResponseEntity.status(ErrorCode.INTERNAL_SERVER_ERROR.getStatus())
         .body(ApiResult.error(ErrorCode.INTERNAL_SERVER_ERROR));

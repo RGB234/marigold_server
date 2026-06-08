@@ -8,6 +8,7 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationSu
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
@@ -33,6 +34,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
   private final CsrfTokenService csrfTokenService;
   private final RecentAuthService recentAuthService;
   private final UrlProperties urlProperties;
+  private final AuditLogger auditLogger;
   private final HttpCookieOAuth2AuthorizationRequestRepository
       httpCookieOAuth2AuthorizationRequestRepository;
 
@@ -43,7 +45,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     CustomPrincipal principal = (CustomPrincipal) authentication.getPrincipal();
     AuthStatus authStatus = principal.getAuthStatus();
-    log.info("OAuth2 인증 성공 - UserId: {}, 상태: {}", principal.getUserId(), authStatus);
+    auditLogger.info(
+        "event=oauth2_success userId={} authStatus={}", principal.getUserId(), authStatus);
 
     // 쿠키 삭제
     httpCookieOAuth2AuthorizationRequestRepository.removeAuthorizationRequestCookies(
@@ -75,7 +78,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     // 3. 리다이렉트 처리
     if (response.isCommitted()) {
-      log.debug("응답이 이미 커밋되어 리다이렉트 할 수 없습니다.");
+      log.warn("응답이 이미 커밋되어 리다이렉트 할 수 없습니다.");
       return;
     }
     getRedirectStrategy().sendRedirect(request, response, redirectUrl);

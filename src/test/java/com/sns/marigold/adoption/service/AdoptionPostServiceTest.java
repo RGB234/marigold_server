@@ -40,6 +40,7 @@ import com.sns.marigold.adoption.repository.AdoptionAdopterRepository;
 import com.sns.marigold.adoption.repository.AdoptionCommentImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
@@ -78,6 +79,8 @@ class AdoptionPostServiceTest {
   @Mock private TransactionTemplate transactionTemplate;
 
   @Mock private ApplicationEventPublisher eventPublisher;
+
+  @Mock private AuditLogger auditLogger;
 
   @InjectMocks private AdoptionPostService adoptionPostService;
 

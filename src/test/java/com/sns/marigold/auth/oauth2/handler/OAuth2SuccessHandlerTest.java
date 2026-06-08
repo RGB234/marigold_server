@@ -22,6 +22,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
@@ -40,6 +41,7 @@ class OAuth2SuccessHandlerTest {
   @Mock private CsrfTokenService csrfTokenService;
   @Mock private RecentAuthService recentAuthService;
   @Mock private HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
+  @Mock private AuditLogger auditLogger;
 
   private OAuth2SuccessHandler successHandler;
 
@@ -62,6 +64,7 @@ class OAuth2SuccessHandlerTest {
             csrfTokenService,
             recentAuthService,
             urlProperties,
+            auditLogger,
             authorizationRequestRepository);
   }
 

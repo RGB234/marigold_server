@@ -30,10 +30,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 // OAuth2 로그인은 Spring security가 처리
-// SecurityConfig 및 관련 코드 참조
+// SecurityConfig 및 관련 코드 참고
 // OAuth2 인증 엔드포인드 -> /oauth2/authorization/{registrationId} (기본값)
 // /oauth2/authorization/kakao
 // /oauth2/authorization/naver
@@ -41,7 +40,6 @@ import lombok.extern.slf4j.Slf4j;
 @Tag(name = "Auth", description = "회원가입, 로그인, 인증 상태 API")
 @RestController
 @RequestMapping(UrlConstants.AUTH_BASE)
-@Slf4j
 @RequiredArgsConstructor
 public class AuthController {
 

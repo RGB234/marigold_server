@@ -22,7 +22,7 @@ public class StorageEventListener {
   public void handleDeleteOldStorageFilesEvent(DeleteOldStorageFilesEvent event) {
     if (event.fileNames() == null || event.fileNames().isEmpty()) return;
 
-    log.info("Deleting old files from storage: {}", event.fileNames());
+    log.debug("Deleting old files from storage. count={}", event.fileNames().size());
     s3Service.deleteUploadedImagesFromS3ByStoredFileNames(event.fileNames());
   }
 
@@ -32,7 +32,9 @@ public class StorageEventListener {
   public void handleDeleteUploadedStorageFilesEvent(DeleteUploadedStorageFilesEvent event) {
     if (event.fileNames() == null || event.fileNames().isEmpty()) return;
 
-    log.error("Transaction rolled back. Reverting new files from storage: {}", event.fileNames());
+    log.warn(
+        "Transaction rolled back. Reverting new files from storage. count={}",
+        event.fileNames().size());
     s3Service.deleteUploadedImagesFromS3ByStoredFileNames(event.fileNames());
   }
 }

@@ -8,13 +8,11 @@ import org.springframework.web.util.WebUtils;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
 
 /*
   Refresh Token 쿠키 추가 및 만료 처리
 */
 @Component
-@Slf4j
 public class CookieManager {
 
   public static final String REFRESH_TOKEN_NAME = "refresh_token";
@@ -40,7 +38,6 @@ public class CookieManager {
   private void addCookie(
       HttpServletResponse response, String name, String value, long maxAge, boolean httpOnly) {
     if (response == null || name == null || value == null) {
-      log.warn("쿠키 추가 실패: null 파라미터");
       return;
     }
 
@@ -54,7 +51,6 @@ public class CookieManager {
             .build();
 
     response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-    log.debug("쿠키 추가: name={}, maxAge={}초", name, maxAge);
   }
 
   /**
@@ -65,7 +61,6 @@ public class CookieManager {
    */
   public void expireCookie(HttpServletResponse response, String name) {
     if (response == null || name == null) {
-      log.warn("쿠키 만료 실패: null 파라미터");
       return;
     }
 
@@ -79,7 +74,6 @@ public class CookieManager {
             .build();
 
     response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-    log.debug("쿠키 만료: name={}", name);
   }
 
   /**
@@ -91,17 +85,9 @@ public class CookieManager {
    */
   public Cookie getCookie(HttpServletRequest request, String name) {
     if (request == null || name == null) {
-      log.warn("쿠키 조회 실패: null 파라미터");
       return null;
     }
 
-    Cookie cookie = WebUtils.getCookie(request, name);
-    if (cookie != null) {
-      log.debug("쿠키 조회 성공: name={}", name);
-    } else {
-      log.debug("쿠키 없음: name={}", name);
-    }
-
-    return cookie;
+    return WebUtils.getCookie(request, name);
   }
 }

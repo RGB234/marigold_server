@@ -12,6 +12,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
 import com.sns.marigold.global.dto.ApiResult;
 import com.sns.marigold.global.error.ErrorCode;
@@ -38,6 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   private final JwtAuthenticationService jwtAuthenticationService;
   private final ObjectMapper objectMapper;
+  private final AuditLogger auditLogger;
 
   @Override
   protected void doFilterInternal(
@@ -60,15 +62,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
       } catch (BusinessException e) {
         ErrorCode errorCode = e.getErrorCode();
-        log.info("JWT 사용자 상태 검증 실패: {}", errorCode.getCode());
+        auditLogger.warn("event=jwt_user_status_rejected errorCode={}", errorCode.getCode());
         SecurityContextHolder.clearContext();
         writeErrorResponse(response, errorCode);
         return;
       } catch (ExpiredJwtException e) {
-        log.info("Access Token 만료: {}", e.getMessage());
+        log.debug("Access token expired");
         request.setAttribute("exception", ErrorCode.AUTH_TOKEN_EXPIRED);
       } catch (JwtException | IllegalArgumentException e) {
-        log.warn("유효하지 않은 토큰: {}", e.getMessage());
+        auditLogger.warn("event=invalid_access_token");
         request.setAttribute("exception", ErrorCode.AUTH_TOKEN_INVALID);
       }
     }

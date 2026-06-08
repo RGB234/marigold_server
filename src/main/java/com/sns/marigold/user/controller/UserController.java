@@ -40,13 +40,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Tag(name = "User", description = "사용자 계정과 프로필 API")
 @RestController
 @RequestMapping(UrlConstants.USER_BASE)
 @RequiredArgsConstructor
-@Slf4j
 public class UserController {
 
   private final UserService userService;

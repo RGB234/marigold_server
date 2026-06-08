@@ -5,8 +5,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.Principal;
 import java.util.Map;
-
 import java.util.Objects;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.server.ServerHttpRequest;
@@ -33,6 +33,7 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
@@ -56,6 +57,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   private final JwtAuthenticationService jwtAuthenticationService;
   private final RoomParticipantRepository participantRepository;
   private final CookieManager cookieManager;
+  private final AuditLogger auditLogger;
 
   @Value("${url.frontend.origin}")
   private String frontendOrigin;
@@ -105,15 +107,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                   authorizeSubscription(accessor);
                 }
               } catch (RuntimeException e) {
-                log.warn(
-                    "WebSocket inbound message rejected. command={}, destination={}, sessionId={},"
-                        + " hasUser={}: {}",
+                auditLogger.warn(
+                    "event=websocket_message_rejected command={} destination={} sessionId={}"
+                        + " hasUser={} reason={}",
                     accessor.getCommand(),
                     accessor.getDestination(),
                     accessor.getSessionId(),
                     accessor.getUser() != null,
-                    e.getMessage(),
-                    e);
+                    e.getMessage());
                 throw e;
               }
             }
@@ -225,7 +226,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
       Authentication authentication = jwtAuthenticationService.getAuthentication(token);
       accessor.setUser(authentication);
     } catch (Exception e) {
-      log.error("WebSocket token authentication failed: {}", e.getMessage());
+      auditLogger.warn("event=ws_invalid_token");
     }
   }
 

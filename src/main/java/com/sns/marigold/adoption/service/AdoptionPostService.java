@@ -32,6 +32,7 @@ import com.sns.marigold.adoption.repository.AdoptionCommentImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.adoption.specification.AdoptionPostSpecification;
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.entity.RoomParticipant;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
@@ -68,6 +69,7 @@ public class AdoptionPostService {
 
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
+  private final AuditLogger auditLogger;
 
   @Transactional(readOnly = true)
   public AdoptionPost findEntityById(Long id) {
@@ -101,12 +103,12 @@ public class AdoptionPostService {
           });
 
     } catch (Exception e) {
-      log.error("Create failed. Deleting uploaded S3 files... error: {}", e.getMessage());
+      log.debug("Create failed. Deleting uploaded S3 files.");
 
       try {
         s3Service.deleteUploadedImagesFromS3(uploadedImages);
       } catch (Exception s3Ex) {
-        log.error("Failed to delete S3 images during rollback. Files: {}", uploadedImages, s3Ex);
+        log.error("event=s3_rollback_delete_failed fileCount={}", uploadedImages.size(), s3Ex);
       }
 
       if (e instanceof BusinessException) {
@@ -183,12 +185,12 @@ public class AdoptionPostService {
     } catch (Exception e) {
       // 5. 실패 시 보상 트랜잭션: 새로 업로드한 S3 파일 삭제
       // 트랜잭션 롤백과 무관하게 업로드된 파일은 지워야 함
-      log.error("Update failed. Deleting uploaded S3 files... error: {}", e.getMessage());
+      log.debug("Update failed. Deleting uploaded S3 files.");
 
       try {
         s3Service.deleteUploadedImagesFromS3(uploadedImages);
       } catch (Exception s3Ex) {
-        log.error("Failed to delete S3 images during rollback. Files: {}", uploadedImages, s3Ex);
+        log.error("event=s3_rollback_delete_failed fileCount={}", uploadedImages.size(), s3Ex);
       }
 
       if (e instanceof BusinessException) {
@@ -369,6 +371,7 @@ public class AdoptionPostService {
     if (!imagesToDelete.isEmpty()) {
       eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
     }
+    auditLogger.info("event=adoption_post_deleted userId={} postId={}", userId, id);
   }
 
   public void validateWriter(AdoptionPost info, Long userId) {
@@ -424,6 +427,8 @@ public class AdoptionPostService {
         Objects.requireNonNull(
             AdoptionAdopter.builder().adoptionPost(info).adopter(adopter).build());
     adoptionAdopterRepository.save(adoptionAdopter);
+    auditLogger.info(
+        "event=adoption_completed userId={} postId={} adopterId={}", userId, id, adopterId);
   }
 
   @Transactional
@@ -442,5 +447,6 @@ public class AdoptionPostService {
 
     info.updateStatus(AdoptionPostStatus.PROCEEDING);
     adoptionAdopterRepository.deleteByAdoptionPostId(id);
+    auditLogger.info("event=adoption_cancelled userId={} postId={}", userId, id);
   }
 }

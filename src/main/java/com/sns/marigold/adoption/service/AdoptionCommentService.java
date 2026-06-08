@@ -121,11 +121,11 @@ public class AdoptionCommentService {
             return adoptionCommentRepository.save(comment).getId();
           });
     } catch (Exception e) {
-      log.error("Comment creation failed. Deleting uploaded S3 files... error: {}", e.getMessage());
+      log.debug("Comment creation failed. Deleting uploaded S3 files.");
       try {
         s3Service.deleteUploadedImagesFromS3(uploadedImages);
       } catch (Exception s3Ex) {
-        log.error("Failed to delete S3 images during rollback. Files: {}", uploadedImages, s3Ex);
+        log.error("event=s3_rollback_delete_failed fileCount={}", uploadedImages.size(), s3Ex);
       }
       if (e instanceof RuntimeException runtimeException) {
         throw runtimeException;
@@ -181,14 +181,11 @@ public class AdoptionCommentService {
           });
     } catch (Exception e) {
       if (!uploadedImages.isEmpty()) {
-        log.error("Comment update failed. Deleting uploaded S3 files... error: {}", e.getMessage());
+        log.debug("Comment update failed. Deleting uploaded S3 files.");
         try {
           s3Service.deleteUploadedImagesFromS3(uploadedImages);
         } catch (Exception s3Ex) {
-          log.error(
-              "Failed to delete S3 images during comment update rollback. Files: {}",
-              uploadedImages,
-              s3Ex);
+          log.error("event=s3_rollback_delete_failed fileCount={}", uploadedImages.size(), s3Ex);
         }
       }
       if (e instanceof RuntimeException runtimeException) {

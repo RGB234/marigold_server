@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.adoption.service.AdoptionPostService;
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.error.GlobalExceptionHandler;
 
@@ -23,6 +24,7 @@ import com.sns.marigold.global.error.GlobalExceptionHandler;
 class AdoptionPostControllerTest {
 
   @Mock private AdoptionPostService adoptionPostService;
+  @Mock private AuditLogger auditLogger;
 
   private MockMvc mockMvc;
 
@@ -30,7 +32,7 @@ class AdoptionPostControllerTest {
   void setUp() {
     mockMvc =
         MockMvcBuilders.standaloneSetup(new AdoptionPostController(adoptionPostService))
-            .setControllerAdvice(new GlobalExceptionHandler())
+            .setControllerAdvice(new GlobalExceptionHandler(auditLogger))
             .build();
   }
 

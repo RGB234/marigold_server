@@ -12,6 +12,7 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.global.dto.ApiResult;
 import com.sns.marigold.global.error.ErrorCode;
 
@@ -33,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 public class CustomAccessDeniedHandler implements AccessDeniedHandler {
 
   private final ObjectMapper objectMapper;
+  private final AuditLogger auditLogger;
 
   @Override
   public void handle(
@@ -40,18 +42,17 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
       HttpServletResponse response,
       AccessDeniedException accessDeniedException)
       throws IOException {
-    log.info(
-        "🚫 Access Denied - URI: {}, User: {}, Message: {}",
-        request.getRequestURI(),
-        request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "anonymous",
-        accessDeniedException.getMessage());
-
     Collection<? extends GrantedAuthority> authorities =
         (request.getUserPrincipal() instanceof Authentication)
             ? ((Authentication) request.getUserPrincipal()).getAuthorities()
             : Collections.emptyList();
 
-    log.info("   - Authorities: {}", authorities);
+    auditLogger.warn(
+        "event=access_denied path={} user={} authorities={} reason={}",
+        request.getRequestURI(),
+        request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "anonymous",
+        authorities,
+        accessDeniedException.getMessage());
 
     ErrorCode errorCode = ErrorCode.AUTH_ACCESS_DENIED;
 

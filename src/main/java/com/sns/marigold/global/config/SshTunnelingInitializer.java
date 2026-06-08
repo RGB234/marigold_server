@@ -62,13 +62,13 @@ public class SshTunnelingInitializer {
           }
 
           public void log(int level, String message) {
-            System.out.println("JSch: " + message);
+            logger.debug("JSch: {}", message);
           }
         });
 
     try {
       logger.info("Ssh tunneling start");
-      logger.info("{}@{} -> {}@{}", host, port, remoteHost, remotePort);
+      logger.debug("SSH tunnel target configured. sshPort={}, remotePort={}", port, remotePort);
 
       JSch jsch = new JSch();
 
@@ -79,16 +79,16 @@ public class SshTunnelingInitializer {
 
       KeyPair kp = KeyPair.load(jsch, privateKey);
       if (kp == null) {
-        logger.error("❌ 키 로드 실패");
+        logger.error("SSH private key load failed");
       }
 
-      logger.info("{}@{}:{}", user, host, port);
+      logger.debug("Creating SSH session");
       session = jsch.getSession(user, host, port);
       Properties config = new Properties();
       // 최초 SSH 접속 시 서버의 호스트 키 신뢰
       config.put("StrictHostKeyChecking", "no");
 
-      logger.info("setting config : {}", config);
+      logger.debug("Setting SSH config");
       session.setConfig(config);
 
       logger.info("connecting ssh session");
@@ -103,8 +103,7 @@ public class SshTunnelingInitializer {
           session.setPortForwardingL(3030, remoteHost, remotePort); // lport 0 : auto assigned port
       logger.info("port forwarding end");
     } catch (Exception e) {
-      logger.error("SSH Tunneling Error");
-      e.printStackTrace();
+      logger.error("SSH tunneling failed", e);
       this.closeSSH();
       exit(1);
     }

@@ -30,7 +30,6 @@ public class ChatController {
       "/chat/message") // WebSocket. WebSocketConfig에 의해 /pub + /chat/message 경로로 메시지가 전송되면 이 메서드가
   // 호출된다.
   public void message(ChatMessageDto messageDto, Principal principal) {
-    log.info("Received message: {}", messageDto);
     try {
       ChatMessageDto savedMessage =
           chatService.saveMessage(messageDto, getAuthenticatedUserId(principal));
@@ -38,10 +37,9 @@ public class ChatController {
       messagingTemplate.convertAndSend("/sub/chat/room/" + roomIdStr, savedMessage);
     } catch (RuntimeException e) {
       log.warn(
-          "Failed to process WebSocket chat message. roomId={}, authenticated={}: {}",
+          "Failed to process WebSocket chat message. roomId={}, authenticated={}",
           messageDto == null ? null : messageDto.getRoomId(),
           principal != null,
-          e.getMessage(),
           e);
       throw e;
     }

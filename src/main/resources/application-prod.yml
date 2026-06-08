@@ -29,16 +29,12 @@ spring:
 
 logging:
   level:
-    org:
-      springframework:
-        security: INFO
-        web.client.RestTemplate: INFO
-      hibernate:
-        SQL: WARN
-        orm:
-          jdbc:
-            bind: OFF
-    com.sns.marigold: INFO
+    root: WARN
+    org.springframework: WARN
+    org.hibernate.SQL: OFF
+    org.hibernate.orm.jdbc.bind: OFF
+    com.sns.marigold: WARN
+    audit: INFO
 
 springdoc:
   api-docs:

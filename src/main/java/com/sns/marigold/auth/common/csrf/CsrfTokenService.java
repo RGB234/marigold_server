@@ -1,12 +1,15 @@
 package com.sns.marigold.auth.common.csrf;
 
-import com.sns.marigold.auth.common.util.CookieManager;
-import jakarta.servlet.http.HttpServletResponse;
 import java.security.SecureRandom;
 import java.util.Base64;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import com.sns.marigold.auth.common.util.CookieManager;
+
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -29,8 +32,8 @@ public class CsrfTokenService {
     byte[] bytes = new byte[TOKEN_BYTES];
     secureRandom.nextBytes(bytes);
     String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    cookieManager.addReadableCookie(response, CSRF_TOKEN_COOKIE_NAME, token,
-        tokenValidityInSeconds);
+    cookieManager.addReadableCookie(
+        response, CSRF_TOKEN_COOKIE_NAME, token, tokenValidityInSeconds);
     response.setHeader(CSRF_TOKEN_HEADER_NAME, token);
   }
 

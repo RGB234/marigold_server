@@ -91,7 +91,7 @@ public class S3Service {
       s3Template.deleteObject(safeBucketName, storedFileName);
     } catch (Exception e) {
       // 파일을 못 지웠다고 해서 비즈니스 로직 전체를 실패로 만들지 않음
-      log.error("S3 파일 삭제 실패 (나중에 배치로 지워야 함): {}", storedFileName, e);
+      log.error("event=s3_delete_failed storedFileName={}", storedFileName, e);
     }
   }
 

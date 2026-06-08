@@ -22,6 +22,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
@@ -40,12 +41,15 @@ class WebSocketConfigTest {
 
   @Mock private CookieManager cookieManager;
 
+  @Mock private AuditLogger auditLogger;
+
   private WebSocketConfig webSocketConfig;
 
   @BeforeEach
   void setUp() {
     webSocketConfig =
-        new WebSocketConfig(jwtAuthenticationService, participantRepository, cookieManager);
+        new WebSocketConfig(
+            jwtAuthenticationService, participantRepository, cookieManager, auditLogger);
   }
 
   @Test

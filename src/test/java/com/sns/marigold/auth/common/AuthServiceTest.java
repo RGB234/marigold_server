@@ -26,6 +26,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.dto.LocalLoginDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.enums.AuthStatus;
@@ -63,6 +64,8 @@ class AuthServiceTest {
   @Mock private RandomUsernameGenerator randomUsernameGenerator;
 
   @Mock private RecentAuthService recentAuthService;
+
+  @Mock private AuditLogger auditLogger;
 
   @InjectMocks private AuthService authService;
 

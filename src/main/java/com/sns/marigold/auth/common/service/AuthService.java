@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.dto.LocalLoginDto;
 import com.sns.marigold.auth.common.dto.LoginResponseDto;
@@ -45,6 +46,7 @@ public class AuthService {
   private final CookieManager cookieManager;
   private final RandomUsernameGenerator randomUsernameGenerator;
   private final RecentAuthService recentAuthService;
+  private final AuditLogger auditLogger;
 
   // OAuth2 로그인/로그아웃 & 회원가입 -> Spring security 에서 처리 (SecurityConfig &
   // OAuth2UserService)
@@ -90,6 +92,7 @@ public class AuthService {
             .build();
 
     userRepository.save(Objects.requireNonNull(user));
+    auditLogger.info("event=local_signup_success userId={}", user.getId());
   }
 
   @Transactional
@@ -114,6 +117,8 @@ public class AuthService {
             .build();
 
     userRepository.save(Objects.requireNonNull(user));
+    auditLogger.info(
+        "event=oauth2_signup_success userId={} provider={}", user.getId(), dto.getProviderInfo());
 
     // 저장
     return user.getId();
@@ -132,7 +137,7 @@ public class AuthService {
         return nickname;
       }
 
-      log.warn("Nickname 중복 발생, 재생성 시도: {}", nickname);
+      log.debug("Nickname duplicated. Retrying generation.");
     }
 
     // 최대 시도 횟수 초과 시 예외 발생

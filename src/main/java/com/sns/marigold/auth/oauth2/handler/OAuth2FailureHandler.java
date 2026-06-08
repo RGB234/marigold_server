@@ -12,6 +12,7 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationFa
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.sns.marigold.global.config.UrlProperties;
 import com.sns.marigold.global.error.ErrorCode;
@@ -29,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
   private final UrlProperties urlProperties;
+  private final AuditLogger auditLogger;
   private final HttpCookieOAuth2AuthorizationRequestRepository
       httpCookieOAuth2AuthorizationRequestRepository;
 
@@ -63,10 +65,10 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
             .build()
             .toUriString();
 
-    log.info("OAuth2 인증 실패: errorCode - {}, errorMessage - {}", errorCode, errorMessage);
+    auditLogger.warn("event=oauth2_failure errorCode={}", errorCode);
 
     if (response.isCommitted()) {
-      log.debug("응답이 이미 커밋되어 리다이렉트 할 수 없습니다. URL: {}", redirectUrl);
+      log.debug("응답이 이미 커밋되어 리다이렉트 할 수 없습니다.");
       return;
     }
     getRedirectStrategy().sendRedirect(request, response, redirectUrl);

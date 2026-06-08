@@ -15,6 +15,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.sns.marigold.adoption.repository.AdoptionPostImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.ImageUploadDto;
@@ -45,6 +46,7 @@ public class UserService {
   private final ApplicationEventPublisher eventPublisher;
   private final PasswordEncoder passwordEncoder;
   private final ChatService chatService;
+  private final AuditLogger auditLogger;
 
   @Transactional(readOnly = true)
   public boolean existsByProviderInfoAndProviderId(ProviderInfo providerInfo, String providerId) {
@@ -103,6 +105,7 @@ public class UserService {
       throw UserException.forUserOAuth2AccountAlreadyInUse();
     }
     user.linkOAuth2(providerInfo, providerId);
+    auditLogger.info("event=oauth2_linked userId={} provider={}", user.getId(), providerInfo);
   }
 
   @Transactional
@@ -115,6 +118,7 @@ public class UserService {
       throw UserException.forUserAlreadyExists();
     }
     user.addEmailAndPassword(dto.getEmail(), passwordEncoder.encode(dto.getPassword()));
+    auditLogger.info("event=local_credentials_registered userId={}", user.getId());
   }
 
   @Transactional
@@ -164,11 +168,11 @@ public class UserService {
     } catch (Exception e) {
       // 4. 실패 시 보상 트랜잭션: 새로 업로드한 S3 파일 삭제
       if (uploadedImageDto != null) {
-        log.error("Update user failed. Deleting uploaded S3 file... error: {}", e.getMessage());
+        log.debug("Update user failed. Deleting uploaded S3 file.");
         try {
           s3Service.deleteUploadedImagesFromS3(List.of(uploadedImageDto));
         } catch (Exception s3Ex) {
-          log.error("Failed to delete S3 image during rollback. File: {}", uploadedImageDto, s3Ex);
+          log.error("event=s3_rollback_delete_failed fileCount=1", s3Ex);
         }
       }
 
@@ -202,6 +206,7 @@ public class UserService {
 
     user.softDelete();
     userRepository.save(user);
+    auditLogger.info("event=user_deleted userId={}", user.getId());
     // 트랜잭션 종료 시 스토리지에서 이미지 삭제
     if (!imageUrls.isEmpty()) {
       eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imageUrls));
