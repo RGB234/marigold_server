@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.support.ApiIntegrationTest;
@@ -19,6 +20,8 @@ import com.sns.marigold.user.exception.UserException;
 import io.hypersistence.tsid.TSID;
 
 public class UserApiTest extends ApiIntegrationTest {
+
+  private static final String CSRF_TOKEN = "test-csrf-token";
 
   @Test
   @DisplayName("인증 없이 프로필을 조회할 수 있다")
@@ -89,7 +92,8 @@ public class UserApiTest extends ApiIntegrationTest {
         .perform(
             post(UrlConstants.USER_BASE + "/credentials")
                 .header("Authorization", "Bearer " + getAccessToken(user))
-                .cookie(getRecentAuthCookie(user))
+                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, CSRF_TOKEN)
+                .cookie(getRecentAuthCookie(user), getCsrfCookie(CSRF_TOKEN))
                 .contentType("application/json")
                 .content(requestBody))
         .andExpect(status().isOk())
@@ -149,7 +153,8 @@ public class UserApiTest extends ApiIntegrationTest {
         .perform(
             post(UrlConstants.USER_BASE + "/credentials")
                 .header("Authorization", "Bearer " + getAccessToken(user))
-                .cookie(recentAuthCookie)
+                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, CSRF_TOKEN)
+                .cookie(recentAuthCookie, getCsrfCookie(CSRF_TOKEN))
                 .contentType("application/json")
                 .content(duplicateRequestBody))
         .andExpect(status().isConflict())
@@ -159,7 +164,8 @@ public class UserApiTest extends ApiIntegrationTest {
         .perform(
             post(UrlConstants.USER_BASE + "/credentials")
                 .header("Authorization", "Bearer " + getAccessToken(user))
-                .cookie(recentAuthCookie)
+                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, CSRF_TOKEN)
+                .cookie(recentAuthCookie, getCsrfCookie(CSRF_TOKEN))
                 .contentType("application/json")
                 .content(validRequestBody))
         .andExpect(status().isOk())
@@ -174,7 +180,8 @@ public class UserApiTest extends ApiIntegrationTest {
         .perform(
             delete(UrlConstants.USER_BASE + "/delete")
                 .header("Authorization", "Bearer " + getAccessToken(user))
-                .cookie(getRecentAuthCookie(user)))
+                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, CSRF_TOKEN)
+                .cookie(getRecentAuthCookie(user), getCsrfCookie(CSRF_TOKEN)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value(200));
   }

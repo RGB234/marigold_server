@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.common.jwt.JwtManager;
@@ -67,5 +68,9 @@ public abstract class ApiIntegrationTest extends BaseIntegrationTest {
     String token = UUID.randomUUID().toString();
     recentAuthStore.save(token, tester.getId(), Instant.now().plusSeconds(300));
     return new Cookie(CookieManager.RECENT_AUTH_TOKEN_NAME, token);
+  }
+
+  protected Cookie getCsrfCookie(@NonNull String token) {
+    return new Cookie(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, token);
   }
 }
