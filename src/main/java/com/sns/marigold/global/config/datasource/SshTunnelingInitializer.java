@@ -1,4 +1,4 @@
-package com.sns.marigold.global.config;
+package com.sns.marigold.global.config.datasource;
 
 import static java.lang.System.exit;
 
@@ -7,7 +7,6 @@ import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -16,32 +15,14 @@ import com.jcraft.jsch.KeyPair;
 import com.jcraft.jsch.Session;
 
 import jakarta.annotation.PreDestroy;
+import lombok.RequiredArgsConstructor;
 
 @Component
 @Profile("dev")
-// @ConfigurationProperties(prefix = "ssh") // application.properties 값 사용
+@RequiredArgsConstructor
 public class SshTunnelingInitializer {
 
-  // ** SSH host **
-  @Value("${ssh.host}")
-  private String host; // application.properties 의 ssh.host 값과 자동 매핑
-
-  @Value("${ssh.port}")
-  private int port;
-
-  @Value("${ssh.user}")
-  private String user;
-
-  @Value("${ssh.private_key}")
-  private String privateKey;
-
-  // ** Remote host **
-  @Value("${ssh.remote_host}")
-  private String remoteHost;
-
-  @Value("${ssh.remote_port}")
-  private int remotePort;
-
+  private final SshProperties sshProperties;
   private Session session;
   private final Logger logger = LoggerFactory.getLogger(SshTunnelingInitializer.class);
 
@@ -68,9 +49,13 @@ public class SshTunnelingInitializer {
 
     try {
       logger.info("Ssh tunneling start");
-      logger.debug("SSH tunnel target configured. sshPort={}, remotePort={}", port, remotePort);
+      logger.debug(
+          "SSH tunnel target configured. sshPort={}, remotePort={}",
+          sshProperties.port(),
+          sshProperties.remotePort());
 
       JSch jsch = new JSch();
+      String privateKey = sshProperties.privateKey();
 
       if (!new File(privateKey).exists()) {
         throw new IllegalStateException("비공개 키 파일을 찾을 수 없습니다.");
@@ -83,7 +68,7 @@ public class SshTunnelingInitializer {
       }
 
       logger.debug("Creating SSH session");
-      session = jsch.getSession(user, host, port);
+      session = jsch.getSession(sshProperties.user(), sshProperties.host(), sshProperties.port());
       Properties config = new Properties();
       // 최초 SSH 접속 시 서버의 호스트 키 신뢰
       config.put("StrictHostKeyChecking", "no");
@@ -100,7 +85,8 @@ public class SshTunnelingInitializer {
       // -> SSH server (AWS EC2): ssh.host@ssh.port
       // -> Remote server (AWS RDS): ssh.remoteHost@ssh.remotePort
       forwardedPort =
-          session.setPortForwardingL(3030, remoteHost, remotePort); // lport 0 : auto assigned port
+          session.setPortForwardingL(
+              3030, sshProperties.remoteHost(), sshProperties.remotePort());
       logger.info("port forwarding end");
     } catch (Exception e) {
       logger.error("SSH tunneling failed", e);
