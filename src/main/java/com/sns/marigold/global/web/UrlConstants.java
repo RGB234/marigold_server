@@ -1,4 +1,4 @@
-package com.sns.marigold.global;
+package com.sns.marigold.global.web;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

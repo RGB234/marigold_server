@@ -1,4 +1,4 @@
-package com.sns.marigold.global.util;
+package com.sns.marigold.global.tsid;
 
 import java.io.IOException;
 

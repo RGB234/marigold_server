@@ -1,4 +1,4 @@
-package com.sns.marigold.global.annotation;
+package com.sns.marigold.global.tsid;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

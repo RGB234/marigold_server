@@ -1,4 +1,4 @@
-package com.sns.marigold.global.util;
+package com.sns.marigold.global.tsid;
 
 import java.text.ParseException;
 import java.util.Locale;

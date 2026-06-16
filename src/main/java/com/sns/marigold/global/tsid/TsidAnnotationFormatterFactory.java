@@ -1,4 +1,4 @@
-package com.sns.marigold.global.util;
+package com.sns.marigold.global.tsid;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -7,8 +7,6 @@ import org.springframework.format.AnnotationFormatterFactory;
 import org.springframework.format.Parser;
 import org.springframework.format.Printer;
 import org.springframework.lang.NonNull;
-
-import com.sns.marigold.global.annotation.TsidType;
 
 /*
  TsidType 어노테이션이 붙으면 자동으로 TsidFormatter 호출하여 처리. WebConfig에 등록.
