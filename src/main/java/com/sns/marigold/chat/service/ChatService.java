@@ -201,7 +201,7 @@ public class ChatService {
     List<MultipartFile> validFiles = validateChatAttachmentFiles(files);
     String normalizedMessage = Objects.requireNonNullElse(message, "");
     if (!StringUtils.hasText(normalizedMessage) && validFiles.isEmpty()) {
-      throw StorageException.forFileInvalid("message and files are empty");
+      throw StorageException.forEmptyFileList();
     }
 
     List<FileUploadDto> uploadedFiles = storageService.uploadFilesToS3(validFiles);
@@ -242,7 +242,7 @@ public class ChatService {
             .findByIdAndChatMessage_ChatRoom(attachmentId, chatRoom)
             .orElseThrow(StorageException::forFileNotFound);
 
-    return storageService.getPresignedDownloadObject(
+    return storageService.getPresignedDownloadUrl(
         attachment.getStoredFileName(), attachment.getOriginalFileName());
   }
 
@@ -333,36 +333,40 @@ public class ChatService {
             : files.stream().filter(file -> file != null && !file.isEmpty()).toList();
 
     if (nonEmptyFiles.isEmpty()) {
-      throw StorageException.forFileInvalid("files are empty");
+      return Collections.emptyList();
     }
     if (nonEmptyFiles.size() > MAX_CHAT_ATTACHMENT_COUNT) {
-      throw StorageException.forFileInvalid("max file count: " + MAX_CHAT_ATTACHMENT_COUNT);
+      throw StorageException.forFileCountExceeded(
+          nonEmptyFiles.size(), MAX_CHAT_ATTACHMENT_COUNT);
     }
 
     long totalSize = 0L;
     Tika tika = new Tika();
     for (MultipartFile file : nonEmptyFiles) {
       if (file.getSize() > MAX_CHAT_ATTACHMENT_SIZE) {
-        throw StorageException.forFileInvalid(file.getOriginalFilename());
+        throw StorageException.forFileSizeExceeded(
+            file.getOriginalFilename(), file.getSize(), MAX_CHAT_ATTACHMENT_SIZE);
       }
       totalSize += file.getSize();
       if (totalSize > MAX_CHAT_ATTACHMENT_TOTAL_SIZE) {
-        throw StorageException.forFileInvalid("max total file size exceeded");
+        throw StorageException.forTotalFileSizeExceeded(
+            totalSize, MAX_CHAT_ATTACHMENT_TOTAL_SIZE);
       }
 
       String extension = getFileExtension(file);
       List<String> allowedMimeTypes = ALLOWED_CHAT_ATTACHMENT_MIME_TYPES.get(extension);
       if (allowedMimeTypes == null) {
-        throw StorageException.forFileInvalid(file.getOriginalFilename());
+        throw StorageException.forUnsupportedFileExtension(file.getOriginalFilename(), extension);
       }
 
       try (InputStream inputStream = file.getInputStream()) {
         String detectedMimeType = tika.detect(inputStream);
         if (!allowedMimeTypes.contains(detectedMimeType)) {
-          throw StorageException.forFileInvalid(file.getOriginalFilename());
+          throw StorageException.forInvalidMimeType(
+              file.getOriginalFilename(), extension, detectedMimeType);
         }
       } catch (IOException e) {
-        throw StorageException.forFileUploadFailed(file.getOriginalFilename(), e);
+        throw StorageException.forFileReadFailed(file.getOriginalFilename(), e);
       }
     }
 
@@ -373,7 +377,7 @@ public class ChatService {
     String originalFilename = file.getOriginalFilename();
     int extensionStart = originalFilename == null ? -1 : originalFilename.lastIndexOf(".");
     if (extensionStart < 0 || extensionStart == originalFilename.length() - 1) {
-      throw StorageException.forFileInvalid(originalFilename);
+      throw StorageException.forMissingFileExtension(originalFilename);
     }
     return originalFilename.substring(extensionStart + 1).toLowerCase(Locale.ROOT);
   }
@@ -389,7 +393,7 @@ public class ChatService {
                         .contentType(attachment.getContentType())
                         .fileSize(attachment.getFileSize())
                         .downloadUrl(
-                            storageService.getPresignedGetObject(attachment.getStoredFileName()))
+                            storageService.getPresignedViewUrlOrNull(attachment.getStoredFileName()))
                         .build())
             .collect(Collectors.toList());
 
@@ -399,7 +403,7 @@ public class ChatService {
         .senderNickname(message.getSender().getDisplayNickname())
         .senderImageUrl(
             message.getSender().getImage() != null
-                ? storageService.getPresignedGetObject(
+                ? storageService.getPresignedViewUrlOrNull(
                     message.getSender().getImage().getStoredFileName())
                 : null)
         .message(message.getMessage())

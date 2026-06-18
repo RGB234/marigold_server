@@ -46,7 +46,7 @@ class S3ServiceTest {
 
   @Test
   @DisplayName("파일 업로드 성공 시 ImageUploadDto를 반환한다")
-  void uploadFile_Success() throws Exception {
+  void uploadFile_Success() {
     // given
     MockMultipartFile mockFile =
         new MockMultipartFile(

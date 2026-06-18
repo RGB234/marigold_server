@@ -22,6 +22,7 @@ public enum ErrorCode {
   // Storage
   FILE_INVALID(HttpStatus.BAD_REQUEST, "FILE_INVALID", "파일이 올바르지 않습니다."),
   FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "FILE_NOT_FOUND", "파일을 찾을 수 없습니다."),
+  FILE_READ_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE_READ_FAILED", "파일을 읽는 중 오류가 발생했습니다."),
   FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE_UPLOAD_FAILED", "파일 업로드에 실패했습니다."),
 
   // Auth

@@ -237,7 +237,7 @@ public class AdoptionPostService {
         post -> {
           AdoptionPostDto postDto = AdoptionPostDto.from(post);
           if (postDto.getImageUrl() != null) {
-            postDto.setImageUrl(s3Service.getPresignedGetObject(postDto.getImageUrl()));
+            postDto.setImageUrl(s3Service.getPresignedViewUrlOrNull(postDto.getImageUrl()));
           }
           return postDto;
         });
@@ -251,7 +251,7 @@ public class AdoptionPostService {
         post -> {
           AdoptionPostDto postDto = AdoptionPostDto.from(post);
           if (postDto.getImageUrl() != null) {
-            postDto.setImageUrl(s3Service.getPresignedGetObject(postDto.getImageUrl()));
+            postDto.setImageUrl(s3Service.getPresignedViewUrlOrNull(postDto.getImageUrl()));
           }
           return postDto;
         });
@@ -265,7 +265,7 @@ public class AdoptionPostService {
         post -> {
           AdoptionPostDto postDto = AdoptionPostDto.from(post);
           if (postDto.getImageUrl() != null) {
-            postDto.setImageUrl(s3Service.getPresignedGetObject(postDto.getImageUrl()));
+            postDto.setImageUrl(s3Service.getPresignedViewUrlOrNull(postDto.getImageUrl()));
           }
           return postDto;
         });
@@ -276,7 +276,7 @@ public class AdoptionPostService {
     AdoptionPost info = findEntityById(id);
     AdoptionPostDto postDto = AdoptionPostDto.from(info);
     if (postDto.getImageUrl() != null) {
-      postDto.setImageUrl(s3Service.getPresignedGetObject(postDto.getImageUrl()));
+      postDto.setImageUrl(s3Service.getPresignedViewUrlOrNull(postDto.getImageUrl()));
     }
     return postDto;
   }
@@ -296,12 +296,12 @@ public class AdoptionPostService {
       detailResponseDto
           .getWriter()
           .setImageUrl(
-              s3Service.getPresignedGetObject(detailResponseDto.getWriter().getImageUrl()));
+              s3Service.getPresignedViewUrlOrNull(detailResponseDto.getWriter().getImageUrl()));
     }
 
     List<String> imageUrls =
         info.getImages().stream()
-            .map(image -> s3Service.getPresignedGetObject(image.getStoredFileName()))
+            .map(image -> s3Service.getPresignedViewUrlOrNull(image.getStoredFileName()))
             .collect(Collectors.toList());
 
     detailResponseDto.setImageUrls(imageUrls);
@@ -313,7 +313,7 @@ public class AdoptionPostService {
               adopterMapping -> {
                 UserInfoDto adopterDto = UserInfoDto.from(adopterMapping.getAdopter());
                 if (adopterDto.getImageUrl() != null) {
-                  adopterDto.setImageUrl(s3Service.getPresignedGetObject(adopterDto.getImageUrl()));
+                  adopterDto.setImageUrl(s3Service.getPresignedViewUrlOrNull(adopterDto.getImageUrl()));
                 }
                 detailResponseDto.setAdopter(adopterDto);
               });
@@ -398,7 +398,7 @@ public class AdoptionPostService {
               String imageUrl = null;
               if (otherUser.getImage() != null) {
                 imageUrl =
-                    s3Service.getPresignedGetObject(otherUser.getImage().getStoredFileName());
+                    s3Service.getPresignedViewUrlOrNull(otherUser.getImage().getStoredFileName());
               }
               return AdoptionCandidateDto.from(otherUser, imageUrl);
             })
