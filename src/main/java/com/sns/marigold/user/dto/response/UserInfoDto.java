@@ -2,7 +2,7 @@ package com.sns.marigold.user.dto.response;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.sns.marigold.global.util.TsidJacksonConfig;
+import com.sns.marigold.global.tsid.TsidJacksonConfig;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.enums.UserStatus;
 

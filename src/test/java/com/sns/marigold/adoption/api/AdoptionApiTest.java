@@ -28,7 +28,7 @@ import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
-import com.sns.marigold.global.UrlConstants;
+import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.support.ApiIntegrationTest;
 

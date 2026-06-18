@@ -33,10 +33,10 @@ import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.dto.NewChatDto;
 import com.sns.marigold.chat.enums.ChatRoomType;
 import com.sns.marigold.chat.service.ChatService;
-import com.sns.marigold.global.UrlConstants;
-import com.sns.marigold.global.annotation.TsidType;
 import com.sns.marigold.global.config.SwaggerConfig;
 import com.sns.marigold.global.dto.ApiResult;
+import com.sns.marigold.global.tsid.TsidType;
+import com.sns.marigold.global.web.UrlConstants;
 
 import io.hypersistence.tsid.TSID;
 import io.swagger.v3.oas.annotations.Operation;

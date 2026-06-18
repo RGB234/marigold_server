@@ -2,7 +2,7 @@ package com.sns.marigold.user.dto.create;
 
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.global.annotation.EnumType;
+import com.sns.marigold.global.validation.enumvalue.EnumValue;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -19,7 +19,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class OAuth2SignupDto {
   @Schema(description = "OAuth2 제공자", example = "KAKAO")
-  @EnumType(target = ProviderInfo.class)
+  @EnumValue(target = ProviderInfo.class)
   @NotNull(message = "소셜 로그인 제공자는 필수입니다.")
   private ProviderInfo providerInfo; // 소셜로그인 제공 서비스 종류 (Google, Kakao, ...)
 
@@ -28,7 +28,7 @@ public class OAuth2SignupDto {
   private String providerId; // 소셜로그인 계정 id
 
   @Schema(description = "가입할 사용자 권한", example = "ROLE_USER")
-  @EnumType(target = Role.class)
+  @EnumValue(target = Role.class)
   @NotNull(message = "사용자 권한은 필수입니다.")
   private Role role; // 사용자 권한
 }

@@ -15,9 +15,9 @@ import com.sns.marigold.auth.common.dto.LocalLoginDto;
 import com.sns.marigold.auth.common.dto.LoginResponseDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.service.AuthService;
-import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.config.SwaggerConfig;
 import com.sns.marigold.global.dto.ApiResult;
+import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.user.dto.create.LocalSignupDto;
 
 import io.swagger.v3.oas.annotations.Operation;

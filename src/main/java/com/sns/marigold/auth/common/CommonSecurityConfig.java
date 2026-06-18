@@ -16,8 +16,8 @@ import com.sns.marigold.auth.common.csrf.CsrfTokenValidationFilter;
 import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutSuccessHandler;
-import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.config.UrlProperties;
+import com.sns.marigold.global.web.UrlConstants;
 
 import lombok.RequiredArgsConstructor;
 

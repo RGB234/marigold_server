@@ -6,7 +6,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.sns.marigold.global.util.TsidJacksonConfig;
+import com.sns.marigold.global.tsid.TsidJacksonConfig;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;

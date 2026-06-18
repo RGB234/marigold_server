@@ -5,8 +5,8 @@ import org.springframework.format.FormatterRegistry;
 import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import com.sns.marigold.global.util.TsidAnnotationFormatterFactory;
-import com.sns.marigold.global.util.TsidFormatter;
+import com.sns.marigold.global.tsid.TsidAnnotationFormatterFactory;
+import com.sns.marigold.global.tsid.TsidFormatter;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {

@@ -9,11 +9,11 @@ import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
-import com.sns.marigold.global.annotation.EnumType;
-import com.sns.marigold.global.annotation.ValidImageCount;
-import com.sns.marigold.global.annotation.ValidImageFiles;
 import com.sns.marigold.global.validation.ValidationPolicy;
-import com.sns.marigold.global.validator.ImageCountValidatable;
+import com.sns.marigold.global.validation.enumvalue.EnumValue;
+import com.sns.marigold.global.validation.imagecount.ImageCountValidatable;
+import com.sns.marigold.global.validation.imagecount.ImageCount;
+import com.sns.marigold.global.validation.imagefile.ImageFile;
 import com.sns.marigold.user.entity.User;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -32,7 +32,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
-@ValidImageCount(
+@ImageCount(
     min = ValidationPolicy.AdoptionPost.IMAGE_MIN_COUNT,
     max = ValidationPolicy.AdoptionPost.IMAGE_MAX_COUNT)
 @Schema(description = "입양 게시글 생성 요청")
@@ -40,7 +40,7 @@ public class AdoptionPostCreateDto implements ImageCountValidatable {
 
   @Schema(description = "동물 종", example = "DOG")
   @NotNull(message = "값이 비어있습니다.")
-  @EnumType(target = Species.class)
+  @EnumValue(target = Species.class)
   private Species species;
 
   @Schema(description = "나이", example = "3", minimum = "0")
@@ -51,7 +51,7 @@ public class AdoptionPostCreateDto implements ImageCountValidatable {
 
   @Schema(description = "성별", example = "MALE")
   @NotNull(message = "값이 비어있습니다.")
-  @EnumType(target = Sex.class)
+  @EnumValue(target = Sex.class)
   private Sex sex;
 
   @Schema(description = "지역", example = "서울")
@@ -71,7 +71,7 @@ public class AdoptionPostCreateDto implements ImageCountValidatable {
 
   @Schema(description = "중성화 여부", example = "YES")
   @NotNull(message = "값이 비어있습니다.")
-  @EnumType(target = Neutering.class)
+  @EnumValue(target = Neutering.class)
   private Neutering neutering;
 
   @Schema(description = "특징 설명. 20자 이상 500자 이하", example = "사람을 좋아하고 산책을 좋아합니다.")
@@ -83,7 +83,7 @@ public class AdoptionPostCreateDto implements ImageCountValidatable {
   private String features;
 
   @Schema(description = "업로드할 이미지 파일 목록", type = "string", format = "binary")
-  @ValidImageFiles()
+  @ImageFile()
   private List<MultipartFile> images;
 
   public List<String> getImagesToKeep() {

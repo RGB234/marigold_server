@@ -19,9 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.service.RecentAuthService;
-import com.sns.marigold.global.UrlConstants;
 import com.sns.marigold.global.config.SwaggerConfig;
 import com.sns.marigold.global.dto.ApiResult;
+import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.response.UserSecurityInfoDto;
 import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;

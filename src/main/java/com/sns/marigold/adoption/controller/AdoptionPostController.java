@@ -37,10 +37,10 @@ import com.sns.marigold.adoption.enums.AdoptionPostStatus;
 import com.sns.marigold.adoption.service.AdoptionPostService;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.exception.AuthException;
-import com.sns.marigold.global.UrlConstants;
-import com.sns.marigold.global.annotation.TsidType;
 import com.sns.marigold.global.config.SwaggerConfig;
 import com.sns.marigold.global.dto.ApiResult;
+import com.sns.marigold.global.tsid.TsidType;
+import com.sns.marigold.global.web.UrlConstants;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
