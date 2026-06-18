@@ -31,6 +31,7 @@ import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.chat.entity.RoomParticipant;
 import com.sns.marigold.chat.enums.ChatRoomStatus;
 import com.sns.marigold.chat.enums.ChatRoomType;
+import com.sns.marigold.chat.exception.ChatException;
 import com.sns.marigold.chat.repository.ChatMessageAttachmentRepository;
 import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
@@ -200,8 +201,9 @@ public class ChatService {
 
     List<MultipartFile> validFiles = validateChatAttachmentFiles(files);
     String normalizedMessage = Objects.requireNonNullElse(message, "");
+    // 메시지도 파일도 없는 경우
     if (!StringUtils.hasText(normalizedMessage) && validFiles.isEmpty()) {
-      throw StorageException.forEmptyFileList();
+      throw ChatException.forEmptyMessage();
     }
 
     List<FileUploadDto> uploadedFiles = storageService.uploadFilesToS3(validFiles);

@@ -79,7 +79,10 @@ public enum ErrorCode {
   ADOPTION_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "ADOPTION_COMMENT_NOT_FOUND", "존재하지 않는 댓글입니다."),
   ADOPTION_COMMENT_DELETED(HttpStatus.BAD_REQUEST, "ADOPTION_COMMENT_DELETED", "이미 삭제된 댓글입니다."),
   ADOPTION_COMMENT_POST_MISMATCH(
-      HttpStatus.BAD_REQUEST, "ADOPTION_COMMENT_POST_MISMATCH", "해당 게시글의 댓글이 아닙니다.");
+      HttpStatus.BAD_REQUEST, "ADOPTION_COMMENT_POST_MISMATCH", "해당 게시글의 댓글이 아닙니다."),
+
+  // Chat
+  CHAT_MESSAGE_EMPTY(HttpStatus.BAD_REQUEST, "CHAT_MESSAGE_EMPTY", "메시지 또는 첨부파일을 입력해주세요.");
 
   @Schema(description = "HTTP 상태")
   @NonNull
