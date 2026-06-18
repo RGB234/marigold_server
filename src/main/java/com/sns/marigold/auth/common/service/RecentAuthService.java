@@ -3,9 +3,9 @@ package com.sns.marigold.auth.common.service;
 import java.time.Instant;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.sns.marigold.auth.common.recent.RecentAuthProperties;
 import com.sns.marigold.auth.common.recent.RecentAuthStore;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.auth.exception.AuthException;
@@ -21,12 +21,11 @@ public class RecentAuthService {
 
   private final RecentAuthStore recentAuthStore;
   private final CookieManager cookieManager;
-
-  @Value("${auth.recent-auth.ttl-seconds:300}")
-  private long ttlSeconds;
+  private final RecentAuthProperties recentAuthProperties;
 
   public void issue(HttpServletResponse response, Long userId) {
     String token = UUID.randomUUID().toString();
+    long ttlSeconds = recentAuthProperties.ttlSeconds();
     recentAuthStore.save(token, userId, Instant.now().plusSeconds(ttlSeconds));
     cookieManager.addCookie(response, CookieManager.RECENT_AUTH_TOKEN_NAME, token, ttlSeconds);
   }

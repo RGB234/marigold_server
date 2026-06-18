@@ -7,7 +7,6 @@ import java.security.Principal;
 import java.util.Map;
 import java.util.Objects;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
@@ -39,6 +38,7 @@ import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
+import com.sns.marigold.global.config.UrlProperties;
 
 import io.hypersistence.tsid.TSID;
 import jakarta.servlet.http.Cookie;
@@ -58,9 +58,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   private final RoomParticipantRepository participantRepository;
   private final CookieManager cookieManager;
   private final AuditLogger auditLogger;
-
-  @Value("${url.frontend.origin}")
-  private String frontendOrigin;
+  private final UrlProperties urlProperties;
 
   @Override
   public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
@@ -146,7 +144,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   }
 
   private String allowedFrontendOrigin() {
-    URI frontendUri = URI.create(frontendOrigin);
+    URI frontendUri = URI.create(urlProperties.frontend().origin());
     return frontendUri.getScheme() + "://" + frontendUri.getAuthority();
   }
 

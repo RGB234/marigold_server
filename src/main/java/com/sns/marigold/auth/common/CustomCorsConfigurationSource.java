@@ -4,7 +4,6 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
@@ -12,6 +11,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 import com.sns.marigold.auth.common.csrf.CsrfTokenService;
+import com.sns.marigold.global.config.UrlProperties;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -21,8 +21,8 @@ public class CustomCorsConfigurationSource implements CorsConfigurationSource {
   private final String ALLOWED_ORIGIN;
   private final List<String> ALLOWED_METHODS = List.of("GET", "POST", "PATCH", "OPTIONS", "DELETE");
 
-  public CustomCorsConfigurationSource(@Value("${url.frontend.origin}") String frontendOrigin) {
-    URI frontendUri = URI.create(frontendOrigin);
+  public CustomCorsConfigurationSource(UrlProperties urlProperties) {
+    URI frontendUri = URI.create(urlProperties.frontend().origin());
     ALLOWED_ORIGIN = frontendUri.getScheme() + "://" + frontendUri.getAuthority();
   }
 

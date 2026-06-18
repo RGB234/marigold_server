@@ -7,7 +7,6 @@ import java.util.stream.Collectors;
 
 import javax.crypto.SecretKey;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
@@ -29,13 +28,12 @@ public class JwtManager {
   @Getter public final long accessTokenValidityInMilliseconds;
   @Getter public final long refreshTokenValidityInMilliseconds;
 
-  public JwtManager(
-      @Value("${jwt.secret-key}") String secret,
-      @Value("${jwt.access-token-validity-in-seconds}") long accessTokenValidityInSeconds,
-      @Value("${jwt.refresh-token-validity-in-seconds}") long refreshTokenValidityInSeconds) {
-    this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-    this.accessTokenValidityInMilliseconds = accessTokenValidityInSeconds * 1000;
-    this.refreshTokenValidityInMilliseconds = refreshTokenValidityInSeconds * 1000;
+  public JwtManager(JwtProperties jwtProperties) {
+    this.key = Keys.hmacShaKeyFor(jwtProperties.secretKey().getBytes(StandardCharsets.UTF_8));
+    this.accessTokenValidityInMilliseconds =
+        jwtProperties.accessTokenValidityInSeconds() * 1000;
+    this.refreshTokenValidityInMilliseconds =
+        jwtProperties.refreshTokenValidityInSeconds() * 1000;
   }
 
   /** Access Token 생성 */

@@ -3,9 +3,9 @@ package com.sns.marigold.auth.common.csrf;
 import java.security.SecureRandom;
 import java.util.Base64;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.sns.marigold.auth.common.jwt.JwtProperties;
 import com.sns.marigold.auth.common.util.CookieManager;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -20,10 +20,8 @@ public class CsrfTokenService {
   private static final int TOKEN_BYTES = 32;
 
   private final CookieManager cookieManager;
+  private final JwtProperties jwtProperties;
   private final SecureRandom secureRandom = new SecureRandom();
-
-  @Value("${jwt.refresh-token-validity-in-seconds:86400}")
-  private long tokenValidityInSeconds;
 
   /*
   double submit cookie
@@ -33,7 +31,7 @@ public class CsrfTokenService {
     secureRandom.nextBytes(bytes);
     String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     cookieManager.addReadableCookie(
-        response, CSRF_TOKEN_COOKIE_NAME, token, tokenValidityInSeconds);
+        response, CSRF_TOKEN_COOKIE_NAME, token, jwtProperties.refreshTokenValidityInSeconds());
     response.setHeader(CSRF_TOKEN_HEADER_NAME, token);
   }
 

@@ -29,7 +29,7 @@ class JwtManagerTest {
   @BeforeEach
   void setUp() {
     // 256bit 이상의 비밀키 (32 bytes)
-    jwtManager = new JwtManager(TEST_SECRET, 3600, 86400);
+    jwtManager = new JwtManager(new JwtProperties(TEST_SECRET, 3600, 86400));
 
     List<SimpleGrantedAuthority> authorities =
         Collections.singletonList(new SimpleGrantedAuthority("ROLE_PERSON"));
@@ -85,7 +85,7 @@ class JwtManagerTest {
   void parseExpiredToken() throws InterruptedException {
     // given
     // 유효시간이 0인 JwtManager 생성 (테스트용)
-    JwtManager expiredJwtManager = new JwtManager(TEST_SECRET, 0, 0);
+    JwtManager expiredJwtManager = new JwtManager(new JwtProperties(TEST_SECRET, 0, 0));
     String token = expiredJwtManager.createAccessToken(testPrincipal);
 
     // when & then

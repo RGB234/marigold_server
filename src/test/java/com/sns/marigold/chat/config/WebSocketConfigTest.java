@@ -29,6 +29,7 @@ import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
+import com.sns.marigold.global.config.UrlProperties;
 
 import io.hypersistence.tsid.TSID;
 
@@ -49,7 +50,11 @@ class WebSocketConfigTest {
   void setUp() {
     webSocketConfig =
         new WebSocketConfig(
-            jwtAuthenticationService, participantRepository, cookieManager, auditLogger);
+            jwtAuthenticationService,
+            participantRepository,
+            cookieManager,
+            auditLogger,
+            urlProperties("http://localhost:8000"));
   }
 
   @Test
@@ -134,5 +139,9 @@ class WebSocketConfigTest {
             Map.of(),
             AuthStatus.LOGIN_SUCCESS);
     return new UsernamePasswordAuthenticationToken(principal, "", principal.getAuthorities());
+  }
+
+  private UrlProperties urlProperties(String frontendOrigin) {
+    return new UrlProperties(new UrlProperties.Frontend(frontendOrigin, null), null);
   }
 }

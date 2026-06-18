@@ -17,12 +17,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.util.ReflectionTestUtils;
 
+import com.sns.marigold.storage.config.S3Properties;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.exception.StorageException;
 
@@ -38,12 +37,11 @@ class S3ServiceTest {
 
   @Mock private S3Presigner s3Presigner;
 
-  @InjectMocks private S3Service s3Service;
+  private S3Service s3Service;
 
   @BeforeEach
   void setUp() {
-    ReflectionTestUtils.setField(s3Service, "bucketName", "test-bucket");
-    ReflectionTestUtils.setField(s3Service, "region", "ap-northeast-2");
+    s3Service = new S3Service(s3Template, s3Presigner, new S3Properties("test-bucket"));
   }
 
   @Test
@@ -96,7 +94,7 @@ class S3ServiceTest {
 
   @Test
   @DisplayName("Presigned URL 발급 성공")
-  void getPresignedGetObject_Success() throws Exception {
+  void getPresignedViewUrl_Success() throws Exception {
     // given
     String storedFileName = "uuid-name.png";
     URL fakeUrl = new URL("https://test-bucket.s3.amazonaws.com/" + storedFileName + "?...");
@@ -108,7 +106,7 @@ class S3ServiceTest {
         .willReturn(presignedRequest);
 
     // when
-    String url = s3Service.getPresignedGetObject(storedFileName);
+    String url = s3Service.getPresignedViewUrlOrNull(storedFileName);
 
     // then
     assertThat(url).isEqualTo(fakeUrl.toString());
@@ -119,5 +117,15 @@ class S3ServiceTest {
 
     GetObjectPresignRequest capturedRequest = captor.getValue();
     assertThat(capturedRequest.getObjectRequest().key()).isEqualTo(storedFileName);
+  }
+
+  @Test
+  @DisplayName("다운로드 URL 발급 시 저장 파일명이 없으면 StorageException이 발생한다")
+  void getPresignedDownloadUrl_EmptyStoredFileName() {
+    assertThatThrownBy(() -> s3Service.getPresignedDownloadUrl(null, "original.txt"))
+        .isInstanceOf(StorageException.class);
+
+    assertThatThrownBy(() -> s3Service.getPresignedDownloadUrl(" ", "original.txt"))
+        .isInstanceOf(StorageException.class);
   }
 }

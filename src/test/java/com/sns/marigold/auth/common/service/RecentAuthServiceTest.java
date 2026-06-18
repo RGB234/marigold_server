@@ -16,8 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
+import com.sns.marigold.auth.common.recent.RecentAuthProperties;
 import com.sns.marigold.auth.common.recent.RecentAuthStore;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.auth.exception.AuthException;
@@ -36,8 +36,8 @@ class RecentAuthServiceTest {
 
   @BeforeEach
   void setUp() {
-    recentAuthService = new RecentAuthService(recentAuthStore, cookieManager);
-    ReflectionTestUtils.setField(recentAuthService, "ttlSeconds", 300L);
+    recentAuthService =
+        new RecentAuthService(recentAuthStore, cookieManager, new RecentAuthProperties(300L));
   }
 
   @Test
