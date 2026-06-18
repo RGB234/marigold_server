@@ -27,6 +27,11 @@ spring:
 jwt:
   secret-key: "12345678901234567890123456789012"
 
+app:
+  storage:
+    s3:
+      bucket: test-bucket
+
 url:
   frontend:
     origin: "http://localhost:3000"

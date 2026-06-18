@@ -6,7 +6,6 @@ spring:
   config:
     import:
       - optional:file:/home/ec2-user/app.env[.properties]
-      #      - optional:file:/opt/spring-app/app.env[.properties]
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
@@ -20,8 +19,6 @@ spring:
 
   cloud:
     aws:
-      s3:
-        bucket: ${AWS_S3_BUCKET}
       credentials:
         access-key: ${AWS_ACCESS_KEY}
         secret-key: ${AWS_SECRET_KEY}
@@ -41,6 +38,14 @@ springdoc:
     enabled: false
   swagger-ui:
     enabled: false
+
+app:
+  storage:
+    s3:
+      bucket: ${AWS_S3_BUCKET}
+  auth:
+    recent-auth:
+      ttl-seconds: 300
 
 url:
   frontend:
