@@ -70,7 +70,7 @@ public class UserService {
     User user = findEntityById(uid);
     UserInfoDto dto = UserInfoDto.from(user);
     if (dto.getImageUrl() != null) {
-      dto.setImageUrl(s3Service.getPresignedGetObject(dto.getImageUrl()));
+      dto.setImageUrl(s3Service.getPresignedViewUrlOrNull(dto.getImageUrl()));
     }
     return dto;
   }
@@ -88,7 +88,7 @@ public class UserService {
             user -> {
               UserInfoDto dto = UserInfoDto.from(user);
               if (dto.getImageUrl() != null) {
-                dto.setImageUrl(s3Service.getPresignedGetObject(dto.getImageUrl()));
+                dto.setImageUrl(s3Service.getPresignedViewUrlOrNull(dto.getImageUrl()));
               }
               return dto;
             })

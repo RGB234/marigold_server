@@ -425,8 +425,8 @@ class ChatServiceTest {
                     .build()));
     given(chatMessageRepository.saveAndFlush(any(ChatMessage.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
-    given(storageService.getPresignedGetObject("stored-note.txt")).willReturn("https://file/1");
-    given(storageService.getPresignedGetObject("stored-memo.csv")).willReturn("https://file/2");
+    given(storageService.getPresignedViewUrlOrNull("stored-note.txt")).willReturn("https://file/1");
+    given(storageService.getPresignedViewUrlOrNull("stored-memo.csv")).willReturn("https://file/2");
 
     // when
     ChatMessageDto result =

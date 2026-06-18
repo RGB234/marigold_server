@@ -224,14 +224,14 @@ public class AdoptionCommentService {
     for (AdoptionComment comment : comments) {
       List<String> imageUrls =
           comment.getImages().stream()
-              .map(img -> s3Service.getPresignedGetObject(img.getStoredFileName()))
+              .map(img -> s3Service.getPresignedViewUrlOrNull(img.getStoredFileName()))
               .collect(Collectors.toList());
 
       AdoptionCommentResponseDto dto =
           AdoptionCommentResponseDto.from(comment, imageUrls, new ArrayList<>());
 
       if (dto.getWriter() != null && dto.getWriter().getImageUrl() != null) {
-        dto.getWriter().setImageUrl(s3Service.getPresignedGetObject(dto.getWriter().getImageUrl()));
+        dto.getWriter().setImageUrl(s3Service.getPresignedViewUrlOrNull(dto.getWriter().getImageUrl()));
       }
 
       dtoMap.put(dto.getId(), dto);
