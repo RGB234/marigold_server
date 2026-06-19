@@ -121,7 +121,7 @@ public class AdoptionPostController {
   @PreAuthorize("permitAll()")
   @GetMapping("/writer/{userId}")
   public ResponseEntity<ApiResult<Page<AdoptionPostDto>>> searchByWriter(
-      @Parameter(description = "TSID 형식 사용자 ID", required = true) @PathVariable("userId") @TsidType
+      @Parameter(description = "TSID 형식 사용자 ID", required = true) @PathVariable @TsidType
           Long userId,
       @ParameterObject
           @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
@@ -147,7 +147,7 @@ public class AdoptionPostController {
   @GetMapping("/adopter/{userId}")
   public ResponseEntity<ApiResult<Page<AdoptionPostDto>>> searchByAdopter(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "TSID 형식 사용자 ID", required = true) @PathVariable("userId") @TsidType
+      @Parameter(description = "TSID 형식 사용자 ID", required = true) @PathVariable @TsidType
           Long userId,
       @ParameterObject
           @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
@@ -172,7 +172,7 @@ public class AdoptionPostController {
   @PreAuthorize("permitAll()")
   @GetMapping("/{id}/summary")
   public ResponseEntity<ApiResult<AdoptionPostDto>> getSummary(
-      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("id") Long id) {
+      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id) {
     AdoptionPostDto result = adoptionPostService.getSummary(id);
     return ResponseEntity.status(HttpStatus.OK)
         .body(ApiResult.success(HttpStatus.OK, "Adoption post successfully", result));
@@ -186,7 +186,7 @@ public class AdoptionPostController {
   @PreAuthorize("permitAll()")
   @GetMapping("/{id}")
   public ResponseEntity<ApiResult<AdoptionPostDetailDto>> getDetail(
-      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("id") Long id) {
+      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id) {
     AdoptionPostDetailDto result = adoptionPostService.getDetail(id);
     return ResponseEntity.status(HttpStatus.OK)
         .body(ApiResult.success(HttpStatus.OK, "Adoption post detail successfully", result));
@@ -210,7 +210,7 @@ public class AdoptionPostController {
   @PatchMapping("/{id}")
   public ResponseEntity<ApiResult<?>> update(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("id") Long id,
+      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id,
       @Parameter(description = "수정할 입양 게시글 정보") @Validated({Default.class}) @ModelAttribute
           AdoptionPostUpdateDto dto) {
     Long userId = principal.getUserId();
@@ -243,7 +243,7 @@ public class AdoptionPostController {
   @PatchMapping("/{id}/status")
   public ResponseEntity<ApiResult<?>> updateStatus(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("id") Long id,
+      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id,
       @Parameter(description = "변경할 게시글 상태", required = true) @RequestParam("status")
           AdoptionPostStatus status) {
     Long userId = principal.getUserId();
@@ -272,7 +272,7 @@ public class AdoptionPostController {
   @DeleteMapping("/{id}")
   public ResponseEntity<ApiResult<?>> delete(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("id") Long id) {
+      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw AuthException.forUnauthorized();
@@ -296,7 +296,7 @@ public class AdoptionPostController {
   @GetMapping("/{id}/candidates")
   public ResponseEntity<ApiResult<List<AdoptionCandidateDto>>> getCandidates(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("id") Long id) {
+      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw AuthException.forUnauthorized();
@@ -326,7 +326,7 @@ public class AdoptionPostController {
   @PostMapping("/{id}/complete")
   public ResponseEntity<ApiResult<?>> completeAdoption(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("id") Long id,
+      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id,
       @RequestBody @Validated CompleteAdoptionRequestDto request) {
     Long userId = principal.getUserId();
     if (userId == null) {
@@ -355,7 +355,7 @@ public class AdoptionPostController {
   @PostMapping("/{id}/cancel-complete")
   public ResponseEntity<ApiResult<?>> cancelAdoption(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("id") Long id) {
+      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw AuthException.forUnauthorized();

@@ -1,7 +1,7 @@
 package com.sns.marigold.adoption.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -56,9 +56,7 @@ public class AdoptionApiTest extends ApiIntegrationTest {
                     .features("12345678901234567890")
                     .build()));
 
-    defaultImage =
-        Objects.requireNonNull(
-            new MockMultipartFile("images", "test1.jpg", "image/jpeg", "dummy".getBytes()));
+    defaultImage = new MockMultipartFile("images", "test1.jpg", "image/jpeg", "dummy".getBytes());
   }
 
   @Test
@@ -262,7 +260,7 @@ public class AdoptionApiTest extends ApiIntegrationTest {
 
     // DB 상태 검증
     AdoptionPost deletedPost = adoptionPostRepository.findById(postId).orElseThrow();
-    assertTrue(deletedPost.getDeletedAt() != null);
+    assertNotNull(deletedPost.getDeletedAt());
   }
 
   @Test

@@ -54,14 +54,14 @@ class WebSocketConfigTest {
             participantRepository,
             cookieManager,
             auditLogger,
-            urlProperties("http://localhost:8000"));
+            urlProperties());
   }
 
   @Test
   @DisplayName("WebSocket CONNECT는 CSRF 쿠키와 헤더가 일치하면 통과한다.")
   void validateCsrf_AllowsMatchingToken() {
     // given
-    StompHeaderAccessor accessor = connectAccessor("csrf-token", "csrf-token");
+    StompHeaderAccessor accessor = connectAccessor("csrf-token");
 
     // when & then
     assertThatCode(() -> webSocketConfig.validateCsrf(accessor)).doesNotThrowAnyException();
@@ -72,7 +72,7 @@ class WebSocketConfigTest {
   @DisplayName("WebSocket CONNECT는 CSRF 쿠키와 헤더가 불일치하면 거부한다.")
   void validateCsrf_DeniesMismatchedToken() {
     // given
-    StompHeaderAccessor accessor = connectAccessor("csrf-token", "other-token");
+    StompHeaderAccessor accessor = connectAccessor("other-token");
 
     // when & then
     assertThatThrownBy(() -> webSocketConfig.validateCsrf(accessor))
@@ -115,10 +115,10 @@ class WebSocketConfigTest {
         .isInstanceOf(AccessDeniedException.class);
   }
 
-  private StompHeaderAccessor connectAccessor(String csrfCookie, String csrfHeader) {
+  private StompHeaderAccessor connectAccessor(String csrfHeader) {
     StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
     Map<String, Object> sessionAttributes = new HashMap<>();
-    sessionAttributes.put(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, csrfCookie);
+    sessionAttributes.put(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, "csrf-token");
     accessor.setSessionAttributes(sessionAttributes);
     accessor.addNativeHeader(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfHeader);
     return accessor;
@@ -141,7 +141,7 @@ class WebSocketConfigTest {
     return new UsernamePasswordAuthenticationToken(principal, "", principal.getAuthorities());
   }
 
-  private UrlProperties urlProperties(String frontendOrigin) {
-    return new UrlProperties(new UrlProperties.Frontend(frontendOrigin, null), null);
+  private UrlProperties urlProperties() {
+    return new UrlProperties(new UrlProperties.Frontend("http://localhost:8000", null), null);
   }
 }

@@ -28,8 +28,6 @@ import com.sns.marigold.adoption.entity.AdoptionPostImage;
 import com.sns.marigold.adoption.enums.AdoptionPostStatus;
 import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.adoption.repository.AdoptionAdopterRepository;
-import com.sns.marigold.adoption.repository.AdoptionCommentImageRepository;
-import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.adoption.specification.AdoptionPostSpecification;
 import com.sns.marigold.audit.AuditLogger;
@@ -62,8 +60,6 @@ public class AdoptionPostService {
 
   private final AdoptionPostRepository adoptionPostRepository;
   private final AdoptionAdopterRepository adoptionAdopterRepository;
-  private final AdoptionCommentRepository adoptionCommentRepository;
-  private final AdoptionCommentImageRepository adoptionCommentImageRepository;
   private final ChatRoomRepository chatRoomRepository;
   private final RoomParticipantRepository participantRepository;
 

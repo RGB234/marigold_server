@@ -142,7 +142,6 @@ public class AdoptionCommentController {
   @PreAuthorize("isAuthenticated()")
   @DeleteMapping("/{commentId}")
   public ResponseEntity<ApiResult<?>> deleteComment(
-      @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("postId") Long postId,
       @Parameter(description = "댓글 ID", required = true) @PathVariable("commentId") Long commentId,
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal) {
     Long userId = principal.getUserId();

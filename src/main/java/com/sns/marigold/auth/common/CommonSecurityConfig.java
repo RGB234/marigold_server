@@ -24,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 /** 일반 API 요청을 위한 SecurityFilterChain OAuth2 경로를 제외한 모든 경로에 적용됩니다. */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true)
+@EnableMethodSecurity
 @RequiredArgsConstructor
 @Order(2) // SecurityConfig중에서 두번째로 적용 (fallback)
 public class CommonSecurityConfig {

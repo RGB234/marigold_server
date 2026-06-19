@@ -1,7 +1,6 @@
 package com.sns.marigold.global.validation.imagecount;
 
 import java.util.List;
-import java.util.Objects;
 
 import org.springframework.web.multipart.MultipartFile;
 

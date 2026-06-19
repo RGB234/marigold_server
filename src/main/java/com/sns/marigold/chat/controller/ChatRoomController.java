@@ -235,7 +235,7 @@ public class ChatRoomController {
         chatService.saveFileMessage(
             roomId, message, files, Objects.requireNonNull(principal.getUserId()));
     messagingTemplate.convertAndSend(
-        "/sub/chat/room/" + TSID.from(savedMessage.getRoomId()).toString(), savedMessage);
+        "/sub/chat/room/" + TSID.from(savedMessage.getRoomId()), savedMessage);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(ApiResult.success(HttpStatus.CREATED, "created successfully", savedMessage));
   }
