@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.global.UrlConstants;
+import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.support.ApiIntegrationTest;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.exception.UserException;
