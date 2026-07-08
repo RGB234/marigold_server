@@ -15,7 +15,6 @@ import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.service.RecentAuthService;
 import com.sns.marigold.auth.common.util.CookieManager;
-import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.sns.marigold.global.config.UrlProperties;
 
 import jakarta.servlet.ServletException;
@@ -35,8 +34,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
   private final RecentAuthService recentAuthService;
   private final UrlProperties urlProperties;
   private final AuditLogger auditLogger;
-  private final HttpCookieOAuth2AuthorizationRequestRepository
-      httpCookieOAuth2AuthorizationRequestRepository;
 
   @Override
   public void onAuthenticationSuccess(
@@ -48,16 +45,12 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     auditLogger.info(
         "event=oauth2_success userId={} authStatus={}", principal.getUserId(), authStatus);
 
-    // 쿠키 삭제
-    httpCookieOAuth2AuthorizationRequestRepository.removeAuthorizationRequestCookies(
-        request, response);
-
     // 정상 상태(로그인, 신규가입)일 때만 토큰 및 쿠키 발급
     if (authStatus == AuthStatus.LOGIN_SUCCESS || authStatus == AuthStatus.SIGNUP_SUCCESS) {
       // 1. JWT 토큰 생성
       String refreshToken = jwtManager.createRefreshToken(principal);
 
-      // 2. Refresh Token 쿠키 설정
+      // 2. Refresh/CSRF/Recent-Auth 토큰
       cookieManager.addCookie(
           response,
           CookieManager.REFRESH_TOKEN_NAME,
@@ -76,7 +69,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     String redirectUrl = uriBuilder.build().toUriString();
 
-    // 3. 리다이렉트 처리
+    // 3. 리다이렉션 처리
     if (response.isCommitted()) {
       log.warn("응답이 이미 커밋되어 리다이렉트 할 수 없습니다.");
       return;

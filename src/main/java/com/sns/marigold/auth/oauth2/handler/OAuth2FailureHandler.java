@@ -41,11 +41,12 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
 
     String errorCode = ErrorCode.AUTH_OAUTH2_LOGIN_FAILURE.getCode();
     String errorMessage = exception.getMessage();
-    // 쿠키 삭제
+
+    // 비정상 callback으로 인해 실패하여 removeAuthorizationRequest() 호출이 되지 않은 경우를 대비한 방어코드
     httpCookieOAuth2AuthorizationRequestRepository.removeAuthorizationRequestCookies(
         request, response);
-    // 콜백 URL로 에러 정보와 함께 리다이렉트
 
+    // 콜백 URL로 에러 정보와 함께 리다이렉트
     String callbackUrl = urlProperties.frontend().auth().callback();
     Objects.requireNonNull(callbackUrl, "url.frontend.auth.callback is not configured");
 

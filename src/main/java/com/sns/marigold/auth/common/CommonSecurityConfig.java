@@ -52,7 +52,7 @@ public class CommonSecurityConfig {
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .cors(corsCustomizer -> corsCustomizer.configurationSource(customCorsConfigurationSource))
-        .csrf(AbstractHttpConfigurer::disable)
+        .csrf(AbstractHttpConfigurer::disable) // 세션 기반 인증을 비활성했으므로 커스텀 CSRF 필터 사용
         .httpBasic(AbstractHttpConfigurer::disable)
         .authorizeHttpRequests(
             auth ->
@@ -61,8 +61,7 @@ public class CommonSecurityConfig {
                     // Swagger
                     .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**")
                     .permitAll()
-                    // 구체적인 권한 제어는 Controller의 @PreAuthorize에서 처리하므로
-                    // 필터 체인 레벨에서는 모든 요청을 통과.
+                    // 구체적인 권한 제어는 Controller의 @PreAuthorize에서 처리하므로 필터 체인 레벨에서는 모든 요청을 통과.
                     .anyRequest()
                     .permitAll())
         .formLogin(AbstractHttpConfigurer::disable)

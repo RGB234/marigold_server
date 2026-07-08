@@ -3,7 +3,6 @@ package com.sns.marigold.auth.oauth2.service;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -28,11 +27,14 @@ import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestReposito
 import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+import com.sns.marigold.global.error.exception.BusinessException;
 import com.sns.marigold.user.dto.create.OAuth2SignupDto;
 import com.sns.marigold.user.entity.User;
+import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.service.UserService;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -78,78 +80,87 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     boolean isLinkAction = actionCookie != null && "link".equals(actionCookie.getValue());
 
     if (isLinkAction) {
-      Cookie refreshCookie = cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME);
-      if (refreshCookie != null) {
-        String refreshToken = refreshCookie.getValue();
-        try {
-          Claims claims = jwtManager.getClaims(refreshToken);
-          Long userId = jwtManager.getUserId(claims);
-          if (userId != null) {
-            User currentUser = userService.findEntityById(userId);
-            authService.checkUserStatus(currentUser);
-            recentAuthService.validate(request, userId);
+      return linkOAuth2(providerInfo, providerId, request, attributes);
+    } else {
+      return loginOrSignupOAuth2User(providerInfo, providerId, attributes);
+    }
+  }
 
-            // 해당 소셜 계정이 이미 다른 사용자에게 연동되어 있는지 확인
-            Optional<User> linkedUser =
-                userService.findEntityByProviderInfoAndProviderId(providerInfo, providerId);
-            if (linkedUser.isPresent()) {
-              throw new OAuth2AuthenticationException(
-                  new OAuth2Error("ALREADY_LINKED", "이미 연동된 소셜 계정입니다.", null));
-            }
+  private CustomPrincipal linkOAuth2(
+      ProviderInfo providerInfo,
+      String providerId,
+      HttpServletRequest request,
+      Map<String, Object> attributes) {
+    Cookie refreshCookie = cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME);
 
-            userService.linkOAuth2(userId, providerInfo, providerId);
-            Collection<SimpleGrantedAuthority> authorities =
-                List.of(new SimpleGrantedAuthority(currentUser.getRole().name()));
-            return new CustomPrincipal(
-                currentUser.getId(), authorities, attributes, AuthStatus.LINK_SUCCESS);
-          }
-        } catch (OAuth2AuthenticationException e) {
-          throw e;
-        } catch (AuthException e) {
-          throw new OAuth2AuthenticationException(
-              new OAuth2Error(e.getErrorCode().getCode(), e.getMessage(), null));
-        } catch (Exception e) {
-          // 갱신 토큰이 유효하지 않은 경우
-          throw new OAuth2AuthenticationException(
-              new OAuth2Error("INVALID_TOKEN", "유효하지 않은 인증 토큰입니다.", null));
-        }
-      } else {
-        throw new OAuth2AuthenticationException(
-            new OAuth2Error("UNAUTHORIZED", "로그인 상태가 아닙니다.", null));
-      }
+    if (refreshCookie == null) {
+      throw new OAuth2AuthenticationException(
+          new OAuth2Error("UNAUTHORIZED", "로그인 상태가 아닙니다.", null));
     }
 
-    Optional<User> userOptional =
-        userService.findEntityByProviderInfoAndProviderId(providerInfo, providerId);
-    if (userOptional.isPresent()) { // 이미 존재하는 사용자라면 로그인처리
-
-      // 예외 발생 대신 상태값을 리턴하여 핸들러에서 처리하도록 변경
-      // authService.checkUserStatus(userOptional.get());
-
-      User user = userOptional.get();
-
-      Collection<SimpleGrantedAuthority> authorities =
-          List.of(new SimpleGrantedAuthority(user.getRole().name()));
-
-      AuthStatus authStatus;
-      authStatus = user.getStatus().toAuthStatus();
-
-      return new CustomPrincipal(user.getId(), authorities, attributes, authStatus);
-
-    } else { // 존재하지 않는 사용자라면 회원가입 처리
-      OAuth2SignupDto oAuth2SignupDto =
-          OAuth2SignupDto.builder()
-              .providerInfo(providerInfo)
-              .providerId(providerId)
-              .role(Role.ROLE_PERSON) // 기본 권한은 일반 사용자로 설정
-              .build();
-
-      Long userId = authService.oauth2Signup(oAuth2SignupDto);
-
-      Collection<SimpleGrantedAuthority> authorities =
-          List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
-
-      return new CustomPrincipal(userId, authorities, attributes, AuthStatus.SIGNUP_SUCCESS);
+    String refreshToken = refreshCookie.getValue();
+    Long userId;
+    try {
+      Claims claims = jwtManager.getClaims(refreshToken);
+      userId = jwtManager.getUserId(claims);
+    } catch (JwtException | IllegalArgumentException e) {
+      throw new OAuth2AuthenticationException(
+          new OAuth2Error("INVALID_TOKEN", "유효하지 않은 인증 토큰입니다.", null));
     }
+
+    try {
+      User currentUser = userService.findEntityById(userId);
+      authService.checkUserStatus(currentUser);
+      // 2차 인증 검사
+      recentAuthService.validate(request, userId);
+
+      userService.linkOAuth2(userId, providerInfo, providerId);
+
+      Collection<SimpleGrantedAuthority> authorities =
+          List.of(new SimpleGrantedAuthority(currentUser.getRole().name()));
+
+      return new CustomPrincipal(
+          currentUser.getId(), authorities, attributes, AuthStatus.LINK_SUCCESS);
+    } catch (AuthException | UserException e) {
+      throw toOAuth2Exception(e);
+    }
+  }
+
+  private CustomPrincipal createLoginPrincipal(User user, Map<String, Object> attributes) {
+    Collection<SimpleGrantedAuthority> authorities =
+        List.of(new SimpleGrantedAuthority(user.getRole().name()));
+
+    return new CustomPrincipal(
+        user.getId(), authorities, attributes, user.getStatus().toAuthStatus());
+  }
+
+  private CustomPrincipal signupOAuth2User(
+      ProviderInfo providerInfo, String providerId, Map<String, Object> attributes) {
+    OAuth2SignupDto signupDto =
+        OAuth2SignupDto.builder()
+            .providerInfo(providerInfo)
+            .providerId(providerId)
+            .role(Role.ROLE_PERSON)
+            .build();
+
+    Long userId = authService.oauth2Signup(signupDto);
+
+    Collection<SimpleGrantedAuthority> authorities =
+        List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name()));
+
+    return new CustomPrincipal(userId, authorities, attributes, AuthStatus.SIGNUP_SUCCESS);
+  }
+
+  private CustomPrincipal loginOrSignupOAuth2User(
+      ProviderInfo providerInfo, String providerId, Map<String, Object> attributes) {
+    return userService
+        .findEntityByProviderInfoAndProviderId(providerInfo, providerId)
+        .map(user -> createLoginPrincipal(user, attributes))
+        .orElseGet(() -> signupOAuth2User(providerInfo, providerId, attributes));
+  }
+
+  private OAuth2AuthenticationException toOAuth2Exception(BusinessException e) {
+    return new OAuth2AuthenticationException(
+        new OAuth2Error(e.getErrorCode().getCode(), e.getMessage(), null));
   }
 }

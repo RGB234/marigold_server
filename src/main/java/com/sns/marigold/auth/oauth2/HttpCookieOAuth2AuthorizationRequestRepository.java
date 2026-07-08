@@ -57,6 +57,9 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
     String action = request.getParameter("action");
     if (action != null) {
       cookieManager.addCookie(response, OAUTH2_ACTION_COOKIE_NAME, action, COOKIE_EXPIRE_SECONDS);
+    } else {
+      // stale action 문제 방어
+      cookieManager.expireCookie(response, OAUTH2_ACTION_COOKIE_NAME);
     }
   }
 

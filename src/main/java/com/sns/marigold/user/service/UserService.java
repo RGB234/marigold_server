@@ -96,7 +96,8 @@ public class UserService {
   }
 
   @Transactional
-  public void linkOAuth2(Long uid, ProviderInfo providerInfo, String providerId) {
+  public void linkOAuth2(Long uid, ProviderInfo providerInfo, String providerId)
+      throws UserException {
     User user = findEntityById(uid);
     if (user.hasOAuth2Link()) {
       throw UserException.forUserOAuth2AlreadyLinked();

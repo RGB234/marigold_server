@@ -30,7 +30,6 @@ import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.service.RecentAuthService;
 import com.sns.marigold.auth.common.util.CookieManager;
-import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.sns.marigold.global.config.UrlProperties;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,7 +39,6 @@ class OAuth2SuccessHandlerTest {
   @Mock private CookieManager cookieManager;
   @Mock private CsrfTokenService csrfTokenService;
   @Mock private RecentAuthService recentAuthService;
-  @Mock private HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
   @Mock private AuditLogger auditLogger;
 
   private OAuth2SuccessHandler successHandler;
@@ -64,8 +62,7 @@ class OAuth2SuccessHandlerTest {
             csrfTokenService,
             recentAuthService,
             urlProperties,
-            auditLogger,
-            authorizationRequestRepository);
+            auditLogger);
   }
 
   @Test
