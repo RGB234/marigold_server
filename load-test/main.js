@@ -2,27 +2,31 @@ import { sleep } from 'k6';
 import { login } from './scenarios/auth.js';
 import { getAdoptionPosts, getAdoptionPostDetail } from './scenarios/adoption.js';
 import { chatSession } from './scenarios/chat.js';
+import { getRandomChatRoom } from './config.js';
+import { loadThresholds } from './thresholds.js';
+import { createSummary } from './summary.js';
 
 export const options = {
+  thresholds: loadThresholds,
   scenarios: {
-    // 1. 단순 읽기 트래픽 (게시글 목록 및 상세 조회) - 트래픽 비중 70% 가정
+    // 1. 단순 읽기 트래픽 (게시글 목록 및 상세 조회) - 트래픽 비중 75% 가정
     adoption_traffic: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '30s', target: 70 }, // Ramp-up
-        { duration: '1m', target: 70 },  // Sustained 부하 유지
+        { duration: '30s', target: 75 }, // Ramp-up
+        { duration: '1m', target: 75 },  // Sustained 부하 유지
         { duration: '30s', target: 0 },  // Ramp-down
       ],
       exec: 'adoptionScenario',
     },
-    // 2. 인증 트래픽 (로그인 시도) - 트래픽 비중 10%
+    // 2. 인증 트래픽 (로그인 시도) - 트래픽 비중 5%
     auth_traffic: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '30s', target: 10 },
-        { duration: '1m', target: 10 },
+        { duration: '30s', target: 5 },
+        { duration: '1m', target: 5 },
         { duration: '30s', target: 0 },
       ],
       exec: 'authScenario',
@@ -63,12 +67,12 @@ export function chatScenario() {
   const { token, csrfToken, targetUser } = login();
   
   if (token && csrfToken) {
-    // roomId는 실제 DB에 존재하는 채팅방 ID로 대체 가능 (현재 1로 고정하여 테스트)
-    const roomId = 1; 
-    // targetUser에 id가 없으면 임의의 senderId(1)를 보냄
+    const roomId = getRandomChatRoom().id;
     const senderId = targetUser.id || 1;
     
     chatSession(token, csrfToken, senderId, roomId);
   }
   sleep(1);
 }
+
+export const handleSummary = createSummary('load');
