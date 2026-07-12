@@ -73,7 +73,7 @@ public class AuthController {
   public ResponseEntity<ApiResult<LoginResponseDto>> localLogin(
       @Valid @RequestBody LocalLoginDto dto,
       @Parameter(hidden = true) HttpServletResponse response) {
-    LoginResponseDto loginResponse = authService.localLogin(dto, response);
+    LoginResponseDto loginResponse = authService.emailLogin(dto, response);
     csrfTokenService.issue(response);
     return ResponseEntity.status(HttpStatus.OK)
         .body(ApiResult.success(HttpStatus.OK, "local login successfully", loginResponse));

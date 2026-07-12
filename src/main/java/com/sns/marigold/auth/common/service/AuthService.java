@@ -145,7 +145,7 @@ public class AuthService {
   }
 
   @Transactional(readOnly = true)
-  public LoginResponseDto localLogin(LocalLoginDto dto, HttpServletResponse response) {
+  public LoginResponseDto emailLogin(LocalLoginDto dto, HttpServletResponse response) {
     User user =
         userRepository
             .findByEmail(dto.getEmail())

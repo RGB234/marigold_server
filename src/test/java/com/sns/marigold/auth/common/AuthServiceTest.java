@@ -92,7 +92,7 @@ class AuthServiceTest {
     return dto;
   }
 
-  private LocalLoginDto createLocalLoginDto(String email, String password) {
+  private LocalLoginDto createEmailLoginDto(String email, String password) {
     LocalLoginDto dto = new LocalLoginDto();
     ReflectionTestUtils.setField(dto, "email", email);
     ReflectionTestUtils.setField(dto, "password", password);
@@ -190,9 +190,9 @@ class AuthServiceTest {
 
   @Test
   @DisplayName("이메일 로그인 성공 시 토큰을 생성하고 쿠키에 추가한다.")
-  void localLogin_Success() {
+  void emailLogin_Success() {
     // given
-    LocalLoginDto dto = createLocalLoginDto("test@example.com", "password123");
+    LocalLoginDto dto = createEmailLoginDto("test@example.com", "password123");
     HttpServletResponse response = mock(HttpServletResponse.class);
 
     given(userRepository.findByEmail(dto.getEmail())).willReturn(Optional.of(testUser));
@@ -204,7 +204,7 @@ class AuthServiceTest {
     given(jwtManager.getRefreshTokenValidityInSeconds()).willReturn(86400L);
 
     // when
-    authService.localLogin(dto, response);
+    authService.emailLogin(dto, response);
 
     // then
     verify(cookieManager, times(1))
@@ -218,25 +218,25 @@ class AuthServiceTest {
 
   @Test
   @DisplayName("이메일 로그인 시 비밀번호가 틀리면 예외가 발생한다.")
-  void localLogin_InvalidPassword() {
+  void emailLogin_InvalidPassword() {
     // given
-    LocalLoginDto dto = createLocalLoginDto("test@example.com", "wrongpassword");
+    LocalLoginDto dto = createEmailLoginDto("test@example.com", "wrongpassword");
     HttpServletResponse response = mock(HttpServletResponse.class);
 
     given(userRepository.findByEmail(dto.getEmail())).willReturn(Optional.of(testUser));
     given(passwordEncoder.matches(dto.getPassword(), testUser.getPassword())).willReturn(false);
 
     // when & then
-    assertThatThrownBy(() -> authService.localLogin(dto, response))
+    assertThatThrownBy(() -> authService.emailLogin(dto, response))
         .isInstanceOf(AuthException.class)
         .hasMessageContaining(AuthException.forInvalidCredentials().getMessage());
   }
 
   @Test
   @DisplayName("로그인 시도 유저가 탈퇴 상태라면 예외가 발생한다.")
-  void localLogin_DeletedUser() {
+  void emailLogin_DeletedUser() {
     // given
-    LocalLoginDto dto = createLocalLoginDto("test@example.com", "password123");
+    LocalLoginDto dto = createEmailLoginDto("test@example.com", "password123");
     HttpServletResponse response = mock(HttpServletResponse.class);
 
     User deletedUser =
@@ -251,7 +251,7 @@ class AuthServiceTest {
     given(passwordEncoder.matches(dto.getPassword(), deletedUser.getPassword())).willReturn(true);
 
     // when & then
-    assertThatThrownBy(() -> authService.localLogin(dto, response))
+    assertThatThrownBy(() -> authService.emailLogin(dto, response))
         .isInstanceOf(UserException.class)
         .hasMessageContaining(UserException.forUserDeleted().getMessage());
   }
