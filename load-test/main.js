@@ -2,7 +2,7 @@ import { sleep } from 'k6';
 import { login } from './scenarios/auth.js';
 import { getAdoptionPosts, getAdoptionPostDetail } from './scenarios/adoption.js';
 import { chatSession } from './scenarios/chat.js';
-import { getRandomChatRoom } from './config.js';
+import { getRandomChatFixture } from './config.js';
 import { loadThresholds } from './thresholds.js';
 import { createSummary } from './summary.js';
 
@@ -63,12 +63,13 @@ export function authScenario() {
 }
 
 export function chatScenario() {
+  const { room, user } = getRandomChatFixture();
   // 채팅 통신을 위해 로그인하여 Access Token 발급
-  const { token, csrfToken, targetUser } = login();
+  const { token, csrfToken, targetUser } = login(user);
   
   if (token && csrfToken) {
-    const roomId = getRandomChatRoom().id;
-    const senderId = targetUser.id || 1;
+    const roomId = room.id;
+    const senderId = targetUser.id;
     
     chatSession(token, csrfToken, senderId, roomId);
   }

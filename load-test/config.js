@@ -1,63 +1,113 @@
-import { SharedArray } from 'k6/data';
-
 export const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 export const WS_BASE_URL = __ENV.WS_BASE_URL || 'ws://localhost:8080/ws/websocket';
-export const API_VERSION = '/api/v1';
+export const API_VERSION = __ENV.API_VERSION || '/api/v1';
+export const LOAD_TEST_PROFILE = __ENV.LOAD_TEST_PROFILE || 'smoke';
 
-const DEFAULT_TEST_PASSWORD = __ENV.LOAD_TEST_USER_PASSWORD || '';
-const USERS_FILE = __ENV.LOAD_TEST_USERS_FILE || './data/users.csv';
-const ROOMS_FILE = __ENV.LOAD_TEST_ROOMS_FILE || './data/rooms.json';
+const SEED_USER_COUNT = parsePositiveInt(__ENV.LOAD_TEST_SEED_USER_COUNT, 50);
+const SEED_USER_ID_BASE = __ENV.LOAD_TEST_SEED_USER_ID_BASE || '990000000000000000';
+const SEED_CHAT_ROOM_COUNT = parsePositiveInt(__ENV.LOAD_TEST_SEED_CHAT_ROOM_COUNT, SEED_USER_COUNT);
+const SEED_CHAT_ROOM_ID_BASE = __ENV.LOAD_TEST_SEED_CHAT_ROOM_ID_BASE || '993000000000000000';
+const SEED_EMAIL_PREFIX = __ENV.LOAD_TEST_SEED_EMAIL_PREFIX || 'loadtest-user-';
+const SEED_EMAIL_DOMAIN = __ENV.LOAD_TEST_SEED_EMAIL_DOMAIN || 'example.test';
+const LOGIN_PASSWORD = __ENV.LOAD_TEST_LOGIN_PASSWORD || '';
 
-function parseUsersCsv(text) {
-  return text
-    .split('\n')
-    .slice(1)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [id, email, password] = line.split(',').map((value) => value.trim());
-      return { id: Number(id), email, password: password || DEFAULT_TEST_PASSWORD };
-    })
-    .filter((user) => user.email && user.password);
+function parsePositiveInt(value, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function fallbackUsers() {
-  return [
-    {
-      id: Number(__ENV.LOAD_TEST_USER1_ID || 1),
-      email: __ENV.LOAD_TEST_USER1_EMAIL || 'user1@example.com',
-      password: __ENV.LOAD_TEST_USER1_PASSWORD || DEFAULT_TEST_PASSWORD,
-    },
-    {
-      id: Number(__ENV.LOAD_TEST_USER2_ID || 2),
-      email: __ENV.LOAD_TEST_USER2_EMAIL || 'user2@example.com',
-      password: __ENV.LOAD_TEST_USER2_PASSWORD || DEFAULT_TEST_PASSWORD,
-    },
-    {
-      id: Number(__ENV.LOAD_TEST_USER3_ID || 3),
-      email: __ENV.LOAD_TEST_USER3_EMAIL || 'user3@example.com',
-      password: __ENV.LOAD_TEST_USER3_PASSWORD || DEFAULT_TEST_PASSWORD,
-    },
-  ].filter((user) => user.email && user.password);
+export const ADOPTION_PAGE_SIZE = parsePositiveInt(__ENV.LOAD_TEST_ADOPTION_PAGE_SIZE, 10);
+export const ADOPTION_TOTAL_PAGES = parsePositiveInt(__ENV.LOAD_TEST_ADOPTION_TOTAL_PAGES, 1);
+export const ADOPTION_FIXED_PAGE = Math.max(
+  0,
+  parsePositiveInt(__ENV.LOAD_TEST_ADOPTION_FIXED_PAGE, 0)
+);
+export const ADOPTION_PAGE_SELECTION =
+  __ENV.LOAD_TEST_ADOPTION_PAGE_SELECTION || (LOAD_TEST_PROFILE === 'smoke' ? 'fixed' : 'weighted');
+
+function randomPage(min, max) {
+  if (max <= min) {
+    return min;
+  }
+  return min + Math.floor(Math.random() * (max - min + 1));
 }
 
-export const TEST_USERS = new SharedArray('test users', () => {
-  const fileUsers = parseUsersCsv(open(USERS_FILE));
-  return fileUsers.length > 0 ? fileUsers : fallbackUsers();
-});
+export function selectAdoptionPage() {
+  const lastPage = Math.max(0, ADOPTION_TOTAL_PAGES - 1);
 
-export const CHAT_ROOMS = new SharedArray('chat rooms', () => {
-  const rooms = JSON.parse(open(ROOMS_FILE));
-  return Array.isArray(rooms) ? rooms.filter((room) => room.id) : [];
-});
+  if (ADOPTION_PAGE_SELECTION === 'fixed') {
+    return Math.min(ADOPTION_FIXED_PAGE, lastPage);
+  }
+
+  if (ADOPTION_PAGE_SELECTION === 'random') {
+    return randomPage(0, lastPage);
+  }
+
+  const roll = Math.random();
+  if (roll < 0.7) {
+    return randomPage(0, Math.min(2, lastPage));
+  }
+  if (roll < 0.9) {
+    return randomPage(Math.min(3, lastPage), Math.min(20, lastPage));
+  }
+  return randomPage(Math.min(21, lastPage), lastPage);
+}
+
+function leftPadNumber(value, width) {
+  const text = String(value);
+  if (text.length >= width) {
+    return text;
+  }
+  return '0'.repeat(width - text.length) + text;
+}
+
+function addPositiveIntToDecimalString(value, addend) {
+  let carry = addend;
+  let result = '';
+
+  for (let i = value.length - 1; i >= 0; i--) {
+    const digit = value.charCodeAt(i) - 48;
+    const sum = digit + (carry % 10);
+    result = String(sum % 10) + result;
+    carry = Math.floor(carry / 10) + Math.floor(sum / 10);
+  }
+
+  while (carry > 0) {
+    result = String(carry % 10) + result;
+    carry = Math.floor(carry / 10);
+  }
+
+  return result.replace(/^0+(?=\d)/, '');
+}
+
+function createSeedUser(userNumber) {
+  if (!LOGIN_PASSWORD) {
+    throw new Error("LOAD_TEST_LOGIN_PASSWORD is required for seeded user login.");
+  }
+
+  return {
+    id: addPositiveIntToDecimalString(SEED_USER_ID_BASE, userNumber),
+    number: userNumber,
+    email: `${SEED_EMAIL_PREFIX}${leftPadNumber(userNumber, 6)}@${SEED_EMAIL_DOMAIN}`,
+    password: LOGIN_PASSWORD,
+  };
+}
 
 export function getRandomUser() {
-  return TEST_USERS[Math.floor(Math.random() * TEST_USERS.length)];
+  const userNumber = 1 + Math.floor(Math.random() * SEED_USER_COUNT);
+  return createSeedUser(userNumber);
 }
 
 export function getRandomChatRoom() {
-  if (CHAT_ROOMS.length === 0) {
-    return { id: Number(__ENV.LOAD_TEST_ROOM_ID || 1) };
-  }
-  return CHAT_ROOMS[Math.floor(Math.random() * CHAT_ROOMS.length)];
+  const roomNumber = 1 + Math.floor(Math.random() * SEED_CHAT_ROOM_COUNT);
+  return {
+    id: addPositiveIntToDecimalString(SEED_CHAT_ROOM_ID_BASE, roomNumber),
+    number: roomNumber,
+  };
+}
+
+export function getRandomChatFixture() {
+  const room = getRandomChatRoom();
+  const userNumber = 1 + ((room.number - 1) % SEED_USER_COUNT);
+  return { room, user: createSeedUser(userNumber) };
 }

@@ -1,9 +1,10 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { BASE_URL, API_VERSION } from '../config.js';
+import { ADOPTION_PAGE_SIZE, API_VERSION, BASE_URL, selectAdoptionPage } from '../config.js';
 
 export function getAdoptionPosts() {
-  const url = `${BASE_URL}${API_VERSION}/adoption?page=0&size=10&sort=createdAt`;
+  const page = selectAdoptionPage();
+  const url = `${BASE_URL}${API_VERSION}/adoption?page=${page}&size=${ADOPTION_PAGE_SIZE}&sort=createdAt,desc`;
   const res = http.get(url);
 
   const isSuccessful = check(res, {
@@ -17,6 +18,7 @@ export function getAdoptionPosts() {
       posts = res.json('data.content') || [];
     } catch (e) {
       // JSON Parse fail
+      throw new Error('Failed to parse JSON response');
     }
   }
   return posts;
