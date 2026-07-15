@@ -57,3 +57,5 @@ out/
 .aws/
 .ssh/
 load-test/data/generated-*.csv
+load-test/results/*.json
+!load-test/results/.gitkeep

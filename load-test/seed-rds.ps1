@@ -1,28 +1,90 @@
 param(
-  [string]$HostName = $env:LOAD_TEST_DB_HOST,
-  [int]$Port = $(if ($env:LOAD_TEST_DB_PORT) { [int]$env:LOAD_TEST_DB_PORT } else { 3306 }),
-  [string]$Database = $env:LOAD_TEST_DB_NAME,
-  [string]$Username = $env:LOAD_TEST_DB_USERNAME,
-  [string]$Password = $env:LOAD_TEST_DB_PASSWORD,
-  [int]$UserCount = $(if ($env:LOAD_TEST_SEED_USER_COUNT) { [int]$env:LOAD_TEST_SEED_USER_COUNT } else { 50 }),
-  [int]$PostCount = $(if ($env:LOAD_TEST_SEED_ADOPTION_POST_COUNT) { [int]$env:LOAD_TEST_SEED_ADOPTION_POST_COUNT } else { 5000 }),
-  [int]$CommentsPerPost = $(if ($env:LOAD_TEST_SEED_COMMENTS_PER_POST) { [int]$env:LOAD_TEST_SEED_COMMENTS_PER_POST } else { 3 }),
-  [int]$ChatRoomCount = $(if ($env:LOAD_TEST_SEED_CHAT_ROOM_COUNT) { [int]$env:LOAD_TEST_SEED_CHAT_ROOM_COUNT } else { $UserCount }),
-  [Int64]$UserIdBase = $(if ($env:LOAD_TEST_SEED_USER_ID_BASE) { [Int64]$env:LOAD_TEST_SEED_USER_ID_BASE } else { 990000000000000000 }),
-  [Int64]$PostIdBase = $(if ($env:LOAD_TEST_SEED_POST_ID_BASE) { [Int64]$env:LOAD_TEST_SEED_POST_ID_BASE } else { 991000000000000000 }),
-  [Int64]$ImageIdBase = $(if ($env:LOAD_TEST_SEED_IMAGE_ID_BASE) { [Int64]$env:LOAD_TEST_SEED_IMAGE_ID_BASE } else { 992000000000000000 }),
-  [Int64]$ChatRoomIdBase = $(if ($env:LOAD_TEST_SEED_CHAT_ROOM_ID_BASE) { [Int64]$env:LOAD_TEST_SEED_CHAT_ROOM_ID_BASE } else { 993000000000000000 }),
-  [Int64]$RoomParticipantIdBase = $(if ($env:LOAD_TEST_SEED_ROOM_PARTICIPANT_ID_BASE) { [Int64]$env:LOAD_TEST_SEED_ROOM_PARTICIPANT_ID_BASE } else { 994000000000000000 }),
-  [string]$EmailPrefix = $(if ($env:LOAD_TEST_SEED_EMAIL_PREFIX) { $env:LOAD_TEST_SEED_EMAIL_PREFIX } else { "loadtest-user-" }),
-  [string]$EmailDomain = $(if ($env:LOAD_TEST_SEED_EMAIL_DOMAIN) { $env:LOAD_TEST_SEED_EMAIL_DOMAIN } else { "example.test" }),
-  [string]$NicknamePrefix = $(if ($env:LOAD_TEST_SEED_NICKNAME_PREFIX) { $env:LOAD_TEST_SEED_NICKNAME_PREFIX } else { "loadtest-user-" }),
-  [string]$ImagePrefix = $(if ($env:LOAD_TEST_SEED_IMAGE_PREFIX) { $env:LOAD_TEST_SEED_IMAGE_PREFIX } else { "loadtest/adoption" }),
-  [string]$PasswordHash = $env:LOAD_TEST_PASSWORD_HASH,
-  [string]$MySqlPath = $(if ($env:MYSQL_PATH) { $env:MYSQL_PATH } else { "mysql" }),
+  [string]$EnvFile = ".env",
+  [string]$HostName,
+  [int]$Port,
+  [string]$Database,
+  [string]$Username,
+  [string]$Password,
+  [int]$UserCount,
+  [int]$PostCount,
+  [int]$CommentsPerPost,
+  [int]$ChatRoomCount,
+  [Int64]$UserIdBase,
+  [Int64]$PostIdBase,
+  [Int64]$ImageIdBase,
+  [Int64]$ChatRoomIdBase,
+  [Int64]$RoomParticipantIdBase,
+  [string]$EmailPrefix,
+  [string]$EmailDomain,
+  [string]$NicknamePrefix,
+  [string]$ImagePrefix,
+  [string]$PasswordHash,
+  [string]$MySqlPath,
   [switch]$ConfirmTestDatabase
 )
 
 $ErrorActionPreference = "Stop"
+
+function Import-EnvFile([string]$Path) {
+  if ([string]::IsNullOrWhiteSpace($Path)) {
+    return
+  }
+
+  if (-not (Test-Path -LiteralPath $Path)) {
+    if ($PSBoundParameters.ContainsKey("EnvFile")) {
+      throw "Env file not found: $Path"
+    }
+    return
+  }
+
+  Get-Content -LiteralPath $Path -Encoding UTF8 | ForEach-Object {
+    $line = $_.Trim()
+    if ($line -and -not $line.StartsWith("#") -and $line.Contains("=")) {
+      $parts = $line -split "=", 2
+      $name = $parts[0].Trim()
+      $value = $parts[1].Trim().Trim('"').Trim("'")
+      if ($name) {
+        [Environment]::SetEnvironmentVariable($name, $value, "Process")
+      }
+    }
+  }
+}
+
+function Resolve-Value([string]$ParameterName, [string]$EnvName, $DefaultValue) {
+  if ($PSBoundParameters.ContainsKey($ParameterName)) {
+    return Get-Variable -Name $ParameterName -ValueOnly
+  }
+
+  $envValue = [Environment]::GetEnvironmentVariable($EnvName, "Process")
+  if (-not [string]::IsNullOrWhiteSpace($envValue)) {
+    return $envValue
+  }
+
+  return $DefaultValue
+}
+
+Import-EnvFile $EnvFile
+
+$HostName = Resolve-Value "HostName" "LOAD_TEST_DB_HOST" $null
+$Port = [int](Resolve-Value "Port" "LOAD_TEST_DB_PORT" 3306)
+$Database = Resolve-Value "Database" "LOAD_TEST_DB_NAME" $null
+$Username = Resolve-Value "Username" "LOAD_TEST_DB_USERNAME" $null
+$Password = Resolve-Value "Password" "LOAD_TEST_DB_PASSWORD" $null
+$UserCount = [int](Resolve-Value "UserCount" "LOAD_TEST_SEED_USER_COUNT" 50)
+$PostCount = [int](Resolve-Value "PostCount" "LOAD_TEST_SEED_ADOPTION_POST_COUNT" 5000)
+$CommentsPerPost = [int](Resolve-Value "CommentsPerPost" "LOAD_TEST_SEED_COMMENTS_PER_POST" 3)
+$ChatRoomCount = [int](Resolve-Value "ChatRoomCount" "LOAD_TEST_SEED_CHAT_ROOM_COUNT" $UserCount)
+$UserIdBase = [Int64](Resolve-Value "UserIdBase" "LOAD_TEST_SEED_USER_ID_BASE" 990000000000000000)
+$PostIdBase = [Int64](Resolve-Value "PostIdBase" "LOAD_TEST_SEED_POST_ID_BASE" 991000000000000000)
+$ImageIdBase = [Int64](Resolve-Value "ImageIdBase" "LOAD_TEST_SEED_IMAGE_ID_BASE" 992000000000000000)
+$ChatRoomIdBase = [Int64](Resolve-Value "ChatRoomIdBase" "LOAD_TEST_SEED_CHAT_ROOM_ID_BASE" 993000000000000000)
+$RoomParticipantIdBase = [Int64](Resolve-Value "RoomParticipantIdBase" "LOAD_TEST_SEED_ROOM_PARTICIPANT_ID_BASE" 994000000000000000)
+$EmailPrefix = Resolve-Value "EmailPrefix" "LOAD_TEST_SEED_EMAIL_PREFIX" "loadtest-user-"
+$EmailDomain = Resolve-Value "EmailDomain" "LOAD_TEST_SEED_EMAIL_DOMAIN" "example.test"
+$NicknamePrefix = Resolve-Value "NicknamePrefix" "LOAD_TEST_SEED_NICKNAME_PREFIX" "loadtest-user-"
+$ImagePrefix = Resolve-Value "ImagePrefix" "LOAD_TEST_SEED_IMAGE_PREFIX" "loadtest/adoption"
+$PasswordHash = Resolve-Value "PasswordHash" "LOAD_TEST_PASSWORD_HASH" $null
+$MySqlPath = Resolve-Value "MySqlPath" "MYSQL_PATH" "mysql"
 
 if (-not $ConfirmTestDatabase) {
   throw "This script writes test data. Re-run with -ConfirmTestDatabase after confirming the target is not production."

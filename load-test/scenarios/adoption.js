@@ -9,7 +9,7 @@ export function getAdoptionPosts() {
 
   const isSuccessful = check(res, {
     'adoption list status is 200': (r) => r.status === 200,
-    'adoption list success is true': (r) => r.json('success') === true,
+    'adoption list success is true': (r) => r.status === 200 && Boolean(r.body) && r.json('success') === true,
   });
 
   let posts = [];
@@ -32,6 +32,6 @@ export function getAdoptionPostDetail(postId) {
 
   check(res, {
     'adoption detail status is 200': (r) => r.status === 200,
-    'adoption detail success is true': (r) => r.json('success') === true,
+    'adoption detail success is true': (r) => r.status === 200 && Boolean(r.body) && r.json('success') === true,
   });
 }

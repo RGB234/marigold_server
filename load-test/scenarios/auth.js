@@ -21,7 +21,7 @@ export function login(user = null) {
   
   const isSuccessful = check(res, {
     'login status is 200': (r) => r.status === 200,
-    'login has success field': (r) => r.json('success') === true,
+    'login has success field': (r) => r.status === 200 && Boolean(r.body) && r.json('success') === true,
   });
 
   // ApiResponse 구조 (global/dto/ApiResponse.java)

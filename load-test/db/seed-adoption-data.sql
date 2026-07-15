@@ -12,22 +12,31 @@ SET @load_test_email_domain := COALESCE(@load_test_email_domain, 'example.test')
 SET @load_test_nickname_prefix := COALESCE(@load_test_nickname_prefix, 'loadtest-user-');
 SET @load_test_image_prefix := COALESCE(@load_test_image_prefix, 'loadtest/adoption');
 
-DROP TEMPORARY TABLE IF EXISTS load_test_digits;
-CREATE TEMPORARY TABLE load_test_digits (i INT PRIMARY KEY);
-
-INSERT INTO load_test_digits (i)
-VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
-
 DROP TEMPORARY TABLE IF EXISTS load_test_numbers;
 CREATE TEMPORARY TABLE load_test_numbers (n INT PRIMARY KEY);
 
 INSERT INTO load_test_numbers (n)
 SELECT d0.i + d1.i * 10 + d2.i * 100 + d3.i * 1000 + d4.i * 10000 + 1 AS n
-FROM load_test_digits d0
-CROSS JOIN load_test_digits d1
-CROSS JOIN load_test_digits d2
-CROSS JOIN load_test_digits d3
-CROSS JOIN load_test_digits d4
+FROM (
+  SELECT 0 AS i UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+  UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9
+) d0
+CROSS JOIN (
+  SELECT 0 AS i UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+  UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9
+) d1
+CROSS JOIN (
+  SELECT 0 AS i UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+  UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9
+) d2
+CROSS JOIN (
+  SELECT 0 AS i UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+  UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9
+) d3
+CROSS JOIN (
+  SELECT 0 AS i UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+  UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9
+) d4
 WHERE d0.i + d1.i * 10 + d2.i * 100 + d3.i * 1000 + d4.i * 10000 + 1
       <= GREATEST(
         @load_test_user_count,
@@ -35,6 +44,14 @@ WHERE d0.i + d1.i * 10 + d2.i * 100 + d3.i * 1000 + d4.i * 10000 + 1
         @load_test_comments_per_post,
         @load_test_chat_room_count
       );
+
+DROP TEMPORARY TABLE IF EXISTS load_test_comment_numbers;
+CREATE TEMPORARY TABLE load_test_comment_numbers (n INT PRIMARY KEY);
+
+INSERT INTO load_test_comment_numbers (n)
+SELECT n
+FROM load_test_numbers
+WHERE n <= @load_test_comments_per_post;
 
 INSERT INTO users (
   id,
@@ -212,9 +229,8 @@ SELECT
   TIMESTAMPADD(SECOND, -(post_numbers.n * 10 + comment_numbers.n), NOW()),
   NULL
 FROM load_test_numbers post_numbers
-JOIN load_test_numbers comment_numbers
-  ON comment_numbers.n <= @load_test_comments_per_post
+CROSS JOIN load_test_comment_numbers comment_numbers
 WHERE post_numbers.n <= @load_test_post_count;
 
+DROP TEMPORARY TABLE IF EXISTS load_test_comment_numbers;
 DROP TEMPORARY TABLE IF EXISTS load_test_numbers;
-DROP TEMPORARY TABLE IF EXISTS load_test_digits;

@@ -1,5 +1,8 @@
 package com.sns.marigold.adoption.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.sns.marigold.global.tsid.TsidJacksonConfig;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,6 +25,8 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AdoptionPostDetailDto {
 
+  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
+  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
   @Schema(description = "입양 게시글 ID", example = "1")
   private Long id;
 
