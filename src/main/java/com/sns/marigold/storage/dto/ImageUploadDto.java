@@ -1,7 +1,5 @@
 package com.sns.marigold.storage.dto;
 
-import com.sns.marigold.adoption.entity.AdoptionPostImage;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,15 +15,4 @@ public class ImageUploadDto {
 
   @Schema(description = "사용자가 업로드한 원본 파일명", example = "cat.jpg")
   private String originalFileName;
-
-  public static ImageUploadDto from(AdoptionPostImage image) {
-    return ImageUploadDto.builder()
-        .storedFileName(image.getStoredFileName())
-        .originalFileName(image.getOriginalFileName())
-        .build();
-  }
-
-  public static ImageUploadDto emptyDto() {
-    return ImageUploadDto.builder().storedFileName(null).originalFileName(null).build();
-  }
 }

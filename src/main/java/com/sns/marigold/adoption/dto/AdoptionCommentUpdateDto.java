@@ -46,10 +46,6 @@ public class AdoptionCommentUpdateDto implements ImageCountValidatable {
     return Boolean.TRUE.equals(removeImage);
   }
 
-  public boolean hasNewImages() {
-    return getImages().stream().anyMatch(file -> file != null && !file.isEmpty());
-  }
-
   public List<String> getImagesToKeep() {
     return Collections.emptyList();
   }

@@ -16,10 +16,6 @@ public class StorageException extends BusinessException {
     return new StorageException(ErrorCode.FILE_INVALID, "file is empty", null);
   }
 
-  public static StorageException forEmptyFileList() {
-    return new StorageException(ErrorCode.FILE_INVALID, "file list is empty", null);
-  }
-
   public static StorageException forFileCountExceeded(int count, int max) {
     return new StorageException(
         ErrorCode.FILE_INVALID, "file count exceeded: count=" + count + ", max=" + max, null);

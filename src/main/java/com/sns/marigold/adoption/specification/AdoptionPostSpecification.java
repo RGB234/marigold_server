@@ -41,13 +41,4 @@ public class AdoptionPostSpecification {
   public static Specification<AdoptionPost> isNotDeleted() {
     return (root, query, builder) -> builder.isNull(root.get("deletedAt"));
   }
-
-  public static Specification<AdoptionPost> hasNickname(String nickname) {
-    return (root, query, builder) -> {
-      if (nickname == null) {
-        return null; // 조건 없음 = 전체 검색
-      }
-      return builder.equal(root.get("nickname"), nickname);
-    };
-  }
 }

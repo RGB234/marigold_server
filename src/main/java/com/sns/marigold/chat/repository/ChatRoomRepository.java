@@ -1,6 +1,5 @@
 package com.sns.marigold.chat.repository;
 
-import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -32,22 +31,6 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
       @Param("user1") User user1,
       @Param("user2") User user2,
       @Param("adoptionPost") AdoptionPost adoptionPost);
-
-  @Query(
-      value =
-          """
-          SELECT DISTINCT cr FROM ChatRoom cr
-          JOIN RoomParticipant rp ON cr = rp.chatRoom
-          WHERE rp.user = :user
-          ORDER BY cr.createdAt DESC
-          """,
-      countQuery =
-          """
-          SELECT COUNT(DISTINCT cr) FROM ChatRoom cr
-          JOIN RoomParticipant rp ON cr = rp.chatRoom
-          WHERE rp.user = :user
-          """)
-  Page<ChatRoom> findAllByUser(@Param("user") User user, Pageable pageable);
 
   @Query(
       value =
@@ -100,9 +83,6 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
           AND cr.adoptionPost.writer <> :user
           """)
   Page<ChatRoom> findAllActiveByUserAsInquirer(@Param("user") User user, Pageable pageable);
-
-  @Query("SELECT cr FROM ChatRoom cr WHERE cr.adoptionPost.id = :postId")
-  List<ChatRoom> findAllByAdoptionPostId(@Param("postId") Long postId);
 
   @Query("SELECT COUNT(cr) FROM ChatRoom cr WHERE cr.adoptionPost.id = :postId")
   Integer countByAdoptionPostId(@Param("postId") Long postId);

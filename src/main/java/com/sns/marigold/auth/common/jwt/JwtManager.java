@@ -88,10 +88,6 @@ public class JwtManager {
     return authorities.stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList());
   }
 
-  public Long getAccessTokenValidityInSeconds() {
-    return this.accessTokenValidityInMilliseconds / 1000;
-  }
-
   public Long getRefreshTokenValidityInSeconds() {
     return this.refreshTokenValidityInMilliseconds / 1000;
   }
