@@ -11,8 +11,8 @@ import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
 import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.global.validation.enumvalue.EnumValue;
-import com.sns.marigold.global.validation.imagecount.ImageCountValidatable;
 import com.sns.marigold.global.validation.imagecount.ImageCount;
+import com.sns.marigold.global.validation.imagecount.ImageCountValidatable;
 import com.sns.marigold.global.validation.imagefile.ImageFile;
 import com.sns.marigold.user.entity.User;
 

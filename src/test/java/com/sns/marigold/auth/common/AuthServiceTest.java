@@ -16,7 +16,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -46,6 +45,7 @@ import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
 
 import io.hypersistence.tsid.TSID;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -67,12 +67,25 @@ class AuthServiceTest {
 
   @Mock private AuditLogger auditLogger;
 
-  @InjectMocks private AuthService authService;
+  private AuthService authService;
+  private SimpleMeterRegistry meterRegistry;
 
   private User testUser;
 
   @BeforeEach
   void setUp() {
+    meterRegistry = new SimpleMeterRegistry();
+    authService =
+        new AuthService(
+            userRepository,
+            passwordEncoder,
+            jwtManager,
+            cookieManager,
+            randomUsernameGenerator,
+            recentAuthService,
+            auditLogger,
+            meterRegistry);
+
     testUser =
         User.builder()
             .id(TSID.from(1L).toLong())
@@ -214,6 +227,9 @@ class AuthServiceTest {
             eq("refresh_token_value"),
             eq(86400L));
     verify(recentAuthService, times(1)).issue(response, testUser.getId());
+    assertThat(meterRegistry.get("auth.login.find_by_email").timer().count()).isEqualTo(1);
+    assertThat(meterRegistry.get("auth.login.password_matches").timer().count()).isEqualTo(1);
+    assertThat(meterRegistry.get("auth.login.jwt_create").timer().count()).isEqualTo(1);
   }
 
   @Test

@@ -30,10 +30,8 @@ public class JwtManager {
 
   public JwtManager(JwtProperties jwtProperties) {
     this.key = Keys.hmacShaKeyFor(jwtProperties.secretKey().getBytes(StandardCharsets.UTF_8));
-    this.accessTokenValidityInMilliseconds =
-        jwtProperties.accessTokenValidityInSeconds() * 1000;
-    this.refreshTokenValidityInMilliseconds =
-        jwtProperties.refreshTokenValidityInSeconds() * 1000;
+    this.accessTokenValidityInMilliseconds = jwtProperties.accessTokenValidityInSeconds() * 1000;
+    this.refreshTokenValidityInMilliseconds = jwtProperties.refreshTokenValidityInSeconds() * 1000;
   }
 
   /** Access Token 생성 */

@@ -8,8 +8,7 @@ import com.sns.marigold.storage.service.S3Service;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
-public class ImageFileValidatorForSingle
-    implements ConstraintValidator<ImageFile, MultipartFile> {
+public class ImageFileValidatorForSingle implements ConstraintValidator<ImageFile, MultipartFile> {
   @Autowired private S3Service s3Service;
 
   @Override

@@ -1,14 +1,14 @@
 package com.sns.marigold.global.validation.imagecount;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
-public class ImageCountValidator
-    implements ConstraintValidator<ImageCount, ImageCountValidatable> {
+public class ImageCountValidator implements ConstraintValidator<ImageCount, ImageCountValidatable> {
   private int min;
   private int max;
 
@@ -32,8 +32,10 @@ public class ImageCountValidator
             ? 0
             : (int)
                 imagesToKeep.stream()
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(fileName -> !fileName.isEmpty())
                     .distinct()
-                    .filter(f -> f != null && !f.isEmpty())
                     .count();
 
     // 새 업로드 파일
@@ -41,9 +43,7 @@ public class ImageCountValidator
     int newImageCount =
         images == null || images.isEmpty()
             ? 0
-            : (int) images.stream()
-                    .filter(f -> f != null && !f.isEmpty())
-                    .count();
+            : (int) images.stream().filter(f -> f != null && !f.isEmpty()).count();
 
     int totalImageCount = storedImageCount + newImageCount;
 

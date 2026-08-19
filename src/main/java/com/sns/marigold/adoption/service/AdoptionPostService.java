@@ -309,7 +309,8 @@ public class AdoptionPostService {
               adopterMapping -> {
                 UserInfoDto adopterDto = UserInfoDto.from(adopterMapping.getAdopter());
                 if (adopterDto.getImageUrl() != null) {
-                  adopterDto.setImageUrl(s3Service.getPresignedViewUrlOrNull(adopterDto.getImageUrl()));
+                  adopterDto.setImageUrl(
+                      s3Service.getPresignedViewUrlOrNull(adopterDto.getImageUrl()));
                 }
                 detailResponseDto.setAdopter(adopterDto);
               });

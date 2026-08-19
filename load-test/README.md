@@ -90,6 +90,13 @@ LOAD_TEST_SEED_ROOM_PARTICIPANT_ID_BASE=994000000000000000
 또는 `.env` 파일을 수정하고 `run.ps1`로 실행합니다. `.env`는 Git 추적 대상이 아니고, 기본값 예시는 `.env.example`에 있습니다.
 staging 예시는 `.env.staging.example`에 있습니다.
 
+k6 지표를 로컬 Prometheus에 실시간으로 보내려면 `.env` 또는 `.env.staging`에 remote write endpoint를 둡니다.
+
+```properties
+K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write
+K6_PROMETHEUS_RW_TREND_STATS=p(90),p(95),p(99),avg,min,max
+```
+
 ## Adoption 페이지 선택
 
 기본 smoke 테스트는 0페이지를 고정 조회합니다. load/stress/spike에서는 아래 설정으로 실제 사용자 흐름에 가깝게 페이지를 분산할 수 있습니다.
@@ -105,6 +112,16 @@ LOAD_TEST_ADOPTION_PAGE_SELECTION=weighted
 - `fixed`: `LOAD_TEST_ADOPTION_FIXED_PAGE`만 조회
 - `random`: 전체 페이지에서 균등 랜덤
 - `weighted`: 70%는 0~2페이지, 20%는 3~20페이지, 10%는 더 깊은 페이지 조회
+
+## 채팅 세션
+
+채팅 시나리오는 VU별 첫 iteration에서만 로그인하고, 이후 같은 VU에서는 발급받은 Access Token과 CSRF 토큰을 재사용합니다. 따라서 `auth_login`은 인증 시나리오의 로그인 부하, `chat_auth_login`은 채팅 VU bootstrap 로그인을 의미합니다.
+
+WebSocket 연결 유지 시간은 아래 값으로 조정합니다.
+
+```properties
+LOAD_TEST_CHAT_SESSION_SECONDS=60
+```
 
 ## 실행
 
@@ -138,6 +155,36 @@ Spike test:
 .\run.ps1 spike
 ```
 
+DB read I/O test:
+
+```powershell
+.\run.ps1 db-read
+```
+
+DB write I/O test:
+
+```powershell
+.\run.ps1 db-write
+```
+
+DB mixed I/O test:
+
+```powershell
+.\run.ps1 db-mixed
+```
+
+Storage upload I/O test:
+
+```powershell
+.\run.ps1 storage-upload
+```
+
+Storage mixed I/O test:
+
+```powershell
+.\run.ps1 storage-mixed
+```
+
 기존 짧은 load profile은 아래 명령으로도 실행할 수 있습니다.
 
 ```powershell
@@ -162,12 +209,57 @@ notepad .env.staging
 .\run.ps1 load -EnvFile .env.staging
 ```
 
+k6의 `http_req_duration`, `http_req_failed`, `checks`, `vus` 같은 클라이언트 지표를 Grafana에서 실시간으로 보려면 Prometheus/Grafana를 띄운 뒤 remote write 옵션을 켭니다.
+
+```powershell
+.\run.ps1 smoke -EnvFile .env.staging -PrometheusRemoteWrite
+.\run.ps1 load -EnvFile .env.staging -PrometheusRemoteWrite
+```
+
+## 로컬 관측 환경
+
+백엔드는 `/actuator/prometheus`로 Micrometer 지표를 노출합니다. 로컬에서 Prometheus와 Grafana를 같이 띄우려면:
+
+```powershell
+cd D:\ark\dev\projects\marigold\back\load-test\observability
+docker compose up -d
+```
+
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000` (`admin` / `admin`)
+- Grafana dashboard: `Marigold Load Test`
+- scrape 대상: `host.docker.internal:8080/actuator/prometheus`
+- k6 remote write endpoint: `.env.staging`의 `K6_PROMETHEUS_RW_SERVER_URL`
+
+백엔드를 `localhost:8080`으로 실행한 뒤 k6 테스트를 돌리면 Grafana에서 `http_server_requests_seconds` 기준 endpoint별 처리 시간과 실패율을 볼 수 있습니다.
+
 ## 프로파일
 
 - `tests/smoke.js`: 스크립트, 인증 데이터, WebSocket 연결 검증용
 - `tests/load.js`: 예상 정상 부하를 45분 동안 검증
 - `tests/stress.js`: 단계적으로 VU를 올려 한계점을 확인
 - `tests/spike.js`: 순간 급증 후 회복 여부 확인
+- `tests/db-read.js`: 입양글 목록/상세/댓글/작성자 조회로 DB read I/O 확인
+- `tests/db-write.js`: 작성자 게시글 상태 변경 왕복으로 DB write I/O 확인
+- `tests/db-mixed.js`: DB read/write를 8:2 비율로 동시에 확인
+- `tests/storage-upload.js`: 이미지 포함 입양글 생성으로 storage upload I/O 확인
+- `tests/storage-mixed.js`: 이미지 포함 입양글 생성/수정/삭제로 storage upload/delete I/O 확인
+
+I/O profile은 `constant-arrival-rate`를 사용합니다. 기본 조절값:
+
+```properties
+LOAD_TEST_IO_DURATION=5m
+LOAD_TEST_DB_READ_RATE=30
+LOAD_TEST_DB_WRITE_RATE=5
+LOAD_TEST_DB_MIXED_RATE=30
+LOAD_TEST_STORAGE_UPLOAD_RATE=2
+LOAD_TEST_STORAGE_MIXED_RATE=2
+LOAD_TEST_STORAGE_IMAGE_COUNT=1
+LOAD_TEST_STORAGE_IMAGE_PATH=../fixtures/storage/image-1mb.jpg
+LOAD_TEST_STORAGE_DELETE_CREATED=true
+```
+
+Storage profile은 실제 S3 put/delete를 발생시킬 수 있습니다. 테스트 전용 bucket/prefix 또는 테스트 전용 계정에서만 실행하고, 비용과 객체 누적을 확인하세요.
 
 ## 결과
 
@@ -179,6 +271,7 @@ notepad .env.staging
 - `http_req_duration p(95), p(99)`
 - `checks`
 - WebSocket `101` 성공률
+- `auth_login`과 `chat_auth_login`의 분리된 p95/p99
 - 서버 CPU, 메모리, JVM GC, DB connection pool, slow query
 
 ## 기준값

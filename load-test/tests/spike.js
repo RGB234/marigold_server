@@ -1,8 +1,9 @@
 import { adoptionScenario, authScenario, chatScenario } from '../main.js';
 import { createSummary } from '../summary.js';
-import { spikeThresholds } from '../thresholds.js';
+import { spikeThresholds, summaryTrendStats } from '../thresholds.js';
 
 export const options = {
+  summaryTrendStats,
   thresholds: spikeThresholds,
   scenarios: {
     adoption_traffic: {

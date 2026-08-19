@@ -1,13 +1,5 @@
 package com.sns.marigold.storage.service;
 
-import com.sns.marigold.global.validation.ValidationPolicy;
-import com.sns.marigold.storage.config.S3Properties;
-import com.sns.marigold.storage.dto.FileUploadDto;
-import com.sns.marigold.storage.dto.ImageUploadDto;
-import com.sns.marigold.storage.exception.StorageException;
-import io.awspring.cloud.s3.ObjectMetadata;
-import io.awspring.cloud.s3.S3Exception;
-import io.awspring.cloud.s3.S3Template;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -17,12 +9,23 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.tika.Tika;
 import org.springframework.http.ContentDisposition;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.sns.marigold.global.validation.ValidationPolicy;
+import com.sns.marigold.storage.config.S3Properties;
+import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.exception.StorageException;
+
+import io.awspring.cloud.s3.ObjectMetadata;
+import io.awspring.cloud.s3.S3Exception;
+import io.awspring.cloud.s3.S3Template;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -39,10 +42,11 @@ public class S3Service {
 
   public ImageUploadDto uploadFile(MultipartFile file) {
     FileUploadDto uploadedFile = uploadFileWithMetadata(file);
-    return ImageUploadDto.builder().storedFileName(uploadedFile.getStoredFileName())
-        .originalFileName(uploadedFile.getOriginalFileName()).build();
+    return ImageUploadDto.builder()
+        .storedFileName(uploadedFile.getStoredFileName())
+        .originalFileName(uploadedFile.getOriginalFileName())
+        .build();
   }
-
 
   public List<ImageUploadDto> uploadImagesToS3(List<MultipartFile> images) {
     if (images == null || images.isEmpty()) {
@@ -119,12 +123,14 @@ public class S3Service {
     if (storedFileName == null || storedFileName.isBlank()) {
       return null;
     }
-    GetObjectRequest objectRequest = GetObjectRequest.builder().bucket(bucketName())
-        .key(storedFileName).build();
+    GetObjectRequest objectRequest =
+        GetObjectRequest.builder().bucket(bucketName()).key(storedFileName).build();
 
-    GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-        .signatureDuration(Duration.ofMinutes(60)) // 1시간 유효
-        .getObjectRequest(objectRequest).build();
+    GetObjectPresignRequest presignRequest =
+        GetObjectPresignRequest.builder()
+            .signatureDuration(Duration.ofMinutes(60)) // 1시간 유효
+            .getObjectRequest(objectRequest)
+            .build();
 
     PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
     return presignedRequest.url().toString();
@@ -142,16 +148,24 @@ public class S3Service {
     }
     String safeFileName = sanitizeContentDispositionFileName(originalFileName);
 
-    String contentDisposition = ContentDisposition.attachment()
-        .filename(safeFileName, StandardCharsets.UTF_8)
-        .build()
-        .toString();
+    String contentDisposition =
+        ContentDisposition.attachment()
+            .filename(safeFileName, StandardCharsets.UTF_8)
+            .build()
+            .toString();
 
-    GetObjectRequest objectRequest = GetObjectRequest.builder().bucket(bucketName())
-        .key(storedFileName).responseContentDisposition(contentDisposition).build();
+    GetObjectRequest objectRequest =
+        GetObjectRequest.builder()
+            .bucket(bucketName())
+            .key(storedFileName)
+            .responseContentDisposition(contentDisposition)
+            .build();
 
-    GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-        .signatureDuration(Duration.ofMinutes(10)).getObjectRequest(objectRequest).build();
+    GetObjectPresignRequest presignRequest =
+        GetObjectPresignRequest.builder()
+            .signatureDuration(Duration.ofMinutes(10))
+            .getObjectRequest(objectRequest)
+            .build();
 
     PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
     return presignedRequest.url().toString();
@@ -178,13 +192,16 @@ public class S3Service {
     }
 
     String originalFilename = file.getOriginalFilename();
-    String key = Objects.requireNonNull(
-        generateStoredFileName(originalFilename)); // Random UUID + 파일 확장자
+    String key =
+        Objects.requireNonNull(generateStoredFileName(originalFilename)); // Random UUID + 파일 확장자
     String contentType =
         file.getContentType() != null ? file.getContentType() : "application/octet-stream";
 
     try (InputStream inputStream = file.getInputStream()) {
-      s3Template.upload(bucketName(), key, inputStream,
+      s3Template.upload(
+          bucketName(),
+          key,
+          inputStream,
           ObjectMetadata.builder().contentType(contentType).contentLength(file.getSize()).build());
     } catch (IOException e) {
       log.error("File read failed", e);
@@ -194,21 +211,22 @@ public class S3Service {
       throw StorageException.forFileUploadFailed(e);
     }
 
-    return FileUploadDto.builder().storedFileName(key).originalFileName(originalFilename)
-        .contentType(contentType).fileSize(file.getSize()).build();
+    return FileUploadDto.builder()
+        .storedFileName(key)
+        .originalFileName(originalFilename)
+        .contentType(contentType)
+        .fileSize(file.getSize())
+        .build();
   }
 
   /*
-    Content-disposition 헤더에 입력할 파일명을 sanitize
-   */
+   Content-disposition 헤더에 입력할 파일명을 sanitize
+  */
   private String sanitizeContentDispositionFileName(String fileName) {
     if (fileName == null || fileName.isBlank()) {
       return "download";
     }
-    return fileName.replace("\\", "_")
-        .replace("\"", "_")
-        .replace("\r", "_")
-        .replace("\n", "_");
+    return fileName.replace("\\", "_").replace("\"", "_").replace("\r", "_").replace("\n", "_");
   }
 
   private String bucketName() {

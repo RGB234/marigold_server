@@ -56,6 +56,7 @@ dependencies {
     implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.7.0")
     //
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("io.micrometer:micrometer-registry-prometheus")
     
     // Testcontainers
     // testImplementation("org.testcontainers:testcontainers")

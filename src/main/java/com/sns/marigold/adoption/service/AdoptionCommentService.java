@@ -231,7 +231,8 @@ public class AdoptionCommentService {
           AdoptionCommentResponseDto.from(comment, imageUrls, new ArrayList<>());
 
       if (dto.getWriter() != null && dto.getWriter().getImageUrl() != null) {
-        dto.getWriter().setImageUrl(s3Service.getPresignedViewUrlOrNull(dto.getWriter().getImageUrl()));
+        dto.getWriter()
+            .setImageUrl(s3Service.getPresignedViewUrlOrNull(dto.getWriter().getImageUrl()));
       }
 
       dtoMap.put(dto.getId(), dto);

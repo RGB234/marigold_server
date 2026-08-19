@@ -338,8 +338,7 @@ public class ChatService {
       return Collections.emptyList();
     }
     if (nonEmptyFiles.size() > MAX_CHAT_ATTACHMENT_COUNT) {
-      throw StorageException.forFileCountExceeded(
-          nonEmptyFiles.size(), MAX_CHAT_ATTACHMENT_COUNT);
+      throw StorageException.forFileCountExceeded(nonEmptyFiles.size(), MAX_CHAT_ATTACHMENT_COUNT);
     }
 
     long totalSize = 0L;
@@ -351,8 +350,7 @@ public class ChatService {
       }
       totalSize += file.getSize();
       if (totalSize > MAX_CHAT_ATTACHMENT_TOTAL_SIZE) {
-        throw StorageException.forTotalFileSizeExceeded(
-            totalSize, MAX_CHAT_ATTACHMENT_TOTAL_SIZE);
+        throw StorageException.forTotalFileSizeExceeded(totalSize, MAX_CHAT_ATTACHMENT_TOTAL_SIZE);
       }
 
       String extension = getFileExtension(file);
@@ -395,7 +393,8 @@ public class ChatService {
                         .contentType(attachment.getContentType())
                         .fileSize(attachment.getFileSize())
                         .downloadUrl(
-                            storageService.getPresignedViewUrlOrNull(attachment.getStoredFileName()))
+                            storageService.getPresignedViewUrlOrNull(
+                                attachment.getStoredFileName()))
                         .build())
             .collect(Collectors.toList());
 

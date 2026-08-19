@@ -17,8 +17,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.adoption.service.AdoptionPostService;
 import com.sns.marigold.audit.AuditLogger;
-import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.global.error.GlobalExceptionHandler;
+import com.sns.marigold.global.web.UrlConstants;
 
 @ExtendWith(MockitoExtension.class)
 class AdoptionPostControllerTest {

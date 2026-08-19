@@ -1,6 +1,6 @@
 import ws from 'k6/ws';
 import { check } from 'k6';
-import { WS_BASE_URL } from '../config.js';
+import { CHAT_SESSION_SECONDS, WS_BASE_URL } from '../config.js';
 
 function createStompFrame(command, headers = {}, body = '') {
   let frame = `${command}\n`;
@@ -22,7 +22,7 @@ export function chatSession(token, csrfToken, userId, roomId) {
     headers: {
       Cookie: `XSRF-TOKEN=${csrfToken}`,
     },
-    tags: { my_tag: 'websocket' }
+    tags: { name: 'chat_websocket' }
   };
 
   const res = ws.connect(url, params, function (socket) {
@@ -65,10 +65,10 @@ export function chatSession(token, csrfToken, userId, roomId) {
 
         socket.send(sendFrame);
 
-        // 4. 세션 종료를 위한 타이머 (5초 대기 후 종료)
+        // 4. 세션 종료를 위한 타이머
         socket.setTimeout(function () {
           socket.close();
-        }, 5000);
+        }, CHAT_SESSION_SECONDS * 1000);
       }
 
       // 메시지 수신 (MESSAGE 프레임)

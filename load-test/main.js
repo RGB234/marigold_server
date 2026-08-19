@@ -3,10 +3,11 @@ import { login } from './scenarios/auth.js';
 import { getAdoptionPosts, getAdoptionPostDetail } from './scenarios/adoption.js';
 import { chatSession } from './scenarios/chat.js';
 import { getRandomChatFixture } from './config.js';
-import { loadThresholds } from './thresholds.js';
+import { loadThresholds, summaryTrendStats } from './thresholds.js';
 import { createSummary } from './summary.js';
 
 export const options = {
+  summaryTrendStats,
   thresholds: loadThresholds,
   scenarios: {
     // 1. 단순 읽기 트래픽 (게시글 목록 및 상세 조회) - 트래픽 비중 75% 가정
@@ -45,6 +46,26 @@ export const options = {
   },
 };
 
+let cachedChatContext = null;
+
+function getChatContext() {
+  if (!cachedChatContext) {
+    const { room, user } = getRandomChatFixture();
+    cachedChatContext = { room, user, token: null, csrfToken: null, targetUser: user };
+  }
+
+  if (!cachedChatContext.token || !cachedChatContext.csrfToken) {
+    const { token, csrfToken, targetUser } = login(cachedChatContext.user, 'chat_auth_login');
+    cachedChatContext = { ...cachedChatContext, token, csrfToken, targetUser };
+  }
+
+  if (!cachedChatContext.token || !cachedChatContext.csrfToken) {
+    return null;
+  }
+
+  return cachedChatContext;
+}
+
 export function adoptionScenario() {
   const posts = getAdoptionPosts();
   sleep(1); // 실제 사용자의 페이지 응시 시간 모사
@@ -63,16 +84,12 @@ export function authScenario() {
 }
 
 export function chatScenario() {
-  const { room, user } = getRandomChatFixture();
-  // 채팅 통신을 위해 로그인하여 Access Token 발급
-  const { token, csrfToken, targetUser } = login(user);
-  
-  if (token && csrfToken) {
-    const roomId = room.id;
-    const senderId = targetUser.id;
-    
-    chatSession(token, csrfToken, senderId, roomId);
+  const context = getChatContext();
+
+  if (context) {
+    chatSession(context.token, context.csrfToken, context.targetUser.id, context.room.id);
   }
+
   sleep(1);
 }
 

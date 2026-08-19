@@ -12,8 +12,7 @@ class CustomCorsConfigurationSourceTest {
 
   @Test
   void usesFrontendOriginWithoutPath() {
-    CustomCorsConfigurationSource source =
-        new CustomCorsConfigurationSource(urlProperties());
+    CustomCorsConfigurationSource source = new CustomCorsConfigurationSource(urlProperties());
 
     CorsConfiguration config =
         source.getCorsConfiguration(new MockHttpServletRequest("GET", "/api/v1/adoption"));
@@ -23,8 +22,7 @@ class CustomCorsConfigurationSourceTest {
 
   @Test
   void allowsOptionsMethodForPreflight() {
-    CustomCorsConfigurationSource source =
-        new CustomCorsConfigurationSource(urlProperties());
+    CustomCorsConfigurationSource source = new CustomCorsConfigurationSource(urlProperties());
 
     CorsConfiguration config =
         source.getCorsConfiguration(new MockHttpServletRequest("OPTIONS", "/api/v1/adoption"));

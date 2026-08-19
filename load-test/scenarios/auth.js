@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { check } from 'k6';
 import { BASE_URL, API_VERSION, getRandomUser } from '../config.js';
 
-export function login(user = null) {
+export function login(user = null, metricName = 'auth_login') {
   const targetUser = user || getRandomUser();
   const url = `${BASE_URL}${API_VERSION}/auth/login`;
   
@@ -15,6 +15,7 @@ export function login(user = null) {
     headers: {
       'Content-Type': 'application/json',
     },
+    tags: { name: metricName },
   };
 
   const res = http.post(url, payload, params);

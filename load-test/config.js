@@ -2,6 +2,18 @@ export const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 export const WS_BASE_URL = __ENV.WS_BASE_URL || 'ws://localhost:8080/ws/websocket';
 export const API_VERSION = __ENV.API_VERSION || '/api/v1';
 export const LOAD_TEST_PROFILE = __ENV.LOAD_TEST_PROFILE || 'smoke';
+export const CHAT_SESSION_SECONDS = parsePositiveInt(__ENV.LOAD_TEST_CHAT_SESSION_SECONDS, 60);
+export const IO_TEST_DURATION = __ENV.LOAD_TEST_IO_DURATION || '5m';
+export const IO_PRE_ALLOCATED_VUS = parsePositiveInt(__ENV.LOAD_TEST_IO_PRE_ALLOCATED_VUS, 20);
+export const IO_MAX_VUS = parsePositiveInt(__ENV.LOAD_TEST_IO_MAX_VUS, 100);
+export const DB_READ_RATE = parsePositiveInt(__ENV.LOAD_TEST_DB_READ_RATE, 30);
+export const DB_WRITE_RATE = parsePositiveInt(__ENV.LOAD_TEST_DB_WRITE_RATE, 5);
+export const DB_MIXED_RATE = parsePositiveInt(__ENV.LOAD_TEST_DB_MIXED_RATE, 30);
+export const STORAGE_UPLOAD_RATE = parsePositiveInt(__ENV.LOAD_TEST_STORAGE_UPLOAD_RATE, 2);
+export const STORAGE_MIXED_RATE = parsePositiveInt(__ENV.LOAD_TEST_STORAGE_MIXED_RATE, 2);
+export const STORAGE_IMAGE_COUNT = parsePositiveInt(__ENV.LOAD_TEST_STORAGE_IMAGE_COUNT, 1);
+export const STORAGE_IMAGE_PATH = __ENV.LOAD_TEST_STORAGE_IMAGE_PATH || '../fixtures/storage/image-1mb.jpg';
+export const STORAGE_DELETE_CREATED = parseBoolean(__ENV.LOAD_TEST_STORAGE_DELETE_CREATED, true);
 
 const SEED_USER_COUNT = parsePositiveInt(__ENV.LOAD_TEST_SEED_USER_COUNT, 50);
 const SEED_USER_ID_BASE = __ENV.LOAD_TEST_SEED_USER_ID_BASE || '990000000000000000';
@@ -14,6 +26,13 @@ const LOGIN_PASSWORD = __ENV.LOAD_TEST_LOGIN_PASSWORD || '';
 function parsePositiveInt(value, fallback) {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseBoolean(value, fallback) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+  return String(value).toLowerCase() === 'true';
 }
 
 export const ADOPTION_PAGE_SIZE = parsePositiveInt(__ENV.LOAD_TEST_ADOPTION_PAGE_SIZE, 10);

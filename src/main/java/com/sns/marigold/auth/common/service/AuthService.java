@@ -29,6 +29,8 @@ import com.sns.marigold.user.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -40,6 +42,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AuthService {
 
+  private static final double[] AUTH_LOGIN_PERCENTILES = {0.5, 0.95, 0.99};
+  private static final String AUTH_LOGIN_FIND_BY_EMAIL = "auth.login.find_by_email";
+  private static final String AUTH_LOGIN_PASSWORD_MATCHES = "auth.login.password_matches";
+  private static final String AUTH_LOGIN_JWT_CREATE = "auth.login.jwt_create";
+
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
   private final JwtManager jwtManager;
@@ -47,6 +54,11 @@ public class AuthService {
   private final RandomUsernameGenerator randomUsernameGenerator;
   private final RecentAuthService recentAuthService;
   private final AuditLogger auditLogger;
+  private final MeterRegistry meterRegistry;
+
+  private Timer authLoginFindByEmailTimer;
+  private Timer authLoginPasswordMatchesTimer;
+  private Timer authLoginJwtCreateTimer;
 
   // OAuth2 로그인/로그아웃 & 회원가입 -> Spring security 에서 처리 (SecurityConfig &
   // OAuth2UserService)
@@ -147,11 +159,12 @@ public class AuthService {
   @Transactional(readOnly = true)
   public LoginResponseDto emailLogin(LocalLoginDto dto, HttpServletResponse response) {
     User user =
-        userRepository
-            .findByEmail(dto.getEmail())
+        authLoginFindByEmailTimer()
+            .record(() -> userRepository.findByEmail(dto.getEmail()))
             .orElseThrow(() -> UserException.forUserNotFound());
 
-    if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+    if (!authLoginPasswordMatchesTimer()
+        .record(() -> passwordEncoder.matches(dto.getPassword(), user.getPassword()))) {
       throw AuthException.forInvalidCredentials(); // 비밀번호 불일치
     }
 
@@ -164,17 +177,22 @@ public class AuthService {
             null,
             AuthStatus.LOGIN_SUCCESS);
 
-    String accessToken = jwtManager.createAccessToken(principal);
-    String refreshToken = jwtManager.createRefreshToken(principal);
+    LoginTokens loginTokens =
+        authLoginJwtCreateTimer()
+            .record(
+                () ->
+                    new LoginTokens(
+                        jwtManager.createAccessToken(principal),
+                        jwtManager.createRefreshToken(principal)));
 
     cookieManager.addCookie(
         response,
         CookieManager.REFRESH_TOKEN_NAME,
-        refreshToken,
+        loginTokens.refreshToken(),
         jwtManager.getRefreshTokenValidityInSeconds());
     recentAuthService.issue(response, user.getId());
 
-    return new LoginResponseDto(accessToken);
+    return new LoginResponseDto(loginTokens.accessToken());
   }
 
   @Transactional(readOnly = true)
@@ -229,4 +247,40 @@ public class AuthService {
       default -> {}
     }
   }
+
+  private Timer authLoginFindByEmailTimer() {
+    if (authLoginFindByEmailTimer == null) {
+      authLoginFindByEmailTimer =
+          authLoginTimer(
+              AUTH_LOGIN_FIND_BY_EMAIL, "Time spent finding a user by email during login");
+    }
+    return authLoginFindByEmailTimer;
+  }
+
+  private Timer authLoginPasswordMatchesTimer() {
+    if (authLoginPasswordMatchesTimer == null) {
+      authLoginPasswordMatchesTimer =
+          authLoginTimer(
+              AUTH_LOGIN_PASSWORD_MATCHES, "Time spent verifying the login password hash");
+    }
+    return authLoginPasswordMatchesTimer;
+  }
+
+  private Timer authLoginJwtCreateTimer() {
+    if (authLoginJwtCreateTimer == null) {
+      authLoginJwtCreateTimer =
+          authLoginTimer(AUTH_LOGIN_JWT_CREATE, "Time spent creating login JWTs");
+    }
+    return authLoginJwtCreateTimer;
+  }
+
+  private Timer authLoginTimer(String name, String description) {
+    return Timer.builder(name)
+        .description(description)
+        .publishPercentiles(AUTH_LOGIN_PERCENTILES)
+        .publishPercentileHistogram()
+        .register(meterRegistry);
+  }
+
+  private record LoginTokens(String accessToken, String refreshToken) {}
 }
