@@ -34,7 +34,9 @@ public class AdoptionPostImage {
   @Column(name = "id", updatable = false, nullable = false)
   private Long id;
 
-  @CreatedDate private LocalDateTime createdAt;
+  @CreatedDate
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt;
 
   // S3에 저장된 실제 파일명 (삭제 시 필요)
   @Column(nullable = false)
@@ -46,8 +48,8 @@ public class AdoptionPostImage {
 
   // FK
   // AdoptionPost의 mappedBy="adoptionPost"와 이름이 일치해야 함
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "adoption_post_id")
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "adoption_post_id", nullable = false)
   private AdoptionPost adoptionPost;
 
   public void setAdoptionPost(AdoptionPost adoptionPost) {

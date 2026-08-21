@@ -30,7 +30,9 @@ public class UserImage {
   @Column(name = "id", updatable = false, nullable = false)
   private Long id;
 
-  @CreatedDate private LocalDateTime createdAt;
+  @CreatedDate
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt;
 
   // S3에 저장된 실제 파일명
   @Column(nullable = false)

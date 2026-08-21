@@ -34,7 +34,9 @@ public class AdoptionCommentImage {
   @Column(name = "id", updatable = false, nullable = false)
   private Long id;
 
-  @CreatedDate private LocalDateTime createdAt;
+  @CreatedDate
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt;
 
   @Column(nullable = false)
   private String storedFileName;
@@ -42,8 +44,8 @@ public class AdoptionCommentImage {
   @Column(nullable = false)
   private String originalFileName;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "adoption_comment_id")
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "adoption_comment_id", nullable = false)
   private AdoptionComment adoptionComment;
 
   public void setAdoptionComment(AdoptionComment adoptionComment) {

@@ -17,6 +17,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,10 +32,13 @@ import lombok.NoArgsConstructor;
 @EntityListeners(AuditingEntityListener.class)
 @Table(
     name = "room_participants",
+    uniqueConstraints = {
+      @UniqueConstraint(
+          name = "uk_room_participant_room_user",
+          columnNames = {"chat_room_id", "user_id"})
+    },
     indexes = {
-      // 1. 복합 인덱스: (chat_room_id, user_id) > 특정 채팅방 내의 유저 검색 성능 향상
-      @Index(name = "idx_room_user", columnList = "chat_room_id, user_id"),
-      // 2. 단일 인덱스: (user_id) > 특정 유저가 참여한 채팅방 검색 성능 향상
+      // 특정 유저가 참여한 채팅방 검색 성능 향상
       @Index(name = "idx_user", columnList = "user_id")
     })
 public class RoomParticipant {
@@ -53,7 +57,7 @@ public class RoomParticipant {
   private User user;
 
   @CreatedDate
-  @Column(updatable = false)
+  @Column(nullable = false, updatable = false)
   private LocalDateTime joinedAt;
 
   private LocalDateTime leavedAt;

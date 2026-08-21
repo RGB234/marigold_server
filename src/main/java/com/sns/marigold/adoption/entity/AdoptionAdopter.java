@@ -47,6 +47,6 @@ public class AdoptionAdopter {
   private User adopter;
 
   @CreatedDate
-  @Column(updatable = false)
+  @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt;
 }

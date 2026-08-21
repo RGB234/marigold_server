@@ -8,7 +8,7 @@ import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import org.springframework.data.web.config.EnableSpringDataWebSupport.PageSerializationMode;
 
 @SpringBootApplication
-@EnableJpaAuditing
+@EnableJpaAuditing(modifyOnCreate = true)
 @EnableSpringDataWebSupport(
     pageSerializationMode = PageSerializationMode.VIA_DTO) // PAGE 객체를 표준 DTO형태로 내려보냄
 @ConfigurationPropertiesScan

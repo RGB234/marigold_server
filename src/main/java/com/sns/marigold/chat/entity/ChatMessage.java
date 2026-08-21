@@ -56,7 +56,7 @@ public class ChatMessage {
   private List<ChatMessageAttachment> attachments = new ArrayList<>();
 
   @CreatedDate
-  @Column(updatable = false)
+  @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
   public void addAttachment(ChatMessageAttachment attachment) {

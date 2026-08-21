@@ -44,7 +44,7 @@ public class ChatRoom {
   private AdoptionPost adoptionPost;
 
   @CreatedDate
-  @Column(updatable = false)
+  @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
   @Enumerated(EnumType.STRING)

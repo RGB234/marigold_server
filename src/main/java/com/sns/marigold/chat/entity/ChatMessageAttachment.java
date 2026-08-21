@@ -51,7 +51,7 @@ public class ChatMessageAttachment {
   private long fileSize;
 
   @CreatedDate
-  @Column(updatable = false)
+  @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
   public void setChatMessage(ChatMessage chatMessage) {

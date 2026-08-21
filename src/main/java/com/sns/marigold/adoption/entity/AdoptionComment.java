@@ -41,11 +41,11 @@ public class AdoptionComment {
   @Column(name = "id", updatable = false, nullable = false)
   private Long id;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "adoption_post_id", nullable = false)
   private AdoptionPost adoptionPost;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "writer_id", nullable = false)
   private User writer;
 
@@ -59,9 +59,13 @@ public class AdoptionComment {
   @Column(columnDefinition = "TEXT", nullable = false)
   private String content;
 
-  @CreatedDate private LocalDateTime createdAt;
+  @CreatedDate
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt;
 
-  @LastModifiedDate private LocalDateTime modifiedAt;
+  @LastModifiedDate
+  @Column(nullable = false)
+  private LocalDateTime modifiedAt;
 
   private LocalDateTime deletedAt;
 

@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import org.hibernate.annotations.Check;
 import org.hibernate.annotations.DynamicUpdate;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -46,6 +47,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @DynamicUpdate // 변경된 필드만 UPDATE 쿼리 생성
+@Check(
+    name = "ck_adoption_post_active_animal_info_required",
+    constraints =
+        "deleted_at IS NOT NULL OR (species IS NOT NULL AND sex IS NOT NULL AND neutering IS NOT NULL)")
 public class AdoptionPost {
 
   public static final int MIN_IMAGE_COUNT = ValidationPolicy.AdoptionPost.IMAGE_MIN_COUNT;
@@ -56,9 +61,13 @@ public class AdoptionPost {
   @Column(name = "id", updatable = false, nullable = false)
   private Long id;
 
-  @CreatedDate private LocalDateTime createdAt;
+  @CreatedDate
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt;
 
-  @LastModifiedDate private LocalDateTime modifiedAt;
+  @LastModifiedDate
+  @Column(nullable = false)
+  private LocalDateTime modifiedAt;
 
   private LocalDateTime deletedAt;
 
