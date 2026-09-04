@@ -15,7 +15,6 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -62,8 +61,11 @@ public class User {
   @Column(length = 50, nullable = false, unique = true)
   private String nickname;
 
-  @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-  @JoinColumn(name = "image_id", nullable = true)
+  @OneToOne(
+      mappedBy = "user",
+      fetch = FetchType.LAZY,
+      cascade = CascadeType.ALL,
+      orphanRemoval = true)
   private UserImage image;
 
   @Enumerated(EnumType.STRING)
@@ -75,10 +77,19 @@ public class User {
   private LocalDateTime deletedAt;
 
   public void saveImage(UserImage image) {
+    if (this.image != null) {
+      this.image.assignUser(null);
+    }
     this.image = image;
+    if (image != null) {
+      image.assignUser(this);
+    }
   }
 
   public void deleteImage() {
+    if (this.image != null) {
+      this.image.assignUser(null);
+    }
     this.image = null;
   }
 
@@ -122,7 +133,7 @@ public class User {
 
   public void softDelete() {
     this.nickname = "deleted-user-" + TSID.from(this.id);
-    this.image = null;
+    deleteImage();
     this.providerInfo = null;
     this.providerId = null;
     this.email = null;

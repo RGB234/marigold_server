@@ -15,13 +15,13 @@ erDiagram
         VARCHAR password "nullable"
         VARCHAR role "Role, not null"
         VARCHAR nickname UK "length 50, not null"
-        BIGINT image_id FK "nullable"
         VARCHAR status "UserStatus, not null"
         DATETIME deleted_at "nullable"
     }
 
     USER_IMAGE {
         BIGINT id PK "TSID"
+        BIGINT user_id FK "unique, not null"
         DATETIME created_at "not null"
         VARCHAR stored_file_name "not null"
         VARCHAR original_file_name "not null"
@@ -111,7 +111,7 @@ erDiagram
         DATETIME created_at "not null"
     }
 
-    USER_IMAGE o|--o| USERS : "profile image"
+    USER_IMAGE o|--|| USERS : "profile image"
     USERS ||--o{ ADOPTION_POST : "writes"
     ADOPTION_POST ||--o{ ADOPTION_POST_IMAGE : "has images"
     ADOPTION_POST ||--o{ ADOPTION_COMMENT : "has comments"
@@ -132,7 +132,7 @@ erDiagram
 
 | 관계 | FK | 기준 |
 | --- | --- | --- |
-| `users` - `user_image` | `users.image_id` | 사용자 프로필 이미지는 선택값인 1:0..1 관계 |
+| `users` - `user_image` | `user_image.user_id` | 사용자는 프로필 이미지가 없거나 하나 있고, 프로필 이미지는 반드시 사용자에 속함 |
 | `users` - `adoption_post` | `adoption_post.writer_id` | 게시글 작성자는 필수 |
 | `adoption_post` - `adoption_post_image` | `adoption_post_image.adoption_post_id` | 게시글 이미지는 반드시 게시글에 속함 |
 | `adoption_post` - `adoption_comment` | `adoption_comment.adoption_post_id` | 댓글의 게시글은 필수 |
@@ -153,6 +153,7 @@ erDiagram
 | 테이블 | 제약/인덱스 | 내용 |
 | --- | --- | --- |
 | `users` | unique | `email`, `nickname`, `(provider_info, provider_id)` |
+| `user_image` | unique | `user_id` |
 | `adoption_post` | check | `deleted_at IS NOT NULL OR (species IS NOT NULL AND sex IS NOT NULL AND neutering IS NOT NULL)` |
 | `adoption_adopters` | unique | `adoption_post_id` |
 | `room_participants` | unique | `uk_room_participant_room_user(chat_room_id, user_id)` |
