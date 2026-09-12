@@ -20,7 +20,7 @@ Dockerfile은 Gradle로 boot jar를 만든 뒤 Java 17 JRE Alpine 이미지에�
 
 ## Run
 
-운영 실행은 `prod` 프로필을 기준으로 합니다.
+운영 실행은 `prod` 프로필을 기준으로 합니다. `prod`는 EC2, RDS, S3 조합을 전제로 합니다.
 
 ```powershell
 docker run --rm -p 8080:8080 --env-file .env marigold-backend --spring.profiles.active=prod
@@ -55,7 +55,7 @@ docker run --rm -p 8080:8080 --env-file .env marigold-backend --spring.profiles.
 
 ## DB
 
-운영 프로필은 MySQL과 `ddl-auto: none`을 사용합니다. 운영 DB schema 변경은 애플리케이션 자동 DDL에 맡기지 않습니다.
+운영 프로필은 RDS MySQL과 `ddl-auto: none`을 사용합니다. 운영 DB schema 변경은 애플리케이션 자동 DDL에 맡기지 않습니다.
 
 배포 전 확인할 항목:
 
@@ -66,7 +66,7 @@ docker run --rm -p 8080:8080 --env-file .env marigold-backend --spring.profiles.
 
 ## S3
 
-S3는 업로드, 삭제, presigned URL 생성에 사용됩니다.
+`prod` 프로필의 파일 저장소는 S3입니다. 업로드, 삭제, presigned URL 생성에 사용됩니다.
 
 배포 전 확인할 항목:
 
@@ -108,7 +108,7 @@ springdoc:
     enabled: false
 ```
 
-운영에서 API 명세가 필요하면 배포된 서버를 여는 대신 dev/staging 환경에서 OpenAPI JSON을 확인합니다.
+운영에서 API 명세가 필요하면 배포된 서버를 여는 대신 `local` 또는 별도 staging 환경에서 OpenAPI JSON을 확인합니다.
 
 ## Observability
 

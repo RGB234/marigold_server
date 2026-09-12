@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="dev" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
-    <option name="ACTIVE_PROFILES" value="dev" />
+  <configuration default="false" name="local" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <option name="ACTIVE_PROFILES" value="local" />
     <module name="com.sns.marigold.main" />
     <option name="SPRING_BOOT_MAIN_CLASS" value="com.sns.marigold.MarigoldApplication" />
     <method v="2">

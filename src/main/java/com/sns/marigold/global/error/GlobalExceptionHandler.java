@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
@@ -105,6 +106,16 @@ public class GlobalExceptionHandler {
         "MethodArgumentTypeMismatchException occurred. name={}, requiredType={}",
         e.getName(),
         e.getRequiredType());
+
+    return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
+        .body(ApiResult.error(ErrorCode.INVALID_INPUT_VALUE));
+  }
+
+  /** Request Body 파싱 실패 처리 */
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<ApiResult<?>> handleHttpMessageNotReadableException(
+      final HttpMessageNotReadableException e) {
+    log.debug("HttpMessageNotReadableException occurred: {}", e.getMessage());
 
     return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
         .body(ApiResult.error(ErrorCode.INVALID_INPUT_VALUE));

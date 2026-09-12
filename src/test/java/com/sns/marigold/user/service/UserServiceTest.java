@@ -3,6 +3,7 @@ package com.sns.marigold.user.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -35,7 +36,8 @@ import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.storage.service.StorageDirectory;
+import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.entity.User;
@@ -56,7 +58,7 @@ class UserServiceTest {
 
   @Mock private ChatService chatService;
 
-  @Mock private S3Service s3Service;
+  @Mock private StorageService storageService;
 
   @Mock private TransactionTemplate transactionTemplate;
 
@@ -252,7 +254,7 @@ class UserServiceTest {
 
     // then
     assertThat(testUser.getNickname()).isEqualTo("newNickname");
-    verify(s3Service, never()).uploadFile(any());
+    verify(storageService, never()).uploadImage(any(), any());
     verify(eventPublisher, never()).publishEvent(any());
   }
 
@@ -268,9 +270,11 @@ class UserServiceTest {
             "image", "test.jpg", MediaType.IMAGE_JPEG_VALUE, "test image".getBytes());
     dto.setImage(file);
 
-    ImageUploadDto imageUploadDto = new ImageUploadDto("stored.jpg", "test.jpg");
+    ImageUploadDto imageUploadDto =
+        new ImageUploadDto("user/profile/11111111-1111-1111-1111-111111111111.jpg", "test.jpg");
     given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
-    given(s3Service.uploadFile(any(MultipartFile.class))).willReturn(imageUploadDto);
+    given(storageService.uploadImage(any(MultipartFile.class), eq(StorageDirectory.USER_PROFILE)))
+        .willReturn(imageUploadDto);
 
     // when
     userService.updateUser(1L, dto);
@@ -278,9 +282,11 @@ class UserServiceTest {
     // then
     assertThat(testUser.getNickname()).isEqualTo("newNickname");
     assertThat(testUser.getImage()).isNotNull();
-    assertThat(testUser.getImage().getStoredFileName()).isEqualTo("stored.jpg");
+    assertThat(testUser.getImage().getStoredFileName())
+        .isEqualTo("user/profile/11111111-1111-1111-1111-111111111111.jpg");
 
-    verify(s3Service, times(1)).uploadFile(any(MultipartFile.class));
+    verify(storageService, times(1))
+        .uploadImage(any(MultipartFile.class), eq(StorageDirectory.USER_PROFILE));
     verify(eventPublisher, never()).publishEvent(any());
   }
 
@@ -291,7 +297,10 @@ class UserServiceTest {
     // given
     testUser.update(
         "tester",
-        UserImage.builder().storedFileName("old.jpg").originalFileName("old.jpg").build());
+        UserImage.builder()
+            .storedFileName("user/profile/22222222-2222-2222-2222-222222222222.jpg")
+            .originalFileName("old.jpg")
+            .build());
 
     UserUpdateDto dto = new UserUpdateDto();
     dto.setNickname("newNickname");
@@ -300,23 +309,28 @@ class UserServiceTest {
             "image", "test.jpg", MediaType.IMAGE_JPEG_VALUE, "test image".getBytes());
     dto.setImage(file);
 
-    ImageUploadDto imageUploadDto = new ImageUploadDto("new.jpg", "test.jpg");
+    ImageUploadDto imageUploadDto =
+        new ImageUploadDto("user/profile/33333333-3333-3333-3333-333333333333.jpg", "test.jpg");
     given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
-    given(s3Service.uploadFile(any(MultipartFile.class))).willReturn(imageUploadDto);
+    given(storageService.uploadImage(any(MultipartFile.class), eq(StorageDirectory.USER_PROFILE)))
+        .willReturn(imageUploadDto);
 
     // when
     userService.updateUser(1L, dto);
 
     // then
     assertThat(testUser.getNickname()).isEqualTo("newNickname");
-    assertThat(testUser.getImage().getStoredFileName()).isEqualTo("new.jpg");
+    assertThat(testUser.getImage().getStoredFileName())
+        .isEqualTo("user/profile/33333333-3333-3333-3333-333333333333.jpg");
 
-    verify(s3Service, times(1)).uploadFile(any(MultipartFile.class));
+    verify(storageService, times(1))
+        .uploadImage(any(MultipartFile.class), eq(StorageDirectory.USER_PROFILE));
 
     ArgumentCaptor<DeleteOldStorageFilesEvent> eventCaptor =
         ArgumentCaptor.forClass(DeleteOldStorageFilesEvent.class);
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
-    assertThat(eventCaptor.getValue().fileNames()).contains("old.jpg");
+    assertThat(eventCaptor.getValue().fileNames())
+        .contains("user/profile/22222222-2222-2222-2222-222222222222.jpg");
   }
 
   @Test
@@ -326,7 +340,10 @@ class UserServiceTest {
     // given
     testUser.update(
         "tester",
-        UserImage.builder().storedFileName("old.jpg").originalFileName("old.jpg").build());
+        UserImage.builder()
+            .storedFileName("user/profile/22222222-2222-2222-2222-222222222222.jpg")
+            .originalFileName("old.jpg")
+            .build());
 
     UserUpdateDto dto = new UserUpdateDto();
     dto.setNickname("newNickname");
@@ -341,12 +358,13 @@ class UserServiceTest {
     assertThat(testUser.getNickname()).isEqualTo("newNickname");
     assertThat(testUser.getImage()).isNull();
 
-    verify(s3Service, never()).uploadFile(any());
+    verify(storageService, never()).uploadImage(any(), any());
 
     ArgumentCaptor<DeleteOldStorageFilesEvent> eventCaptor =
         ArgumentCaptor.forClass(DeleteOldStorageFilesEvent.class);
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
-    assertThat(eventCaptor.getValue().fileNames()).contains("old.jpg");
+    assertThat(eventCaptor.getValue().fileNames())
+        .contains("user/profile/22222222-2222-2222-2222-222222222222.jpg");
   }
 
   @Test
@@ -357,11 +375,14 @@ class UserServiceTest {
     testUser.addEmailAndPassword("tester@example.com", "encoded-password");
     testUser.update(
         "tester",
-        UserImage.builder().storedFileName("old.jpg").originalFileName("old.jpg").build());
+        UserImage.builder()
+            .storedFileName("user/profile/22222222-2222-2222-2222-222222222222.jpg")
+            .originalFileName("old.jpg")
+            .build());
 
     given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
     given(adoptionPostImageRepository.findStoredFileNamesByWriter(1L))
-        .willReturn(List.of("post-image.jpg"));
+        .willReturn(List.of("adoption/post/44444444-4444-4444-4444-444444444444.jpg"));
 
     // when
     userService.deleteUser(1L);
@@ -382,6 +403,9 @@ class UserServiceTest {
     ArgumentCaptor<DeleteOldStorageFilesEvent> eventCaptor =
         ArgumentCaptor.forClass(DeleteOldStorageFilesEvent.class);
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
-    assertThat(eventCaptor.getValue().fileNames()).contains("old.jpg", "post-image.jpg");
+    assertThat(eventCaptor.getValue().fileNames())
+        .contains(
+            "user/profile/22222222-2222-2222-2222-222222222222.jpg",
+            "adoption/post/44444444-4444-4444-4444-444444444444.jpg");
   }
 }

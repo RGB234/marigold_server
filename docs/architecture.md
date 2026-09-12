@@ -9,7 +9,7 @@
 | `adoption` | 입양 게시글, 댓글, 이미지, 입양 완료 처리 |
 | `auth` | 로컬 로그인, OAuth2, JWT, CSRF, security filter chain |
 | `chat` | 채팅방, 메시지, 첨부파일, WebSocket/STOMP |
-| `storage` | S3 업로드, 삭제, presigned URL |
+| `storage` | 프로필 기반 파일 업로드, 삭제, 접근 URL 생성 |
 | `user` | 사용자 계정, 프로필, 계정 상태 |
 | `global` | 공통 응답, 에러 처리, 설정, validation, TSID 변환 |
 | `audit` | 보안/인가 관련 감사 로그 |
@@ -57,7 +57,9 @@ WebSocket에서는 `CONNECT` 단계에서 CSRF와 JWT를 검증합니다. 채팅
 
 ## 저장소 구조
 
-`storage.service.S3Service`가 S3 업로드, 삭제, presigned URL 생성을 담당합니다. 입양 게시글, 댓글, 사용자 프로필, 채팅 첨부파일은 직접 S3를 호출하지 않고 `S3Service`를 통해 파일 작업을 수행합니다.
+`storage.service.StorageService`가 파일 업로드, 삭제, 접근 URL 생성을 담당합니다. `local` 프로필은 로컬 파일 시스템을 사용하고, `prod` 프로필은 S3를 사용합니다.
+
+입양 게시글, 댓글, 사용자 프로필, 채팅 첨부파일은 직접 구현체를 호출하지 않고 `StorageService`를 통해 파일 작업을 수행합니다.
 
 업로드 후 DB 작업이 실패하면 서비스 계층에서 업로드된 파일 삭제를 시도합니다. 파일 삭제 이벤트는 `storage.event` 패키지에서 처리합니다.
 

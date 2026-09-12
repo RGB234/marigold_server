@@ -8,13 +8,13 @@ API 상세 명세는 컨트롤러와 DTO의 OpenAPI 애노테이션이 기준입
 
 ```powershell
 cd back
-.\gradlew.bat bootRun --args='--spring.profiles.active=dev --springdoc.api-docs.enabled=true --springdoc.swagger-ui.enabled=true'
+.\gradlew.bat bootRun --args='--spring.profiles.active=local'
 ```
 
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 
-기본 설정과 운영 설정에서는 `springdoc`이 비활성화되어 있습니다.
+기본 설정과 운영 설정에서는 `springdoc`이 비활성화되어 있습니다. `local` 프로필에서는 활성화됩니다.
 
 ## Base Path
 

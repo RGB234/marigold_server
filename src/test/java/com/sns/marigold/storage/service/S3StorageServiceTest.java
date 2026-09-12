@@ -31,23 +31,22 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 @ExtendWith(MockitoExtension.class)
-class S3ServiceTest {
+class S3StorageServiceTest {
 
   @Mock private S3Template s3Template;
 
   @Mock private S3Presigner s3Presigner;
 
-  private S3Service s3Service;
+  private S3StorageService storageService;
 
   @BeforeEach
   void setUp() {
-    s3Service = new S3Service(s3Template, s3Presigner, new S3Properties("test-bucket"));
+    storageService = new S3StorageService(s3Template, s3Presigner, new S3Properties("test-bucket"));
   }
 
   @Test
   @DisplayName("파일 업로드 성공 시 ImageUploadDto를 반환한다")
-  void uploadFile_Success() {
-    // given
+  void uploadImage_Success() {
     MockMultipartFile mockFile =
         new MockMultipartFile(
             "file", "test-image.png", "image/png", "test image content".getBytes());
@@ -55,48 +54,43 @@ class S3ServiceTest {
     given(
             s3Template.upload(
                 eq("test-bucket"), any(String.class), any(ByteArrayInputStream.class), any()))
-        .willReturn(null); // S3Template의 upload는 S3Resource를 리턴하지만 여기선 필요 없음
+        .willReturn(null);
 
-    // when
-    ImageUploadDto result = s3Service.uploadFile(mockFile);
+    ImageUploadDto result = storageService.uploadImage(mockFile, StorageDirectory.ADOPTION_POST);
 
-    // then
     assertThat(result.getOriginalFileName()).isEqualTo("test-image.png");
+    assertThat(result.getStoredFileName()).startsWith("adoption/post/");
     assertThat(result.getStoredFileName()).endsWith(".png");
-    verify(s3Template, times(1)).upload(eq("test-bucket"), any(String.class), any(), any());
+
+    ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+    verify(s3Template, times(1)).upload(eq("test-bucket"), keyCaptor.capture(), any(), any());
+    assertThat(keyCaptor.getValue()).isEqualTo(result.getStoredFileName());
   }
 
   @Test
   @DisplayName("빈 파일 업로드 시 StorageException이 발생한다")
-  void uploadFile_EmptyFile() {
-    // given
+  void uploadImage_EmptyFile() {
     MockMultipartFile emptyFile = new MockMultipartFile("file", new byte[0]);
 
-    // when & then
-    assertThatThrownBy(() -> s3Service.uploadFile(emptyFile)).isInstanceOf(StorageException.class);
-  }
-
-  @Test
-  @DisplayName("확장자가 없는 파일 업로드 시 StorageException이 발생한다")
-  void uploadFile_NoExtension() {
-    // given
-    MockMultipartFile noExtensionFile =
-        new MockMultipartFile(
-            "file",
-            "test-image", // 확장자 없음
-            "image/png",
-            "test content".getBytes());
-
-    // when & then
-    assertThatThrownBy(() -> s3Service.uploadFile(noExtensionFile))
+    assertThatThrownBy(() -> storageService.uploadImage(emptyFile, StorageDirectory.ADOPTION_POST))
         .isInstanceOf(StorageException.class);
   }
 
   @Test
-  @DisplayName("Presigned URL 발급 성공")
-  void getPresignedViewUrl_Success() throws Exception {
-    // given
-    String storedFileName = "uuid-name.png";
+  @DisplayName("확장자가 없는 파일 업로드 시 StorageException이 발생한다")
+  void uploadImage_NoExtension() {
+    MockMultipartFile noExtensionFile =
+        new MockMultipartFile("file", "test-image", "image/png", "test content".getBytes());
+
+    assertThatThrownBy(
+            () -> storageService.uploadImage(noExtensionFile, StorageDirectory.ADOPTION_POST))
+        .isInstanceOf(StorageException.class);
+  }
+
+  @Test
+  @DisplayName("조회 URL 발급 성공")
+  void getViewUrl_Success() throws Exception {
+    String storedFileName = "chat/attachment/11111111-1111-1111-1111-111111111111.png";
     URL fakeUrl = new URL("https://test-bucket.s3.amazonaws.com/" + storedFileName + "?...");
 
     PresignedGetObjectRequest presignedRequest = mock(PresignedGetObjectRequest.class);
@@ -105,10 +99,8 @@ class S3ServiceTest {
     given(s3Presigner.presignGetObject(any(GetObjectPresignRequest.class)))
         .willReturn(presignedRequest);
 
-    // when
-    String url = s3Service.getPresignedViewUrlOrNull(storedFileName);
+    String url = storageService.getViewUrlOrNull(storedFileName);
 
-    // then
     assertThat(url).isEqualTo(fakeUrl.toString());
 
     ArgumentCaptor<GetObjectPresignRequest> captor =
@@ -121,11 +113,11 @@ class S3ServiceTest {
 
   @Test
   @DisplayName("다운로드 URL 발급 시 저장 파일명이 없으면 StorageException이 발생한다")
-  void getPresignedDownloadUrl_EmptyStoredFileName() {
-    assertThatThrownBy(() -> s3Service.getPresignedDownloadUrl(null, "original.txt"))
+  void getDownloadUrl_EmptyStoredFileName() {
+    assertThatThrownBy(() -> storageService.getDownloadUrl(null, "original.txt"))
         .isInstanceOf(StorageException.class);
 
-    assertThatThrownBy(() -> s3Service.getPresignedDownloadUrl(" ", "original.txt"))
+    assertThatThrownBy(() -> storageService.getDownloadUrl(" ", "original.txt"))
         .isInstanceOf(StorageException.class);
   }
 }

@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.storage.service.StorageService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 public class StorageEventListener {
-  private final S3Service s3Service;
+  private final StorageService storageService;
 
   // 프로젝트 어디서든 StorageFileDeleteEvent가 발생하고 트랜잭션이 커밋되면 실행됨
   @Async("storageTaskExecutor")
@@ -23,7 +23,7 @@ public class StorageEventListener {
     if (event.fileNames() == null || event.fileNames().isEmpty()) return;
 
     log.debug("Deleting old files from storage. count={}", event.fileNames().size());
-    s3Service.deleteUploadedImagesFromS3ByStoredFileNames(event.fileNames());
+    storageService.deleteUploadedImagesByStoredFileNames(event.fileNames());
   }
 
   // 트랜잭션 롤백 시 방금 올린 파일들 삭제
@@ -35,6 +35,6 @@ public class StorageEventListener {
     log.warn(
         "Transaction rolled back. Reverting new files from storage. count={}",
         event.fileNames().size());
-    s3Service.deleteUploadedImagesFromS3ByStoredFileNames(event.fileNames());
+    storageService.deleteUploadedImagesByStoredFileNames(event.fileNames());
   }
 }

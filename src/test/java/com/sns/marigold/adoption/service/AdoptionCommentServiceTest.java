@@ -3,6 +3,7 @@ package com.sns.marigold.adoption.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -40,7 +41,8 @@ import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.storage.service.StorageDirectory;
+import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
 
@@ -55,7 +57,7 @@ class AdoptionCommentServiceTest {
 
   @Mock private UserService userService;
 
-  @Mock private S3Service s3Service;
+  @Mock private StorageService storageService;
 
   @Mock private TransactionTemplate transactionTemplate;
 
@@ -76,7 +78,7 @@ class AdoptionCommentServiceTest {
             adoptionPostRepository,
             adoptionAdopterRepository,
             userService,
-            s3Service,
+            storageService,
             transactionTemplate,
             eventPublisher,
             adoptionCommentImageRepository);
@@ -88,12 +90,12 @@ class AdoptionCommentServiceTest {
         AdoptionComment.builder().adoptionPost(post).writer(writer).content("comment").build();
     comment.addImage(
         AdoptionCommentImage.builder()
-            .storedFileName("comment-image-1.jpg")
+            .storedFileName("adoption/comment/11111111-1111-1111-1111-111111111111.jpg")
             .originalFileName("comment-image-1.jpg")
             .build());
     comment.addImage(
         AdoptionCommentImage.builder()
-            .storedFileName("comment-image-2.jpg")
+            .storedFileName("adoption/comment/22222222-2222-2222-2222-222222222222.jpg")
             .originalFileName("comment-image-2.jpg")
             .build());
 
@@ -148,11 +150,12 @@ class AdoptionCommentServiceTest {
     List<ImageUploadDto> uploadedImages =
         List.of(
             ImageUploadDto.builder()
-                .storedFileName("new-comment-image.jpg")
+                .storedFileName("adoption/comment/33333333-3333-3333-3333-333333333333.jpg")
                 .originalFileName("new.jpg")
                 .build());
     given(adoptionCommentRepository.findById(10L)).willReturn(Optional.of(comment));
-    given(s3Service.uploadImagesToS3(any())).willReturn(uploadedImages);
+    given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_COMMENT)))
+        .willReturn(uploadedImages);
 
     // when
     adoptionCommentService.updateComment(100L, 10L, 1L, dto);
@@ -162,10 +165,13 @@ class AdoptionCommentServiceTest {
         ArgumentCaptor.forClass(DeleteOldStorageFilesEvent.class);
     assertThat(comment.getContent()).isEqualTo("updated comment");
     assertThat(comment.getImages()).hasSize(1);
-    assertThat(comment.getImages().get(0).getStoredFileName()).isEqualTo("new-comment-image.jpg");
+    assertThat(comment.getImages().get(0).getStoredFileName())
+        .isEqualTo("adoption/comment/33333333-3333-3333-3333-333333333333.jpg");
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
     assertThat(eventCaptor.getValue().fileNames())
-        .containsExactlyInAnyOrder("comment-image-1.jpg", "comment-image-2.jpg");
+        .containsExactlyInAnyOrder(
+            "adoption/comment/11111111-1111-1111-1111-111111111111.jpg",
+            "adoption/comment/22222222-2222-2222-2222-222222222222.jpg");
   }
 
   @Test
@@ -186,7 +192,9 @@ class AdoptionCommentServiceTest {
     assertThat(comment.getImages()).isEmpty();
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
     assertThat(eventCaptor.getValue().fileNames())
-        .containsExactlyInAnyOrder("comment-image-1.jpg", "comment-image-2.jpg");
+        .containsExactlyInAnyOrder(
+            "adoption/comment/11111111-1111-1111-1111-111111111111.jpg",
+            "adoption/comment/22222222-2222-2222-2222-222222222222.jpg");
   }
 
   @Test
@@ -252,7 +260,9 @@ class AdoptionCommentServiceTest {
     assertThat(comment.getImages()).isEmpty();
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
     assertThat(eventCaptor.getValue().fileNames())
-        .containsExactlyInAnyOrder("comment-image-1.jpg", "comment-image-2.jpg");
+        .containsExactlyInAnyOrder(
+            "adoption/comment/11111111-1111-1111-1111-111111111111.jpg",
+            "adoption/comment/22222222-2222-2222-2222-222222222222.jpg");
   }
 
   @Test
@@ -324,7 +334,10 @@ class AdoptionCommentServiceTest {
   void deleteCommentsByPostId_Success() {
     // given
     given(adoptionCommentImageRepository.findStoredFileNamesByAdoptionPostId(100L))
-        .willReturn(List.of("comment-image-1.jpg", "comment-image-2.jpg"));
+        .willReturn(
+            List.of(
+                "adoption/comment/11111111-1111-1111-1111-111111111111.jpg",
+                "adoption/comment/22222222-2222-2222-2222-222222222222.jpg"));
 
     // when
     adoptionCommentService.deleteCommentsByPostId(100L);
@@ -338,6 +351,8 @@ class AdoptionCommentServiceTest {
     verify(adoptionCommentRepository, times(1)).deleteByAdoptionPostId(100L);
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
     assertThat(eventCaptor.getValue().fileNames())
-        .containsExactlyInAnyOrder("comment-image-1.jpg", "comment-image-2.jpg");
+        .containsExactlyInAnyOrder(
+            "adoption/comment/11111111-1111-1111-1111-111111111111.jpg",
+            "adoption/comment/22222222-2222-2222-2222-222222222222.jpg");
   }
 }

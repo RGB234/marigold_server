@@ -11,7 +11,7 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 
-@Profile("dev")
+@Profile("local")
 @Configuration
 public class SwaggerConfig {
   public static final String BEARER_AUTH = "bearerAuth";

@@ -37,7 +37,7 @@ public class UserImage {
   @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
-  // S3에 저장된 실제 파일명
+  // 스토리지에 저장된 실제 파일명
   @Column(nullable = false)
   private String storedFileName;
 

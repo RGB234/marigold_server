@@ -3,6 +3,7 @@ package com.sns.marigold.adoption.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -20,6 +21,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.TransactionStatus;
@@ -28,6 +34,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.sns.marigold.adoption.dto.AdoptionPostCreateDto;
+import com.sns.marigold.adoption.dto.AdoptionPostDetailDto;
+import com.sns.marigold.adoption.dto.AdoptionPostDto;
+import com.sns.marigold.adoption.dto.AdoptionPostSearchFilterDto;
 import com.sns.marigold.adoption.dto.AdoptionPostUpdateDto;
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.entity.AdoptionPostImage;
@@ -49,7 +58,9 @@ import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.service.StorageDirectory;
+import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
 
@@ -58,7 +69,7 @@ class AdoptionPostServiceTest {
 
   @Mock private UserService userService;
 
-  @Mock private S3Service s3Service;
+  @Mock private StorageService storageService;
 
   @Mock private AdoptionCommentService adoptionCommentService;
 
@@ -103,11 +114,11 @@ class AdoptionPostServiceTest {
         new ArrayList<>(
             List.of(
                 AdoptionPostImage.builder()
-                    .storedFileName("old1.jpg")
+                    .storedFileName("adoption/post/11111111-1111-1111-1111-111111111111.jpg")
                     .originalFileName("old1.jpg")
                     .build(),
                 AdoptionPostImage.builder()
-                    .storedFileName("old2.jpg")
+                    .storedFileName("adoption/post/22222222-2222-2222-2222-222222222222.jpg")
                     .originalFileName("old2.jpg")
                     .build()));
 
@@ -171,12 +182,12 @@ class AdoptionPostServiceTest {
             .build();
 
     given(userService.findEntityById(1L)).willReturn(testUser);
-    given(s3Service.uploadImagesToS3(any()))
+    given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_POST)))
         .willReturn(
             List.of(
                 ImageUploadDto.builder()
                     .originalFileName("original.jpg")
-                    .storedFileName("stored.jpg")
+                    .storedFileName("adoption/post/33333333-3333-3333-3333-333333333333.jpg")
                     .build()));
 
     AdoptionPost savedPost = mock(AdoptionPost.class);
@@ -188,7 +199,9 @@ class AdoptionPostServiceTest {
 
     // then
     assertThat(postId).isEqualTo(100L);
-    verify(s3Service, times(1)).uploadImagesToS3(multipartFiles); // S3 서비스에 정확한 파일이 전달되었는지 검증
+    verify(storageService, times(1))
+        .uploadImages(
+            multipartFiles, StorageDirectory.ADOPTION_POST); // 스토리지 서비스에 정확한 파일이 전달되었는지 검증
 
     // 저장될 때 AdoptionPost 엔티티에 Image 객체가 제대로 생성되어 들어갔는지 검증
     ArgumentCaptor<AdoptionPost> postCaptor = ArgumentCaptor.forClass(AdoptionPost.class);
@@ -197,7 +210,8 @@ class AdoptionPostServiceTest {
     AdoptionPost capturedPost = postCaptor.getValue();
     assertThat(capturedPost.getImages()).hasSize(1);
     assertThat(capturedPost.getImages().get(0).getOriginalFileName()).isEqualTo("original.jpg");
-    assertThat(capturedPost.getImages().get(0).getStoredFileName()).isEqualTo("stored.jpg");
+    assertThat(capturedPost.getImages().get(0).getStoredFileName())
+        .isEqualTo("adoption/post/33333333-3333-3333-3333-333333333333.jpg");
   }
 
   @Test
@@ -219,7 +233,7 @@ class AdoptionPostServiceTest {
             .area("Seoul")
             .neutering(Neutering.YES)
             .features("Updated features")
-            .imagesToKeep(List.of("old1.jpg"))
+            .imagesToKeep(List.of("adoption/post/11111111-1111-1111-1111-111111111111.jpg"))
             .images(multipartFiles)
             .build();
 
@@ -227,11 +241,12 @@ class AdoptionPostServiceTest {
         List.of(
             ImageUploadDto.builder()
                 .originalFileName("original.jpg")
-                .storedFileName("old3.jpg")
+                .storedFileName("adoption/post/44444444-4444-4444-4444-444444444444.jpg")
                 .build());
 
     given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
-    given(s3Service.uploadImagesToS3(any())).willReturn(uploadedImages);
+    given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_POST)))
+        .willReturn(uploadedImages);
 
     // when
     adoptionPostService.update(100L, 1L, dto);
@@ -243,11 +258,14 @@ class AdoptionPostServiceTest {
     assertThat(testPost.getTitle()).isEqualTo("Updated Title");
     assertThat(testPost.getAge()).isEqualTo(3);
     assertThat(testPost.getImages()).hasSize(2);
-    assertThat(testPost.getImages().get(0).getStoredFileName()).isEqualTo("old1.jpg");
-    assertThat(testPost.getImages().get(1).getStoredFileName()).isEqualTo("old3.jpg");
-    verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture()); // old2.jpg 삭제 이벤트 발생
+    assertThat(testPost.getImages().get(0).getStoredFileName())
+        .isEqualTo("adoption/post/11111111-1111-1111-1111-111111111111.jpg");
+    assertThat(testPost.getImages().get(1).getStoredFileName())
+        .isEqualTo("adoption/post/44444444-4444-4444-4444-444444444444.jpg");
+    verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
 
-    assertThat(eventCaptor.getValue().fileNames()).contains("old2.jpg");
+    assertThat(eventCaptor.getValue().fileNames())
+        .contains("adoption/post/22222222-2222-2222-2222-222222222222.jpg");
   }
 
   @Test
@@ -264,7 +282,7 @@ class AdoptionPostServiceTest {
             .area("Seoul")
             .neutering(Neutering.YES)
             .features("Updated features")
-            .imagesToKeep(List.of("missing.jpg"))
+            .imagesToKeep(List.of("adoption/post/99999999-9999-9999-9999-999999999999.jpg"))
             .images(List.of())
             .build();
 
@@ -277,8 +295,10 @@ class AdoptionPostServiceTest {
 
     assertThat(testPost.getImages())
         .extracting(AdoptionPostImage::getStoredFileName)
-        .containsExactly("old1.jpg", "old2.jpg");
-    verify(s3Service, never()).uploadImagesToS3(any());
+        .containsExactly(
+            "adoption/post/11111111-1111-1111-1111-111111111111.jpg",
+            "adoption/post/22222222-2222-2222-2222-222222222222.jpg");
+    verify(storageService, never()).uploadImages(any(), any());
     verify(eventPublisher, never()).publishEvent(any());
   }
 
@@ -292,6 +312,45 @@ class AdoptionPostServiceTest {
     assertThatThrownBy(() -> adoptionPostService.update(100L, 2L, new AdoptionPostUpdateDto()))
         .isInstanceOf(AuthException.class)
         .hasMessageContaining(AuthException.forAccessDenied().getMessage());
+  }
+
+  @Test
+  @DisplayName("목록 조회 시 대표 이미지 URL을 만들 수 없어도 게시글은 반환한다.")
+  void search_ImageNotFound() {
+    // given
+    Pageable pageable = PageRequest.of(0, 10);
+    String storedFileName = testImages.get(0).getStoredFileName();
+    given(adoptionPostRepository.findAll(any(Specification.class), eq(pageable)))
+        .willReturn(new PageImpl<>(List.of(testPost), pageable, 1));
+    given(storageService.getViewUrlOrNull(storedFileName))
+        .willThrow(StorageException.forFileNotFound());
+
+    // when
+    Page<AdoptionPostDto> result =
+        adoptionPostService.search(new AdoptionPostSearchFilterDto(), pageable);
+
+    // then
+    assertThat(result.getContent()).hasSize(1);
+    assertThat(result.getContent().get(0).getImageUrl()).isNull();
+  }
+
+  @Test
+  @DisplayName("상세 조회 시 이미지 URL을 만들 수 없어도 파일명과 URL 인덱스를 유지한다.")
+  void getDetail_ImageNotFound() {
+    // given
+    String missingStoredFileName = testImages.get(0).getStoredFileName();
+    String storedFileName = testImages.get(1).getStoredFileName();
+    given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
+    given(storageService.getViewUrlOrNull(missingStoredFileName))
+        .willThrow(StorageException.forFileNotFound());
+    given(storageService.getViewUrlOrNull(storedFileName)).willReturn("http://example.com/image.jpg");
+
+    // when
+    AdoptionPostDetailDto result = adoptionPostService.getDetail(100L);
+
+    // then
+    assertThat(result.getImageFileNames()).containsExactly(missingStoredFileName, storedFileName);
+    assertThat(result.getImageUrls()).containsExactly(null, "http://example.com/image.jpg");
   }
 
   @Test
@@ -324,9 +383,18 @@ class AdoptionPostServiceTest {
   @DisplayName("게시글 삭제 시 원문, 댓글, 이미지가 삭제되고 연관 채팅방이 종료된다.")
   void delete_Success() {
     // given
-    testPost.addImage(AdoptionPostImage.builder().storedFileName("img1.jpg").build());
-    testPost.addImage(AdoptionPostImage.builder().storedFileName("img2.jpg").build());
-    testPost.addImage(AdoptionPostImage.builder().storedFileName("img3.jpg").build());
+    testPost.addImage(
+        AdoptionPostImage.builder()
+            .storedFileName("adoption/post/55555555-5555-5555-5555-555555555555.jpg")
+            .build());
+    testPost.addImage(
+        AdoptionPostImage.builder()
+            .storedFileName("adoption/post/66666666-6666-6666-6666-666666666666.jpg")
+            .build());
+    testPost.addImage(
+        AdoptionPostImage.builder()
+            .storedFileName("adoption/post/77777777-7777-7777-7777-777777777777.jpg")
+            .build());
 
     given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
 
@@ -346,7 +414,12 @@ class AdoptionPostServiceTest {
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
     assertThat(eventCaptor.getValue().fileNames()).hasSize(5);
     assertThat(eventCaptor.getValue().fileNames())
-        .contains("old1.jpg", "old2.jpg", "img1.jpg", "img2.jpg", "img3.jpg");
+        .contains(
+            "adoption/post/11111111-1111-1111-1111-111111111111.jpg",
+            "adoption/post/22222222-2222-2222-2222-222222222222.jpg",
+            "adoption/post/55555555-5555-5555-5555-555555555555.jpg",
+            "adoption/post/66666666-6666-6666-6666-666666666666.jpg",
+            "adoption/post/77777777-7777-7777-7777-777777777777.jpg");
   }
 
   @Test

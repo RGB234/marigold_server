@@ -39,7 +39,8 @@ import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.exception.StorageException;
-import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.storage.service.StorageDirectory;
+import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
 
@@ -64,7 +65,7 @@ public class ChatService {
   private final UserRepository userRepository;
   private final AdoptionPostRepository adoptionPostRepository;
   private final RoomParticipantRepository participantRepository;
-  private final S3Service storageService;
+  private final StorageService storageService;
 
   public ChatRoomDto getChatRoom(@NonNull Long roomId, @NonNull Long currentUserId) {
     ChatRoom chatRoom = findChatRoom(roomId);
@@ -206,7 +207,8 @@ public class ChatService {
       throw ChatException.forEmptyMessage();
     }
 
-    List<FileUploadDto> uploadedFiles = storageService.uploadFilesToS3(validFiles);
+    List<FileUploadDto> uploadedFiles =
+        storageService.uploadFiles(validFiles, StorageDirectory.CHAT_ATTACHMENT);
     try {
       ChatMessage chatMessage =
           ChatMessage.builder()
@@ -229,7 +231,7 @@ public class ChatService {
       reactivateParticipants(chatRoom);
       return convertToMessageDto(savedMessage);
     } catch (RuntimeException e) {
-      storageService.deleteUploadedFilesFromS3(uploadedFiles);
+      storageService.deleteUploadedFiles(uploadedFiles);
       throw e;
     }
   }
@@ -244,7 +246,7 @@ public class ChatService {
             .findByIdAndChatMessage_ChatRoom(attachmentId, chatRoom)
             .orElseThrow(StorageException::forFileNotFound);
 
-    return storageService.getPresignedDownloadUrl(
+    return storageService.getDownloadUrl(
         attachment.getStoredFileName(), attachment.getOriginalFileName());
   }
 
@@ -393,8 +395,7 @@ public class ChatService {
                         .contentType(attachment.getContentType())
                         .fileSize(attachment.getFileSize())
                         .downloadUrl(
-                            storageService.getPresignedViewUrlOrNull(
-                                attachment.getStoredFileName()))
+                            storageService.getViewUrlOrNull(attachment.getStoredFileName()))
                         .build())
             .collect(Collectors.toList());
 
@@ -404,7 +405,7 @@ public class ChatService {
         .senderNickname(message.getSender().getDisplayNickname())
         .senderImageUrl(
             message.getSender().getImage() != null
-                ? storageService.getPresignedViewUrlOrNull(
+                ? storageService.getViewUrlOrNull(
                     message.getSender().getImage().getStoredFileName())
                 : null)
         .message(message.getMessage())

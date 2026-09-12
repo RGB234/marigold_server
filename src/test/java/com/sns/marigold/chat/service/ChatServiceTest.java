@@ -3,6 +3,7 @@ package com.sns.marigold.chat.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -43,7 +44,8 @@ import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.exception.StorageException;
-import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.storage.service.StorageDirectory;
+import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
 
@@ -60,7 +62,7 @@ class ChatServiceTest {
 
   @Mock private RoomParticipantRepository participantRepository;
 
-  @Mock private S3Service storageService;
+  @Mock private StorageService storageService;
 
   @InjectMocks private ChatService chatService;
 
@@ -408,25 +410,31 @@ class ChatServiceTest {
     given(participantRepository.findByChatRoomAndUser(chatRoom, user2)).willReturn(Optional.of(p2));
     given(participantRepository.findAllByChatRoom(chatRoom)).willReturn(List.of(p1, p2));
 
-    given(storageService.uploadFilesToS3(any()))
+    given(storageService.uploadFiles(any(), eq(StorageDirectory.CHAT_ATTACHMENT)))
         .willReturn(
             List.of(
                 FileUploadDto.builder()
-                    .storedFileName("stored-note.txt")
+                    .storedFileName("chat/attachment/11111111-1111-1111-1111-111111111111.txt")
                     .originalFileName("note.txt")
                     .contentType("text/plain")
                     .fileSize(textFile.getSize())
                     .build(),
                 FileUploadDto.builder()
-                    .storedFileName("stored-memo.csv")
+                    .storedFileName("chat/attachment/22222222-2222-2222-2222-222222222222.csv")
                     .originalFileName("memo.csv")
                     .contentType("text/csv")
                     .fileSize(csvFile.getSize())
                     .build()));
     given(chatMessageRepository.saveAndFlush(any(ChatMessage.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
-    given(storageService.getPresignedViewUrlOrNull("stored-note.txt")).willReturn("https://file/1");
-    given(storageService.getPresignedViewUrlOrNull("stored-memo.csv")).willReturn("https://file/2");
+    given(
+            storageService.getViewUrlOrNull(
+                "chat/attachment/11111111-1111-1111-1111-111111111111.txt"))
+        .willReturn("https://file/1");
+    given(
+            storageService.getViewUrlOrNull(
+                "chat/attachment/22222222-2222-2222-2222-222222222222.csv"))
+        .willReturn("https://file/2");
 
     // when
     ChatMessageDto result =
@@ -438,6 +446,7 @@ class ChatServiceTest {
     assertThat(result.getAttachments()).hasSize(2);
     assertThat(result.getAttachments().get(0).getOriginalFileName()).isEqualTo("note.txt");
     assertThat(result.getAttachments().get(1).getDownloadUrl()).isEqualTo("https://file/2");
+    verify(storageService, times(1)).uploadFiles(any(), eq(StorageDirectory.CHAT_ATTACHMENT));
     verify(chatMessageRepository, times(1)).saveAndFlush(any(ChatMessage.class));
     verify(p1, times(1)).reJoin();
     verify(p2, times(1)).reJoin();
@@ -462,7 +471,7 @@ class ChatServiceTest {
     // when & then
     assertThatThrownBy(() -> chatService.saveFileMessage(100L, "", List.of(invalidFile), 1L))
         .isInstanceOf(StorageException.class);
-    verify(storageService, times(0)).uploadFilesToS3(any());
+    verify(storageService, times(0)).uploadFiles(any(), any());
     verify(chatMessageRepository, times(0)).saveAndFlush(any(ChatMessage.class));
   }
 

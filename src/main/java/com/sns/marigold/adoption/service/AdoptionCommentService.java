@@ -30,7 +30,8 @@ import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.global.error.exception.InternalServerException;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.storage.service.StorageDirectory;
+import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
 
@@ -46,7 +47,7 @@ public class AdoptionCommentService {
   private final AdoptionPostRepository adoptionPostRepository;
   private final AdoptionAdopterRepository adoptionAdopterRepository;
   private final UserService userService;
-  private final S3Service s3Service;
+  private final StorageService storageService;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
   private final AdoptionCommentImageRepository adoptionCommentImageRepository;
@@ -89,7 +90,8 @@ public class AdoptionCommentService {
 
     List<MultipartFile> images =
         dto.getImages() != null ? dto.getImages() : Collections.emptyList();
-    List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(images);
+    List<ImageUploadDto> uploadedImages =
+        storageService.uploadImages(images, StorageDirectory.ADOPTION_COMMENT);
 
     final AdoptionComment finalParent = parent;
 
@@ -121,9 +123,9 @@ public class AdoptionCommentService {
             return adoptionCommentRepository.save(comment).getId();
           });
     } catch (Exception e) {
-      log.debug("Comment creation failed. Deleting uploaded S3 files.");
+      log.debug("Comment creation failed. Deleting uploaded storage files.");
       try {
-        s3Service.deleteUploadedImagesFromS3(uploadedImages);
+        storageService.deleteUploadedImages(uploadedImages);
       } catch (Exception s3Ex) {
         log.error("event=s3_rollback_delete_failed fileCount={}", uploadedImages.size(), s3Ex);
       }
@@ -147,7 +149,7 @@ public class AdoptionCommentService {
     List<ImageUploadDto> uploadedImages =
         newImageFiles.isEmpty()
             ? Collections.emptyList()
-            : s3Service.uploadImagesToS3(newImageFiles);
+            : storageService.uploadImages(newImageFiles, StorageDirectory.ADOPTION_COMMENT);
 
     try {
       transactionTemplate.executeWithoutResult(
@@ -181,9 +183,9 @@ public class AdoptionCommentService {
           });
     } catch (Exception e) {
       if (!uploadedImages.isEmpty()) {
-        log.debug("Comment update failed. Deleting uploaded S3 files.");
+        log.debug("Comment update failed. Deleting uploaded storage files.");
         try {
-          s3Service.deleteUploadedImagesFromS3(uploadedImages);
+          storageService.deleteUploadedImages(uploadedImages);
         } catch (Exception s3Ex) {
           log.error("event=s3_rollback_delete_failed fileCount={}", uploadedImages.size(), s3Ex);
         }
@@ -224,15 +226,14 @@ public class AdoptionCommentService {
     for (AdoptionComment comment : comments) {
       List<String> imageUrls =
           comment.getImages().stream()
-              .map(img -> s3Service.getPresignedViewUrlOrNull(img.getStoredFileName()))
+              .map(img -> storageService.getViewUrlOrNull(img.getStoredFileName()))
               .collect(Collectors.toList());
 
       AdoptionCommentResponseDto dto =
           AdoptionCommentResponseDto.from(comment, imageUrls, new ArrayList<>());
 
       if (dto.getWriter() != null && dto.getWriter().getImageUrl() != null) {
-        dto.getWriter()
-            .setImageUrl(s3Service.getPresignedViewUrlOrNull(dto.getWriter().getImageUrl()));
+        dto.getWriter().setImageUrl(storageService.getViewUrlOrNull(dto.getWriter().getImageUrl()));
       }
 
       dtoMap.put(dto.getId(), dto);
@@ -271,7 +272,7 @@ public class AdoptionCommentService {
           comment.getImages().clear();
 
           if (!imagesToDelete.isEmpty()) {
-            // 삭제된 댓글의 이미지는 커밋 이후 S3에서도 삭제
+            // 삭제된 댓글의 이미지는 커밋 이후 스토리지에서도 삭제
             eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
           }
         });

@@ -9,7 +9,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.MySQLContainer;
 
-import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.storage.service.StorageService;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -26,7 +26,7 @@ public abstract class BaseIntegrationTest {
     mysql.start();
   }
 
-  @MockitoBean protected S3Service s3Service;
+  @MockitoBean protected StorageService storageService;
 
   @Autowired private DatabaseCleaner databaseCleaner;
 

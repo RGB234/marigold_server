@@ -28,6 +28,7 @@ import com.sns.marigold.global.config.SwaggerConfig;
 import com.sns.marigold.global.dto.ApiResult;
 import com.sns.marigold.global.web.UrlConstants;
 
+import io.hypersistence.tsid.TSID;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -62,7 +63,7 @@ public class AdoptionCommentController {
   })
   @PreAuthorize("isAuthenticated()")
   @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public ResponseEntity<ApiResult<Map<String, Object>>> createComment(
+  public ResponseEntity<ApiResult<Map<String, String>>> createComment(
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("postId") Long postId,
       @Parameter(description = "생성할 댓글 정보") @ModelAttribute @Validated({Default.class})
           AdoptionCommentCreateDto dto,
@@ -77,7 +78,9 @@ public class AdoptionCommentController {
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
             ApiResult.success(
-                HttpStatus.CREATED, "Comment created successfully", Map.of("id", commentId)));
+                HttpStatus.CREATED,
+                "Comment created successfully",
+                Map.of("id", TSID.from(commentId).toString())));
   }
 
   @Operation(

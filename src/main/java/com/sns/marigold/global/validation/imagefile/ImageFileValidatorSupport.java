@@ -6,7 +6,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.storage.exception.StorageException;
-import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.storage.service.StorageService;
 
 import jakarta.validation.ConstraintValidatorContext;
 
@@ -14,15 +14,15 @@ final class ImageFileValidatorSupport {
   private ImageFileValidatorSupport() {}
 
   static boolean isValid(
-      MultipartFile file, S3Service s3Service, ConstraintValidatorContext context) {
+      MultipartFile file, StorageService storageService, ConstraintValidatorContext context) {
     if (file == null || file.isEmpty()) {
       return true;
     }
-    return isValid(List.of(file), s3Service, context);
+    return isValid(List.of(file), storageService, context);
   }
 
   static boolean isValid(
-      List<MultipartFile> files, S3Service s3Service, ConstraintValidatorContext context) {
+      List<MultipartFile> files, StorageService storageService, ConstraintValidatorContext context) {
     if (files == null || files.isEmpty()) {
       return true;
     }
@@ -41,7 +41,7 @@ final class ImageFileValidatorSupport {
     }
 
     try {
-      s3Service.validateRealImageFiles(nonEmptyFiles);
+      storageService.validateRealImageFiles(nonEmptyFiles);
     } catch (StorageException e) {
       replaceMessage(context, "JPG, JPEG, PNG, WebP 형식의 이미지만 업로드 가능합니다.");
       return false;

@@ -38,7 +38,7 @@ public class AdoptionPostImage {
   @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
-  // S3에 저장된 실제 파일명 (삭제 시 필요)
+  // 스토리지에 저장된 실제 파일명 (삭제 시 필요)
   @Column(nullable = false)
   private String storedFileName;
 

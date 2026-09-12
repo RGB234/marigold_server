@@ -42,6 +42,7 @@ import com.sns.marigold.global.dto.ApiResult;
 import com.sns.marigold.global.tsid.TsidType;
 import com.sns.marigold.global.web.UrlConstants;
 
+import io.hypersistence.tsid.TSID;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -75,7 +76,7 @@ public class AdoptionPostController {
   })
   @PreAuthorize("isAuthenticated()")
   @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public ResponseEntity<ApiResult<Map<String, Object>>> create(
+  public ResponseEntity<ApiResult<Map<String, String>>> create(
       @Parameter(description = "생성할 입양 게시글 정보") @ModelAttribute @Validated({Default.class})
           AdoptionPostCreateDto dto,
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal) {
@@ -91,7 +92,7 @@ public class AdoptionPostController {
             ApiResult.success(
                 HttpStatus.CREATED,
                 "Adoption post created successfully",
-                Map.of("id", adoptionPostId)));
+                Map.of("id", TSID.from(adoptionPostId).toString())));
   }
 
   /*

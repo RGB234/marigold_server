@@ -1,56 +1,57 @@
 server:
   port: 8080
-  address: 0.0.0.0
+  address: 127.0.0.1
 
 spring:
   config:
     import:
-      - optional:file:/home/ec2-user/app.env[.properties]
+      - optional:file:secrets/back/.env.local[.properties]
+      - optional:file:../secrets/back/.env.local[.properties]
+
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: "${DB_URL:jdbc:mysql://localhost:3306/marigold?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}"
+    username: "${DB_USERNAME:root}"
+    password: "${DB_PASSWORD:}"
 
   cloud:
     aws:
-      credentials:
-        access-key: ${AWS_ACCESS_KEY}
-        secret-key: ${AWS_SECRET_KEY}
-      region.static: ${AWS_REGION}
+      s3:
+        enabled: false
 
 logging:
   level:
-    root: WARN
-    org.springframework: WARN
+    root: INFO
+    org.springframework: INFO
     org.hibernate.SQL: OFF
     org.hibernate.orm.jdbc.bind: OFF
-    com.sns.marigold: WARN
+    com.sns.marigold: DEBUG
     audit: INFO
 
 springdoc:
   api-docs:
-    enabled: false
+    enabled: true
   swagger-ui:
-    enabled: false
+    enabled: true
 
 app:
   storage:
-    type: s3
-    s3:
-      bucket: ${AWS_S3_BUCKET}
+    type: local
+    local:
+      root-path: ${LOCAL_STORAGE_ROOT:./uploads}
+      public-base-url: ${LOCAL_STORAGE_PUBLIC_BASE_URL:http://localhost:8080}
   auth:
     recent-auth:
       ttl-seconds: 300
 
 url:
   frontend:
-    origin: ${FRONTEND_ORIGIN}
+    origin: ${FRONTEND_ORIGIN:http://localhost:8000}
     auth:
       login: ${url.frontend.origin}/auth/login
       signup: ${url.frontend.origin}/auth/signup

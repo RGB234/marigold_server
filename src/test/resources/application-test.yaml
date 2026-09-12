@@ -29,6 +29,7 @@ jwt:
 
 app:
   storage:
+    type: s3
     s3:
       bucket: test-bucket
 

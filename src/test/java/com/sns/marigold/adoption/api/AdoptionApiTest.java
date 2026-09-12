@@ -3,6 +3,7 @@ package com.sns.marigold.adoption.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -30,6 +31,7 @@ import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.support.ApiIntegrationTest;
 
 public class AdoptionApiTest extends ApiIntegrationTest {
@@ -63,11 +65,11 @@ public class AdoptionApiTest extends ApiIntegrationTest {
   @DisplayName("입양 게시글을 정상적으로 생성한다")
   void createAdoptionPost() throws Exception {
     MockMultipartFile image = Objects.requireNonNull(defaultImage);
-    given(s3Service.uploadImagesToS3(any()))
+    given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_POST)))
         .willReturn(
             List.of(
                 ImageUploadDto.builder()
-                    .storedFileName("stored1.jpg")
+                    .storedFileName("adoption/post/11111111-1111-1111-1111-111111111111.jpg")
                     .originalFileName("test1.jpg")
                     .build()));
 
@@ -88,7 +90,7 @@ public class AdoptionApiTest extends ApiIntegrationTest {
                 .contentType(Objects.requireNonNull(MediaType.MULTIPART_FORM_DATA)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.status").value(201))
-        .andExpect(jsonPath("$.data.id").isNumber());
+        .andExpect(jsonPath("$.data.id").isString());
 
     // DB 상태 검증: setUp()에서 1개 + 새로 생성 1개 = 총 2개
     assertEquals(2, adoptionPostRepository.count());
@@ -120,11 +122,11 @@ public class AdoptionApiTest extends ApiIntegrationTest {
   @Test
   @DisplayName("인증되지 않은 사용자는 입양 게시글을 생성할 수 없다. 401에러를 반환한다.")
   void createAdoptionPost_Unauthorized() throws Exception {
-    given(s3Service.uploadImagesToS3(any()))
+    given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_POST)))
         .willReturn(
             List.of(
                 ImageUploadDto.builder()
-                    .storedFileName("stored1.jpg")
+                    .storedFileName("adoption/post/11111111-1111-1111-1111-111111111111.jpg")
                     .originalFileName("test1.jpg")
                     .build()));
 
@@ -152,11 +154,11 @@ public class AdoptionApiTest extends ApiIntegrationTest {
     AdoptionPost post = Objects.requireNonNull(defaultPost);
     Long postId = Objects.requireNonNull(post.getId());
 
-    given(s3Service.uploadImagesToS3(any()))
+    given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_POST)))
         .willReturn(
             List.of(
                 ImageUploadDto.builder()
-                    .storedFileName("stored_update.jpg")
+                    .storedFileName("adoption/post/22222222-2222-2222-2222-222222222222.jpg")
                     .originalFileName("update.jpg")
                     .build()));
 

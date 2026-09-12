@@ -13,7 +13,7 @@ Marigold backend는 입양 게시글, 사용자, 인증, 채팅, 파일 저장�
 | Persistence | Spring Data JPA, MySQL |
 | Security | Spring Security, OAuth2 Client, JWT, CSRF double-submit cookie |
 | Realtime | WebSocket, STOMP, SockJS |
-| Storage | AWS S3 |
+| Storage | Local filesystem, AWS S3 |
 | Observability | Spring Boot Actuator, Micrometer, Prometheus |
 | Test | JUnit 5, Spring Security Test, Testcontainers |
 | Format | Spotless, google-java-format |
@@ -29,14 +29,14 @@ Marigold backend는 입양 게시글, 사용자, 인증, 채팅, 파일 저장�
 
 ## 로컬 실행
 
-필요한 환경변수는 [.env.example](.env.example)을 기준으로 준비합니다.
+로컬 실행은 `local` 프로필을 사용합니다. 기본값은 로컬 MySQL과 `./uploads` 저장소를 바라보며, 값이 다르면 [.env.example](.env.example)을 기준으로 환경변수를 준비합니다.
 
 ```powershell
 cd back
-.\gradlew.bat bootRun
+.\gradlew.bat bootRun --args='--spring.profiles.active=local'
 ```
 
-현재 저장소에는 별도 `application-dev.yml`이 없습니다. 로컬에서 DB, S3, URL 설정이 필요한 기능을 실행하려면 사용하는 프로필이나 실행 환경에 맞게 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `AWS_*`, `BASE_URL`, `FRONTEND_ORIGIN` 값을 제공해야 합니다.
+`local` 프로필은 로컬 컴퓨터 서버, 로컬 MySQL, 로컬 파일 저장소를 함께 사용합니다. `prod` 프로필은 EC2, RDS, S3 운영 인프라를 사용합니다.
 
 ## 테스트와 포맷
 
@@ -51,11 +51,11 @@ cd back
 
 API 상세 명세는 컨트롤러와 DTO의 OpenAPI 애노테이션을 기준으로 관리합니다.
 
-기본 설정에서는 `springdoc`이 꺼져 있으므로 Swagger UI를 확인할 때는 아래처럼 dev 프로필과 springdoc 옵션을 함께 켭니다.
+기본 설정에서는 `springdoc`이 꺼져 있으므로 Swagger UI를 확인할 때는 `local` 프로필로 실행합니다.
 
 ```powershell
 cd back
-.\gradlew.bat bootRun --args='--spring.profiles.active=dev --springdoc.api-docs.enabled=true --springdoc.swagger-ui.enabled=true'
+.\gradlew.bat bootRun --args='--spring.profiles.active=local'
 ```
 
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`

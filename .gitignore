@@ -44,6 +44,7 @@ out/
 /src/main/resources/*.yml
 /src/main/resources/*.yaml
 !/src/main/resources/application.yml
+!/src/main/resources/application-local.yml
 !/src/main/resources/application-prod.yml
 !/src/main/resources/application-oauth.yml
 /src/test/resources/*
@@ -56,6 +57,7 @@ out/
 *.keystore
 .aws/
 .ssh/
+uploads/
 load-test/data/generated-*.csv
 load-test/results/*.json
 !load-test/results/.gitkeep

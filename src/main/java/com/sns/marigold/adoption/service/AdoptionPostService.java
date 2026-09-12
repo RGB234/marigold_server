@@ -36,11 +36,14 @@ import com.sns.marigold.chat.entity.RoomParticipant;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.chat.service.ChatService;
+import com.sns.marigold.global.error.ErrorCode;
 import com.sns.marigold.global.error.exception.BusinessException;
 import com.sns.marigold.global.error.exception.InternalServerException;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.service.StorageDirectory;
+import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
@@ -54,7 +57,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AdoptionPostService {
 
   private final UserService userService;
-  private final S3Service s3Service;
+  private final StorageService storageService;
   private final AdoptionCommentService adoptionCommentService;
   private final ChatService chatService;
 
@@ -77,7 +80,8 @@ public class AdoptionPostService {
   public Long create(AdoptionPostCreateDto dto, Long writerId) {
     List<MultipartFile> images =
         dto.getImages() != null ? dto.getImages() : Collections.emptyList();
-    List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(images);
+    List<ImageUploadDto> uploadedImages =
+        storageService.uploadImages(images, StorageDirectory.ADOPTION_POST);
 
     User writer = userService.findEntityById(writerId);
     AdoptionPost adoptionPost = dto.toEntity(writer);
@@ -99,10 +103,10 @@ public class AdoptionPostService {
           });
 
     } catch (Exception e) {
-      log.debug("Create failed. Deleting uploaded S3 files.");
+      log.debug("Create failed. Deleting uploaded storage files.");
 
       try {
-        s3Service.deleteUploadedImagesFromS3(uploadedImages);
+        storageService.deleteUploadedImages(uploadedImages);
       } catch (Exception s3Ex) {
         log.error("event=s3_rollback_delete_failed fileCount={}", uploadedImages.size(), s3Ex);
       }
@@ -128,9 +132,10 @@ public class AdoptionPostService {
         dto.getImages() != null ? dto.getImages() : Collections.emptyList();
     adoptionPost.validateImageReplacement(imagesToKeep, countNewImages(images));
 
-    // 1. 새 이미지 S3 업로드 (실패 시 예외 발생, 파일 자동 삭제됨)
+    // 1. 새 이미지 업로드 (실패 시 예외 발생, 파일 자동 삭제됨)
     // 트랜잭션 외부에서 수행하여 DB 커넥션 점유 최소화
-    final List<ImageUploadDto> uploadedImages = s3Service.uploadImagesToS3(images);
+    final List<ImageUploadDto> uploadedImages =
+        storageService.uploadImages(images, StorageDirectory.ADOPTION_POST);
 
     try {
       // 2. 새로 추가할 이미지 엔티티 생성 준비
@@ -179,12 +184,12 @@ public class AdoptionPostService {
           });
 
     } catch (Exception e) {
-      // 5. 실패 시 보상 트랜잭션: 새로 업로드한 S3 파일 삭제
+      // 5. 실패 시 보상 트랜잭션: 새로 업로드한 파일 삭제
       // 트랜잭션 롤백과 무관하게 업로드된 파일은 지워야 함
-      log.debug("Update failed. Deleting uploaded S3 files.");
+      log.debug("Update failed. Deleting uploaded storage files.");
 
       try {
-        s3Service.deleteUploadedImagesFromS3(uploadedImages);
+        storageService.deleteUploadedImages(uploadedImages);
       } catch (Exception s3Ex) {
         log.error("event=s3_rollback_delete_failed fileCount={}", uploadedImages.size(), s3Ex);
       }
@@ -217,6 +222,22 @@ public class AdoptionPostService {
     return (int) images.stream().filter(file -> file != null && !file.isEmpty()).count();
   }
 
+  private String resolveViewUrlOrNull(String storedFileName) {
+    if (storedFileName == null || storedFileName.isBlank()) {
+      return null;
+    }
+
+    try {
+      return storageService.getViewUrlOrNull(storedFileName);
+    } catch (StorageException e) {
+      if (e.getErrorCode() == ErrorCode.FILE_NOT_FOUND) {
+        log.warn("event=adoption_image_url_not_found storedFileName={}", storedFileName);
+        return null;
+      }
+      throw e;
+    }
+  }
+
   // 검색
   @Transactional(readOnly = true)
   public Page<AdoptionPostDto> search(AdoptionPostSearchFilterDto dto, Pageable pageable) {
@@ -232,9 +253,7 @@ public class AdoptionPostService {
     return resultPage.map(
         post -> {
           AdoptionPostDto postDto = AdoptionPostDto.from(post);
-          if (postDto.getImageUrl() != null) {
-            postDto.setImageUrl(s3Service.getPresignedViewUrlOrNull(postDto.getImageUrl()));
-          }
+          postDto.setImageUrl(resolveViewUrlOrNull(postDto.getImageUrl()));
           return postDto;
         });
   }
@@ -246,9 +265,7 @@ public class AdoptionPostService {
     return resultPage.map(
         post -> {
           AdoptionPostDto postDto = AdoptionPostDto.from(post);
-          if (postDto.getImageUrl() != null) {
-            postDto.setImageUrl(s3Service.getPresignedViewUrlOrNull(postDto.getImageUrl()));
-          }
+          postDto.setImageUrl(resolveViewUrlOrNull(postDto.getImageUrl()));
           return postDto;
         });
   }
@@ -260,9 +277,7 @@ public class AdoptionPostService {
     return resultPage.map(
         post -> {
           AdoptionPostDto postDto = AdoptionPostDto.from(post);
-          if (postDto.getImageUrl() != null) {
-            postDto.setImageUrl(s3Service.getPresignedViewUrlOrNull(postDto.getImageUrl()));
-          }
+          postDto.setImageUrl(resolveViewUrlOrNull(postDto.getImageUrl()));
           return postDto;
         });
   }
@@ -271,9 +286,7 @@ public class AdoptionPostService {
   public AdoptionPostDto getSummary(Long id) {
     AdoptionPost info = findEntityById(id);
     AdoptionPostDto postDto = AdoptionPostDto.from(info);
-    if (postDto.getImageUrl() != null) {
-      postDto.setImageUrl(s3Service.getPresignedViewUrlOrNull(postDto.getImageUrl()));
-    }
+    postDto.setImageUrl(resolveViewUrlOrNull(postDto.getImageUrl()));
     return postDto;
   }
 
@@ -292,12 +305,12 @@ public class AdoptionPostService {
       detailResponseDto
           .getWriter()
           .setImageUrl(
-              s3Service.getPresignedViewUrlOrNull(detailResponseDto.getWriter().getImageUrl()));
+              resolveViewUrlOrNull(detailResponseDto.getWriter().getImageUrl()));
     }
 
     List<String> imageUrls =
         info.getImages().stream()
-            .map(image -> s3Service.getPresignedViewUrlOrNull(image.getStoredFileName()))
+            .map(image -> resolveViewUrlOrNull(image.getStoredFileName()))
             .collect(Collectors.toList());
 
     detailResponseDto.setImageUrls(imageUrls);
@@ -309,8 +322,7 @@ public class AdoptionPostService {
               adopterMapping -> {
                 UserInfoDto adopterDto = UserInfoDto.from(adopterMapping.getAdopter());
                 if (adopterDto.getImageUrl() != null) {
-                  adopterDto.setImageUrl(
-                      s3Service.getPresignedViewUrlOrNull(adopterDto.getImageUrl()));
+                  adopterDto.setImageUrl(resolveViewUrlOrNull(adopterDto.getImageUrl()));
                 }
                 detailResponseDto.setAdopter(adopterDto);
               });
@@ -394,8 +406,7 @@ public class AdoptionPostService {
               User otherUser = participant.getUser();
               String imageUrl = null;
               if (otherUser.getImage() != null) {
-                imageUrl =
-                    s3Service.getPresignedViewUrlOrNull(otherUser.getImage().getStoredFileName());
+                imageUrl = resolveViewUrlOrNull(otherUser.getImage().getStoredFileName());
               }
               return AdoptionCandidateDto.from(otherUser, imageUrl);
             })

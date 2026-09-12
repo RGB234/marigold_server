@@ -20,7 +20,8 @@ import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.service.S3Service;
+import com.sns.marigold.storage.service.StorageDirectory;
+import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.response.UserSecurityInfoDto;
 import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
@@ -41,7 +42,7 @@ public class UserService {
   private final UserRepository userRepository;
   private final AdoptionPostRepository adoptionPostRepository;
   private final AdoptionPostImageRepository adoptionPostImageRepository;
-  private final S3Service s3Service;
+  private final StorageService storageService;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
   private final PasswordEncoder passwordEncoder;
@@ -70,7 +71,7 @@ public class UserService {
     User user = findEntityById(uid);
     UserInfoDto dto = UserInfoDto.from(user);
     if (dto.getImageUrl() != null) {
-      dto.setImageUrl(s3Service.getPresignedViewUrlOrNull(dto.getImageUrl()));
+      dto.setImageUrl(storageService.getViewUrlOrNull(dto.getImageUrl()));
     }
     return dto;
   }
@@ -88,7 +89,7 @@ public class UserService {
             user -> {
               UserInfoDto dto = UserInfoDto.from(user);
               if (dto.getImageUrl() != null) {
-                dto.setImageUrl(s3Service.getPresignedViewUrlOrNull(dto.getImageUrl()));
+                dto.setImageUrl(storageService.getViewUrlOrNull(dto.getImageUrl()));
               }
               return dto;
             })
@@ -127,7 +128,7 @@ public class UserService {
     // 1. 이미지 업로드 (트랜잭션 밖에서 수행)
     ImageUploadDto uploadedImageDto = null;
     if (dto.getImage() != null && !dto.getImage().isEmpty()) {
-      uploadedImageDto = s3Service.uploadFile(dto.getImage());
+      uploadedImageDto = storageService.uploadImage(dto.getImage(), StorageDirectory.USER_PROFILE);
     }
 
     try {
@@ -167,11 +168,11 @@ public class UserService {
           });
 
     } catch (Exception e) {
-      // 4. 실패 시 보상 트랜잭션: 새로 업로드한 S3 파일 삭제
+      // 4. 실패 시 보상 트랜잭션: 새로 업로드한 파일 삭제
       if (uploadedImageDto != null) {
-        log.debug("Update user failed. Deleting uploaded S3 file.");
+        log.debug("Update user failed. Deleting uploaded storage file.");
         try {
-          s3Service.deleteUploadedImagesFromS3(List.of(uploadedImageDto));
+          storageService.deleteUploadedImages(List.of(uploadedImageDto));
         } catch (Exception s3Ex) {
           log.error("event=s3_rollback_delete_failed fileCount=1", s3Ex);
         }
