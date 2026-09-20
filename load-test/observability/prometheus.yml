@@ -4,8 +4,7 @@ global:
 scrape_configs:
   - job_name: marigold-back
     metrics_path: /actuator/prometheus
-    scheme: https
+    scheme: http
     static_configs:
       - targets:
-#          - host.docker.internal:8080
-          - api.marigold.co.kr:443
+          - host.docker.internal:8080
