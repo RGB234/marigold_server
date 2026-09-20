@@ -3,6 +3,10 @@ spring:
     name: marigold
   profiles:
     include: oauth
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 50MB # 최대 이미지 8개(40MiB)와 multipart 부가 데이터 포함
 
 server:
   servlet:
@@ -10,6 +14,7 @@ server:
       timeout: 30m # 30분 (JWT 사용 시 의미없는 설정. 현재는 JWT 사용 중이므로 직접적으로 HttpSession을 생성하지 않음.)
   tomcat:
     max-part-count: 20
+    max-swallow-size: 64MB # 50MiB 초과 요청도 413 응답을 받을 수 있도록 잔여 본문 읽기에 여유 부여
 
 springdoc:
   api-docs:

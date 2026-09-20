@@ -16,6 +16,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.sns.marigold.audit.AuditLogger;
@@ -119,6 +120,14 @@ public class GlobalExceptionHandler {
 
     return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
         .body(ApiResult.error(ErrorCode.INVALID_INPUT_VALUE));
+  }
+
+  /** 서블릿의 파일 또는 요청 전체 업로드 용량 제한 초과 처리 */
+  @ExceptionHandler(MaxUploadSizeExceededException.class)
+  public ResponseEntity<ApiResult<?>> handleMaxUploadSizeExceededException(
+      final MaxUploadSizeExceededException e) {
+    return ResponseEntity.status(ErrorCode.FILE_TOO_LARGE.getStatus())
+        .body(ApiResult.error(ErrorCode.FILE_TOO_LARGE));
   }
 
   /** 존재하지 않는 정적 리소스 요청 처리 */
