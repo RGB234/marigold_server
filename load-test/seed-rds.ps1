@@ -24,6 +24,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$script:SeedParameters = @{} + $PSBoundParameters
 
 function Import-EnvFile([string]$Path) {
   if ([string]::IsNullOrWhiteSpace($Path)) {
@@ -31,7 +32,7 @@ function Import-EnvFile([string]$Path) {
   }
 
   if (-not (Test-Path -LiteralPath $Path)) {
-    if ($PSBoundParameters.ContainsKey("EnvFile")) {
+    if ($script:SeedParameters.ContainsKey("EnvFile")) {
       throw "Env file not found: $Path"
     }
     return
@@ -51,8 +52,8 @@ function Import-EnvFile([string]$Path) {
 }
 
 function Resolve-Value([string]$ParameterName, [string]$EnvName, $DefaultValue) {
-  if ($PSBoundParameters.ContainsKey($ParameterName)) {
-    return Get-Variable -Name $ParameterName -ValueOnly
+  if ($script:SeedParameters.ContainsKey($ParameterName)) {
+    return $script:SeedParameters[$ParameterName]
   }
 
   $envValue = [Environment]::GetEnvironmentVariable($EnvName, "Process")
@@ -168,6 +169,7 @@ SET @load_test_password_hash := $(ConvertTo-SqlLiteral $PasswordHash);
 
 "@
 
+Write-Host "Target: host=$HostName port=$Port database=$Database. Existing load-test data will be deleted."
 Invoke-MySqlSql ($sqlHeader + $cleanupSql)
 Invoke-MySqlSql ($sqlHeader + $seedSql)
 
