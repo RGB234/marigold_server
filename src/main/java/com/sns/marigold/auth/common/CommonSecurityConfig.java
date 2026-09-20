@@ -3,6 +3,7 @@ package com.sns.marigold.auth.common;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -10,6 +11,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.cors.CorsUtils;
 
 import com.sns.marigold.auth.common.csrf.CsrfTokenValidationFilter;
@@ -69,7 +71,9 @@ public class CommonSecurityConfig {
         .logout(
             logout ->
                 logout
-                    .logoutUrl(UrlConstants.AUTH_BASE + "/logout")
+                    .logoutRequestMatcher(
+                        PathPatternRequestMatcher.withDefaults()
+                            .matcher(HttpMethod.POST, UrlConstants.AUTH_BASE + "/logout"))
                     .addLogoutHandler(customLogoutHandler)
                     .logoutSuccessHandler(customLogoutSuccessHandler))
         .exceptionHandling(
