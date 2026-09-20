@@ -27,7 +27,7 @@ public class AdoptionPostDto {
 
   @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
   @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
-  @Schema(description = "입양 게시글 ID", example = "1")
+  @Schema(description = "입양 게시글 ID (TSID)", type = "string", example = "0HZX7J8K9M2NP")
   private Long id;
 
   @Schema(description = "게시글 제목", example = "가족을 찾습니다")
@@ -50,7 +50,7 @@ public class AdoptionPostDto {
   @Getter
   private String imageUrl;
 
-  @Schema(description = "게시글 상태", example = "OPEN")
+  @Schema(description = "게시글 상태", example = "PROCEEDING")
   private AdoptionPostStatus status;
 
   @Schema(description = "생성 시각", example = "2026-06-04T12:34:56")

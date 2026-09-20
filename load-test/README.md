@@ -33,6 +33,9 @@ k6 기반 백엔드 부하 테스트입니다. 작업 디렉터리는 `back/load
 
 `seed-rds.ps1`은 MySQL CLI를 사용합니다. RDS가 private subnet이면 같은 VPC 안의 runner에서 실행합니다.
 실행 시 `cleanup-adoption-data.sql`로 기존 load-test 데이터를 먼저 삭제한 뒤 `seed-adoption-data.sql`로 새 데이터를 생성합니다.
+삭제 직전에 최종 호스트, 포트, DB 이름을 출력합니다. `-ConfirmTestDatabase`는 해당 대상이 테스트 전용임을 확인한 뒤 지정합니다.
+
+설정 우선순위는 명시한 스크립트 인자 → 환경변수 → 스크립트 기본값입니다. 현재 작업 디렉터리의 `.env`를 먼저 읽으며, 파일의 값은 같은 이름의 기존 환경변수를 덮어씁니다. 다른 파일은 `-EnvFile .env.staging`으로 지정합니다. 기본 `.env`는 없어도 되지만, 명시한 환경파일이 없으면 오류로 종료합니다.
 
 비밀번호는 DB에는 bcrypt hash로 들어가고, k6 로그인에는 `LOAD_TEST_LOGIN_PASSWORD` 원문 비밀번호를 사용합니다. 두 값은 반드시 같은 비밀번호여야 합니다.
 
@@ -49,7 +52,7 @@ $env:LOAD_TEST_PASSWORD_HASH="..."
 .\seed-rds.ps1 -ConfirmTestDatabase
 ```
 
-기본값은 사용자 50명, 채팅방 50개, adoption post 5000개, post당 adoption comment 3개입니다. 변경하려면:
+환경변수와 인자가 없을 때의 기본값은 사용자 50명, 채팅방은 사용자 수와 동일, adoption post 5,000개, post당 adoption comment 3개입니다. `.env.example`을 `.env`로 복사하면 게시글 수는 예제에 지정된 500개가 적용됩니다. 변경하려면:
 
 ```powershell
 .\seed-rds.ps1 -UserCount 100 -ChatRoomCount 100 -PostCount 20000 -CommentsPerPost 5 -ConfirmTestDatabase
@@ -228,15 +231,17 @@ docker compose up -d
 - Prometheus: `http://localhost:9090`
 - Grafana: `http://localhost:3000` (`admin` / `admin`)
 - Grafana dashboard: `Marigold Load Test`
-- scrape 대상: `host.docker.internal:8080/actuator/prometheus`
-- k6 remote write endpoint: `.env.staging`의 `K6_PROMETHEUS_RW_SERVER_URL`
+- scrape 대상: `http://host.docker.internal:8080/actuator/prometheus`
+- k6 remote write endpoint: `.env` 또는 `.env.staging`의 `K6_PROMETHEUS_RW_SERVER_URL`
+
+공개 포트는 `127.0.0.1`에 바인딩되며, 이 구성은 로컬 개발용입니다. 기본 수집 대상은 Docker Desktop 호스트의 백엔드입니다. Linux Docker Engine에서는 `host.docker.internal`을 호스트 게이트웨이에 매핑하는 별도 설정이 필요합니다. staging을 관측하려면 `prometheus.yml`의 `scheme`과 `targets`를 해당 서버에 맞춰 변경합니다. k6의 `BASE_URL` 변경은 Prometheus 수집 대상에 반영되지 않습니다.
 
 백엔드를 `localhost:8080`으로 실행한 뒤 k6 테스트를 돌리면 Grafana에서 `http_server_requests_seconds` 기준 endpoint별 처리 시간과 실패율을 볼 수 있습니다.
 
 ## 프로파일
 
 - `tests/smoke.js`: 스크립트, 인증 데이터, WebSocket 연결 검증용
-- `tests/load.js`: 예상 정상 부하를 45분 동안 검증
+- `tests/load.js`: 17분의 부하 단계(증가 5분, 유지 10분, 감소 2분)로 예상 정상 부하를 검증. 진행 중인 요청의 종료 유예는 별도이며, 채팅 시나리오는 `gracefulStop: '100s'`로 설정
 - `tests/stress.js`: 단계적으로 VU를 올려 한계점을 확인
 - `tests/spike.js`: 순간 급증 후 회복 여부 확인
 - `tests/db-read.js`: 입양글 목록/상세/댓글/작성자 조회로 DB read I/O 확인
