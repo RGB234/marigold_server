@@ -30,6 +30,7 @@ import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.global.error.exception.InternalServerException;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.entity.User;
@@ -98,6 +99,12 @@ public class AdoptionCommentService {
     try {
       return transactionTemplate.execute(
           status -> {
+            if (!uploadedImages.isEmpty()) {
+              eventPublisher.publishEvent(
+                  new DeleteUploadedStorageFilesEvent(
+                      uploadedImages.stream().map(ImageUploadDto::getStoredFileName).toList()));
+            }
+
             AdoptionComment comment =
                 AdoptionComment.builder()
                     .adoptionPost(adoptionPost)
@@ -154,6 +161,12 @@ public class AdoptionCommentService {
     try {
       transactionTemplate.executeWithoutResult(
           status -> {
+            if (!uploadedImages.isEmpty()) {
+              eventPublisher.publishEvent(
+                  new DeleteUploadedStorageFilesEvent(
+                      uploadedImages.stream().map(ImageUploadDto::getStoredFileName).toList()));
+            }
+
             AdoptionComment comment = getUpdatableComment(postId, commentId, userId);
 
             comment.update(dto.getContent());

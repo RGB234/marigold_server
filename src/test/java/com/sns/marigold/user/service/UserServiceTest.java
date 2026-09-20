@@ -36,6 +36,7 @@ import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
@@ -287,7 +288,11 @@ class UserServiceTest {
 
     verify(storageService, times(1))
         .uploadImage(any(MultipartFile.class), eq(StorageDirectory.USER_PROFILE));
-    verify(eventPublisher, never()).publishEvent(any());
+    verify(eventPublisher)
+        .publishEvent(
+            new DeleteUploadedStorageFilesEvent(List.of(imageUploadDto.getStoredFileName())));
+    verify(eventPublisher, never()).publishEvent(any(DeleteOldStorageFilesEvent.class));
+    verify(storageService, never()).deleteUploadedImages(any());
   }
 
   @Test
@@ -331,6 +336,9 @@ class UserServiceTest {
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
     assertThat(eventCaptor.getValue().fileNames())
         .contains("user/profile/22222222-2222-2222-2222-222222222222.jpg");
+    verify(eventPublisher)
+        .publishEvent(
+            new DeleteUploadedStorageFilesEvent(List.of(imageUploadDto.getStoredFileName())));
   }
 
   @Test

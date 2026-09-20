@@ -3,6 +3,7 @@ package com.sns.marigold.storage.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
@@ -48,8 +49,9 @@ class LocalStorageServiceTest {
         storageService.getViewUrlOrNull("adoption/post/11111111-1111-1111-1111-111111111111.png");
 
     assertThat(url)
-        .isEqualTo(
-            "http://localhost:8080/api/v1/storage/files/adoption/post/11111111-1111-1111-1111-111111111111.png");
+        .startsWith(
+            "http://localhost:8080/api/v1/storage/files/adoption/post/11111111-1111-1111-1111-111111111111.png?");
+    assertThat(URI.create(url).getQuery()).contains("expires=", "signature=");
   }
 
   @Test
@@ -71,7 +73,9 @@ class LocalStorageServiceTest {
   }
 
   private LocalStorageService localStorageService() {
-    return new LocalStorageService(
-        new LocalStorageProperties(tempDir.toString(), "http://localhost:8080"));
+    LocalStorageProperties properties =
+        new LocalStorageProperties(
+            tempDir.toString(), "http://localhost:8080", "test-signing-secret", 60, 10);
+    return new LocalStorageService(properties, new LocalStorageUrlSigner(properties));
   }
 }

@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 public class StorageEventListener {
   private final StorageService storageService;
 
-  // 프로젝트 어디서든 StorageFileDeleteEvent가 발생하고 트랜잭션이 커밋되면 실행됨
+  // 프로젝트 어디서든 DeleteOldStorageFilesEvent 발생하고 트랜잭션이 커밋되면 실행됨
   @Async("storageTaskExecutor")
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void handleDeleteOldStorageFilesEvent(DeleteOldStorageFilesEvent event) {

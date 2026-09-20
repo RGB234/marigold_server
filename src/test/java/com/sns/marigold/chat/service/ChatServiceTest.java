@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -23,6 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -43,6 +46,7 @@ import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
@@ -63,6 +67,8 @@ class ChatServiceTest {
   @Mock private RoomParticipantRepository participantRepository;
 
   @Mock private StorageService storageService;
+
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks private ChatService chatService;
 
@@ -445,11 +451,55 @@ class ChatServiceTest {
     assertThat(result.getMessageType()).isEqualTo("FILE");
     assertThat(result.getAttachments()).hasSize(2);
     assertThat(result.getAttachments().get(0).getOriginalFileName()).isEqualTo("note.txt");
-    assertThat(result.getAttachments().get(1).getDownloadUrl()).isEqualTo("https://file/2");
+    assertThat(result.getAttachments().get(1).getViewUrl()).isEqualTo("https://file/2");
+    var order = inOrder(eventPublisher, chatMessageRepository);
+    order
+        .verify(eventPublisher)
+        .publishEvent(
+            new DeleteUploadedStorageFilesEvent(
+                List.of(
+                    "chat/attachment/11111111-1111-1111-1111-111111111111.txt",
+                    "chat/attachment/22222222-2222-2222-2222-222222222222.csv")));
+    order.verify(chatMessageRepository).saveAndFlush(any(ChatMessage.class));
+    verify(storageService, never()).deleteUploadedFiles(any());
     verify(storageService, times(1)).uploadFiles(any(), eq(StorageDirectory.CHAT_ATTACHMENT));
     verify(chatMessageRepository, times(1)).saveAndFlush(any(ChatMessage.class));
     verify(p1, times(1)).reJoin();
     verify(p2, times(1)).reJoin();
+  }
+
+  @Test
+  @DisplayName("파일 메시지 저장 실패 시 롤백 이벤트를 발행하고 즉시 삭제도 시도한다.")
+  void saveFileMessage_SaveFailure() {
+    MockMultipartFile file =
+        new MockMultipartFile(
+            "files", "note.txt", "text/plain", "hello".getBytes(StandardCharsets.UTF_8));
+    List<FileUploadDto> uploadedFiles =
+        List.of(
+            FileUploadDto.builder()
+                .storedFileName("chat/attachment/11111111-1111-1111-1111-111111111111.txt")
+                .originalFileName("note.txt")
+                .contentType("text/plain")
+                .fileSize(file.getSize())
+                .build());
+    given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(userRepository.findById(1L)).willReturn(Optional.of(user1));
+    RoomParticipant senderParticipant = createParticipant(chatRoom, user1);
+    given(participantRepository.findByChatRoomAndUser(chatRoom, user1))
+        .willReturn(Optional.of(senderParticipant));
+    given(storageService.uploadFiles(any(), eq(StorageDirectory.CHAT_ATTACHMENT)))
+        .willReturn(uploadedFiles);
+    given(chatMessageRepository.saveAndFlush(any(ChatMessage.class)))
+        .willThrow(new IllegalStateException("save failed"));
+
+    assertThatThrownBy(() -> chatService.saveFileMessage(100L, "", List.of(file), 1L))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("save failed");
+
+    verify(eventPublisher)
+        .publishEvent(
+            new DeleteUploadedStorageFilesEvent(List.of(uploadedFiles.get(0).getStoredFileName())));
+    verify(storageService).deleteUploadedFiles(uploadedFiles);
   }
 
   @Test

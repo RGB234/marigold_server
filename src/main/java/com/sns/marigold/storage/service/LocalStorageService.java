@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Objects;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -28,7 +29,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class LocalStorageService extends AbstractStorageService {
 
+  private static final String GET = "GET";
+
   private final LocalStorageProperties localStorageProperties;
+  private final LocalStorageUrlSigner localStorageUrlSigner;
 
   @Override
   protected FileUploadDto uploadFileWithMetadata(
@@ -64,10 +68,14 @@ public class LocalStorageService extends AbstractStorageService {
       return null;
     }
     validateStoredFileName(storedFileName);
+    String path = toViewPath(storedFileName);
+    long expiresAt =
+        localStorageUrlSigner.expiresAt(
+            Duration.ofMinutes(localStorageProperties.viewUrlTtlMinutes()));
     return UriComponentsBuilder.fromUriString(publicBaseUrl())
-        .path(UrlConstants.STORAGE_BASE)
-        .path("/files/")
-        .path(storedFileName)
+        .path(path)
+        .queryParam("expires", expiresAt)
+        .queryParam("signature", localStorageUrlSigner.sign(GET, path, expiresAt, null))
         .build()
         .encode(StandardCharsets.UTF_8)
         .toUriString();
@@ -79,12 +87,18 @@ public class LocalStorageService extends AbstractStorageService {
       throw StorageException.forFileNotFound();
     }
     validateStoredFileName(storedFileName);
+    String sanitizedOriginalFileName = sanitizeContentDispositionFileName(originalFileName);
+    String path = toDownloadPath(storedFileName);
+    long expiresAt =
+        localStorageUrlSigner.expiresAt(
+            Duration.ofMinutes(localStorageProperties.downloadUrlTtlMinutes()));
     return UriComponentsBuilder.fromUriString(publicBaseUrl())
-        .path(UrlConstants.STORAGE_BASE)
-        .path("/files/")
-        .path(storedFileName)
-        .path("/download")
-        .queryParam("filename", sanitizeContentDispositionFileName(originalFileName))
+        .path(path)
+        .queryParam("filename", sanitizedOriginalFileName)
+        .queryParam("expires", expiresAt)
+        .queryParam(
+            "signature",
+            localStorageUrlSigner.sign(GET, path, expiresAt, sanitizedOriginalFileName))
         .build()
         .encode(StandardCharsets.UTF_8)
         .toUriString();
@@ -129,6 +143,14 @@ public class LocalStorageService extends AbstractStorageService {
   private String publicBaseUrl() {
     return Objects.requireNonNull(
         localStorageProperties.publicBaseUrl(), "local storage public base URL must not be null");
+  }
+
+  private String toViewPath(String storedFileName) {
+    return UrlConstants.STORAGE_BASE + "/files/" + storedFileName;
+  }
+
+  private String toDownloadPath(String storedFileName) {
+    return toViewPath(storedFileName) + "/download";
   }
 
   private void deletePartialFile(Path targetPath) {

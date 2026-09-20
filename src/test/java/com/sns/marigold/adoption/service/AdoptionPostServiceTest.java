@@ -58,10 +58,12 @@ import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.entity.User;
+import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.service.UserService;
 
 @ExtendWith(MockitoExtension.class)
@@ -212,6 +214,36 @@ class AdoptionPostServiceTest {
     assertThat(capturedPost.getImages().get(0).getOriginalFileName()).isEqualTo("original.jpg");
     assertThat(capturedPost.getImages().get(0).getStoredFileName())
         .isEqualTo("adoption/post/33333333-3333-3333-3333-333333333333.jpg");
+    var order = inOrder(eventPublisher, adoptionPostRepository);
+    order
+        .verify(eventPublisher)
+        .publishEvent(
+            new DeleteUploadedStorageFilesEvent(
+                List.of("adoption/post/33333333-3333-3333-3333-333333333333.jpg")));
+    order.verify(adoptionPostRepository).save(any(AdoptionPost.class));
+    verify(storageService, never()).deleteUploadedImages(any());
+  }
+
+  @Test
+  @DisplayName("업로드 후 트랜잭션 시작 전 실패하면 새 파일을 직접 삭제한다.")
+  void create_FailureBeforeTransactionDeletesUploadedImages() {
+    MockMultipartFile image =
+        new MockMultipartFile("images", "new.jpg", "image/jpeg", new byte[] {1});
+    AdoptionPostCreateDto dto = AdoptionPostCreateDto.builder().images(List.of(image)).build();
+    List<ImageUploadDto> uploadedImages =
+        List.of(
+            new ImageUploadDto(
+                "adoption/post/33333333-3333-3333-3333-333333333333.jpg", "new.jpg"));
+    given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_POST)))
+        .willReturn(uploadedImages);
+    UserException failure = UserException.forUserNotFound();
+    given(userService.findEntityById(1L)).willThrow(failure);
+
+    assertThatThrownBy(() -> adoptionPostService.create(dto, 1L)).isSameAs(failure);
+
+    verify(storageService).deleteUploadedImages(uploadedImages);
+    verify(eventPublisher, never()).publishEvent(any());
+    verify(transactionTemplate, never()).execute(any());
   }
 
   @Test
@@ -266,6 +298,10 @@ class AdoptionPostServiceTest {
 
     assertThat(eventCaptor.getValue().fileNames())
         .contains("adoption/post/22222222-2222-2222-2222-222222222222.jpg");
+    verify(eventPublisher)
+        .publishEvent(
+            new DeleteUploadedStorageFilesEvent(
+                List.of("adoption/post/44444444-4444-4444-4444-444444444444.jpg")));
   }
 
   @Test
@@ -343,7 +379,8 @@ class AdoptionPostServiceTest {
     given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
     given(storageService.getViewUrlOrNull(missingStoredFileName))
         .willThrow(StorageException.forFileNotFound());
-    given(storageService.getViewUrlOrNull(storedFileName)).willReturn("http://example.com/image.jpg");
+    given(storageService.getViewUrlOrNull(storedFileName))
+        .willReturn("http://example.com/image.jpg");
 
     // when
     AdoptionPostDetailDto result = adoptionPostService.getDetail(100L);

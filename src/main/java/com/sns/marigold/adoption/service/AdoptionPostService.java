@@ -41,6 +41,7 @@ import com.sns.marigold.global.error.exception.BusinessException;
 import com.sns.marigold.global.error.exception.InternalServerException;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
@@ -83,12 +84,18 @@ public class AdoptionPostService {
     List<ImageUploadDto> uploadedImages =
         storageService.uploadImages(images, StorageDirectory.ADOPTION_POST);
 
-    User writer = userService.findEntityById(writerId);
-    AdoptionPost adoptionPost = dto.toEntity(writer);
-
     try {
+      User writer = userService.findEntityById(writerId);
+      AdoptionPost adoptionPost = dto.toEntity(writer);
+
       return transactionTemplate.execute(
           status -> {
+            if (!uploadedImages.isEmpty()) {
+              eventPublisher.publishEvent(
+                  new DeleteUploadedStorageFilesEvent(
+                      uploadedImages.stream().map(ImageUploadDto::getStoredFileName).toList()));
+            }
+
             adoptionPost.changeImages(
                 uploadedImages.stream()
                     .map(
@@ -164,6 +171,12 @@ public class AdoptionPostService {
       // 3. DB 트랜잭션 (데이터 변경)
       transactionTemplate.executeWithoutResult(
           status -> {
+            if (!uploadedImages.isEmpty()) {
+              eventPublisher.publishEvent(
+                  new DeleteUploadedStorageFilesEvent(
+                      uploadedImages.stream().map(ImageUploadDto::getStoredFileName).toList()));
+            }
+
             // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
             AdoptionPost info = findEntityById(postId);
             info.updateInfo(editor);
@@ -304,8 +317,7 @@ public class AdoptionPostService {
         && detailResponseDto.getWriter().getImageUrl() != null) {
       detailResponseDto
           .getWriter()
-          .setImageUrl(
-              resolveViewUrlOrNull(detailResponseDto.getWriter().getImageUrl()));
+          .setImageUrl(resolveViewUrlOrNull(detailResponseDto.getWriter().getImageUrl()));
     }
 
     List<String> imageUrls =

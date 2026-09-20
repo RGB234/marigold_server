@@ -20,6 +20,7 @@ import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.dto.response.UserInfoDto;
@@ -125,7 +126,7 @@ public class UserService {
 
   @Transactional
   public void updateUser(Long uid, UserUpdateDto dto) {
-    // 1. 이미지 업로드 (트랜잭션 밖에서 수행)
+    // 1. 이미지 업로드
     ImageUploadDto uploadedImageDto = null;
     if (dto.getImage() != null && !dto.getImage().isEmpty()) {
       uploadedImageDto = storageService.uploadImage(dto.getImage(), StorageDirectory.USER_PROFILE);
@@ -137,6 +138,12 @@ public class UserService {
       // 2. DB 트랜잭션 (데이터 변경)
       transactionTemplate.executeWithoutResult(
           status -> {
+            if (newImageUploadDto != null) {
+              eventPublisher.publishEvent(
+                  new DeleteUploadedStorageFilesEvent(
+                      List.of(newImageUploadDto.getStoredFileName())));
+            }
+
             // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
             User user = findEntityById(uid);
             UserImage previousImage = user.getImage();

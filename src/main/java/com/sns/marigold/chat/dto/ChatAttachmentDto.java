@@ -34,8 +34,8 @@ public class ChatAttachmentDto {
   private long fileSize;
 
   @Schema(
-      description = "다운로드 URL",
-      example = "https://example.com/download/photo.jpg",
+      description = "파일 열람 URL",
+      example = "https://example.com/files/photo.jpg",
       nullable = true)
-  private String downloadUrl;
+  private String viewUrl;
 }

@@ -1,0 +1,141 @@
+
+
+flowchart TB
+    %% 주요 요청·호출 관계를 표시하며, 일반적인 응답과 일부 서비스 간 호출은 생략한다.
+    %% 실선: 요청·호출·메시지 전달 / 점선: 이벤트 발행·구현체 선택
+    %% HTTP 노드는 일반 요청의 보안 구성을 묶은 것으로, 내부 필터 순서를 뜻하지 않는다.
+    FE["Frontend / Browser"]
+    Provider["Kakao / Naver<br/>OAuth2 Provider"]
+    Prometheus["Prometheus"]
+
+    subgraph Backend["Marigold Backend · Spring Boot 3.5 / Java 17"]
+        direction TB
+
+        subgraph Security["요청 진입 · HTTP 보안"]
+            direction LR
+            OAuth["OAuth2 인증<br/>OAuth2SecurityConfig · order 1<br/>/oauth2/**"]
+            HTTP["일반 HTTP 보안<br/>CommonSecurityConfig · order 2<br/>CORS · 조건부 CSRF 검사<br/>JwtAuthenticationFilter · 별도 Servlet Filter"]
+        end
+
+        subgraph Presentation["컨트롤러 · 메시지 처리"]
+            direction LR
+            REST["REST Controllers<br/>Auth · User · AdoptionPost<br/>AdoptionComment · ChatRoom<br/>/api/v1/** · 보호 API에 @PreAuthorize"]
+
+            WS["WebSocketConfig · SockJS / STOMP<br/>/ws<br/>CONNECT: CSRF 검증 · JWT 처리<br/>SUBSCRIBE: 채팅방 참가자 검사"]
+
+            ChatController["ChatController<br/>/pub/chat/message<br/>@PreAuthorize"]
+
+            LocalController["LocalStorageController<br/>/api/v1/storage/files/**<br/>서명 · 만료 검증 후 파일 응답<br/>app.storage.type=local"]
+
+            Messaging["SimpMessagingTemplate<br/>저장된 채팅 메시지 발행"]
+            Broker["Simple Broker · /sub<br/>프로세스 내 구독자에게 전달"]
+        end
+
+        subgraph Application["서비스 계층 · 비즈니스 로직"]
+            direction LR
+            Auth["인증 서비스<br/>AuthService · CustomOAuth2UserService<br/>JwtAuthenticationService<br/>CSRF · Recent Auth"]
+            User["UserService<br/>회원 · 프로필 관리"]
+            Adoption["AdoptionPostService<br/>AdoptionCommentService<br/>입양 게시글 · 댓글 관리"]
+            Chat["ChatService<br/>채팅방 · 참가자 · 메시지 관리<br/>메시지 전송 권한 검사"]
+        end
+
+        subgraph Persistence["영속성 계층"]
+            JPA["Spring Data JPA Repositories<br/>User · Adoption · Chat"]
+        end
+
+        subgraph Storage["파일 저장소 연동"]
+            direction TB
+            StoragePort["StorageService · interface<br/>파일 저장 · 삭제<br/>조회 / 다운로드 URL 발급"]
+
+            Events["StorageEventListener · 비동기 실행<br/>AFTER_COMMIT: 기존 파일 삭제<br/>AFTER_ROLLBACK: 새 업로드 파일 삭제"]
+
+            Local["LocalStorageService<br/>파일 저장 · 읽기 · 삭제<br/>조회 / 다운로드 서명 URL 생성"]
+
+            Signer["LocalStorageUrlSigner<br/>HMAC-SHA256 서명 · 만료 검증<br/>서명 대상: GET · 경로 · 만료 시각 · 파일명"]
+
+            S3Adapter["S3StorageService<br/>파일 저장 · 삭제<br/>조회 / 다운로드 Presigned GET URL 생성"]
+        end
+
+        subgraph Support["공통 처리 · 운영 지원"]
+            direction LR
+            Common["ApiResult · GlobalExceptionHandler<br/>Bean Validation · ValidationPolicy<br/>TSID / Jackson · AuditLogger"]
+            Docs["Springdoc OpenAPI<br/>local에서 활성화"]
+            Actuator["Actuator · Micrometer<br/>health · metrics · prometheus"]
+        end
+    end
+
+    DB[("MySQL<br/>Local DB / AWS RDS")]
+    %% FS는 app.storage.type에 따라 선택되는 파일 저장소를 하나로 표현한다.
+    FS[("파일 저장소<br/>Local FS / AWS S3")]
+
+    %% 요청 진입
+    FE -->|"REST · Multipart 업로드 · WS 연결"| HTTP
+    FE -->|"app.storage.type=local<br/>HMAC-SHA256 서명 URL로 GET"| HTTP
+    FE -->|"소셜 로그인"| OAuth
+    OAuth <-->|"OAuth2 연동"| Provider
+
+    HTTP -->|"REST API"| REST
+    HTTP -->|"Handshake / SockJS"| WS
+    HTTP -->|"로컬 파일 GET"| LocalController
+
+    %% 인증 · 비즈니스 처리
+    OAuth --> Auth
+    HTTP -->|"JWT 인증 처리"| Auth
+    REST --> Auth
+    REST --> User
+    REST --> Adoption
+    REST --> Chat
+
+    %% 실시간 채팅
+    WS -->|"JwtAuthenticationService 호출"| Auth
+    WS -->|"SEND /pub/chat/message"| ChatController
+    ChatController --> Chat
+    ChatController -->|"메시지 저장 성공 후 발행"| Messaging
+    REST -->|"채팅 첨부파일 메시지 저장 후 발행"| Messaging
+    Messaging --> Broker
+    WS -->|"참가자 검사 후 채팅방 SUBSCRIBE"| Broker
+    Broker -->|"STOMP MESSAGE · /sub/chat/room/{roomId}"| FE
+
+    %% 데이터 영속화
+    Auth --> JPA
+    User --> JPA
+    Adoption --> JPA
+    Chat --> JPA
+    WS -->|"구독 참가자 조회 · RoomParticipantRepository"| JPA
+    JPA --> DB
+
+    %% 파일 처리
+    User --> StoragePort
+    Adoption --> StoragePort
+    Chat --> StoragePort
+
+    User -.->|"커밋 후 기존 파일 / 롤백 시 새 파일 삭제 이벤트"| Events
+    Adoption -.->|"커밋 후 기존 파일 / 롤백 시 새 파일 삭제 이벤트"| Events
+    Chat -.->|"롤백 시 새 첨부파일 삭제 이벤트"| Events
+    Events --> StoragePort
+    %% 새 파일의 삭제 이벤트는 DB 변경 전 트랜잭션 안에서 발행하며, 롤백 시에만 처리한다.
+    %% 서비스 내부에서 포착한 실패는 직접 삭제도 시도하며, 같은 파일의 중복 삭제는 허용한다.
+
+    StoragePort -.->|"app.storage.type=local"| Local
+    StoragePort -.->|"app.storage.type=s3"| S3Adapter
+
+    LocalController -->|"서명 · 만료 검증"| Signer
+    LocalController -->|"검증 통과 후 파일 읽기"| Local
+    Local -->|"URL 서명"| Signer
+    Local -->|"app.storage.type=local<br/>저장 · 읽기 · 삭제"| FS
+    S3Adapter -->|"app.storage.type=s3<br/>저장 · 삭제"| FS
+    FE -->|"app.storage.type=s3<br/>발급받은 Presigned URL로 직접 GET"| FS
+
+    %% 모니터링
+    Prometheus -->|"GET /actuator/prometheus"| HTTP
+    HTTP -->|"Actuator 요청"| Actuator
+
+    classDef external fill:#f8fafc,stroke:#64748b,color:#0f172a
+    classDef security fill:#fff7ed,stroke:#ea580c,color:#7c2d12
+    classDef service fill:#eff6ff,stroke:#2563eb,color:#1e3a8a
+    classDef storage fill:#f0fdf4,stroke:#16a34a,color:#14532d
+
+    class FE,Provider,Prometheus,DB,FS external
+    class HTTP,OAuth security
+    class Auth,User,Adoption,Chat service
+    class JPA,StoragePort,Events,Local,Signer,S3Adapter storage

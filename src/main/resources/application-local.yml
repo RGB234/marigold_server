@@ -45,6 +45,9 @@ app:
     local:
       root-path: ${LOCAL_STORAGE_ROOT:./uploads}
       public-base-url: ${LOCAL_STORAGE_PUBLIC_BASE_URL:http://localhost:8080}
+      signing-secret: ${LOCAL_STORAGE_SIGNING_SECRET:local-dev-signing-secret}
+      view-url-ttl-minutes: ${LOCAL_STORAGE_VIEW_URL_TTL_MINUTES:60}
+      download-url-ttl-minutes: ${LOCAL_STORAGE_DOWNLOAD_URL_TTL_MINUTES:10}
   auth:
     recent-auth:
       ttl-seconds: 300

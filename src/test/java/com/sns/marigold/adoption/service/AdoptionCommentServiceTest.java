@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -28,6 +29,7 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.sns.marigold.adoption.dto.AdoptionCommentCreateDto;
 import com.sns.marigold.adoption.dto.AdoptionCommentUpdateDto;
 import com.sns.marigold.adoption.entity.AdoptionComment;
 import com.sns.marigold.adoption.entity.AdoptionCommentImage;
@@ -41,6 +43,7 @@ import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.entity.User;
@@ -120,6 +123,36 @@ class AdoptionCommentServiceTest {
   }
 
   @Test
+  @DisplayName("댓글 생성 시 DB 저장 전에 새 이미지의 롤백 삭제 이벤트를 발행한다.")
+  void createComment_PublishesRollbackEventBeforeSave() {
+    MockMultipartFile image =
+        new MockMultipartFile("images", "new.jpg", "image/jpeg", new byte[] {1});
+    AdoptionCommentCreateDto dto =
+        AdoptionCommentCreateDto.builder().content("new comment").images(List.of(image)).build();
+    String storedFileName = "adoption/comment/33333333-3333-3333-3333-333333333333.jpg";
+    given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(post));
+    given(userService.findEntityById(1L)).willReturn(writer);
+    given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_COMMENT)))
+        .willReturn(List.of(new ImageUploadDto(storedFileName, "new.jpg")));
+    given(adoptionCommentRepository.save(any(AdoptionComment.class)))
+        .willAnswer(
+            invocation -> {
+              AdoptionComment saved = invocation.getArgument(0);
+              ReflectionTestUtils.setField(saved, "id", 10L);
+              return saved;
+            });
+
+    assertThat(adoptionCommentService.createComment(100L, 1L, dto)).isEqualTo(10L);
+
+    var order = inOrder(eventPublisher, adoptionCommentRepository);
+    order
+        .verify(eventPublisher)
+        .publishEvent(new DeleteUploadedStorageFilesEvent(List.of(storedFileName)));
+    order.verify(adoptionCommentRepository).save(any(AdoptionComment.class));
+    verify(storageService, never()).deleteUploadedImages(any());
+  }
+
+  @Test
   @DisplayName("댓글 작성자는 댓글 내용을 수정할 수 있다.")
   void updateComment_Success() {
     // given
@@ -172,6 +205,10 @@ class AdoptionCommentServiceTest {
         .containsExactlyInAnyOrder(
             "adoption/comment/11111111-1111-1111-1111-111111111111.jpg",
             "adoption/comment/22222222-2222-2222-2222-222222222222.jpg");
+    verify(eventPublisher)
+        .publishEvent(
+            new DeleteUploadedStorageFilesEvent(
+                List.of("adoption/comment/33333333-3333-3333-3333-333333333333.jpg")));
   }
 
   @Test
