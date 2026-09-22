@@ -14,16 +14,16 @@ flowchart TB
         subgraph Security["요청 진입 · HTTP 보안"]
             direction LR
             OAuth["OAuth2 인증<br/>OAuth2SecurityConfig · order 1<br/>/oauth2/**"]
-            HTTP["일반 HTTP 보안<br/>CommonSecurityConfig · order 2<br/>CORS · 조건부 CSRF 검사<br/>JwtAuthenticationFilter · 별도 Servlet Filter"]
+            HTTP["일반 HTTP 보안<br/>CommonSecurityConfig · order 2<br/>CORS · 조건부 CSRF 검사<br/>JwtAuthenticationFilter · SecurityFilterChain 내부 등록"]
         end
 
         subgraph Presentation["컨트롤러 · 메시지 처리"]
             direction LR
-            REST["REST Controllers<br/>Auth · User · AdoptionPost<br/>AdoptionComment · ChatRoom<br/>/api/v1/** · 보호 API에 @PreAuthorize"]
+            REST["REST Controllers<br/>Auth · User · AdoptionPost<br/>AdoptionComment · ChatController<br/>/api/v1/** · 보호 API에 @PreAuthorize"]
 
             WS["WebSocketConfig · SockJS / STOMP<br/>/ws<br/>CONNECT: CSRF 검증 · JWT 처리<br/>SUBSCRIBE: 채팅방 참가자 검사"]
 
-            ChatController["ChatController<br/>/pub/chat/message<br/>@PreAuthorize"]
+            ChatWebSocketController["ChatWebSocketController<br/>/pub/chat/message<br/>@PreAuthorize"]
 
             LocalController["LocalStorageController<br/>/api/v1/storage/files/**<br/>서명 · 만료 검증 후 파일 응답<br/>app.storage.type=local"]
 
@@ -88,9 +88,9 @@ flowchart TB
 
     %% 실시간 채팅
     WS -->|"JwtAuthenticationService 호출"| Auth
-    WS -->|"SEND /pub/chat/message"| ChatController
-    ChatController --> Chat
-    ChatController -->|"메시지 저장 성공 후 발행"| Messaging
+    WS -->|"SEND /pub/chat/message"| ChatWebSocketController
+    ChatWebSocketController --> Chat
+    ChatWebSocketController -->|"메시지 저장 성공 후 발행"| Messaging
     REST -->|"채팅 첨부파일 메시지 저장 후 발행"| Messaging
     Messaging --> Broker
     WS -->|"참가자 검사 후 채팅방 SUBSCRIBE"| Broker

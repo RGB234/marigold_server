@@ -29,7 +29,7 @@ REST API prefix는 `/api/v1`입니다.
 
 ## 공통 응답
 
-모든 API 응답은 `ApiResult<T>` 형태를 사용합니다.
+일반 업무 API의 JSON 응답은 `ApiResult<T>` 형태를 사용합니다.
 
 성공 응답 예시:
 
@@ -63,57 +63,20 @@ REST API prefix는 `/api/v1`입니다.
 
 `data`와 `errors`는 값이 없으면 응답에서 빠질 수 있습니다.
 
-## 인증
+## 공통 응답 예외
 
-access token이 필요한 API는 아래 헤더를 사용합니다.
+`ApiResult`를 사용하지 않는 주요 응답은 다음과 같습니다. 아래 표는 정상 응답 또는 해당 프로토콜의 응답 형식을 설명합니다.
 
-```http
-Authorization: Bearer {accessToken}
-```
+| 구분                         | 경로·대상 | 응답 형식 |
+|----------------------------| --- | --- |
+| 로컬 파일 조회 (profile=local)   | `GET /api/v1/storage/files/{domain}/{type}/{fileName}` | `ResponseEntity<Resource>`로 파일 본문을 직접 반환. 파일의 `Content-Type`, `Content-Length` 설정 |
+| 로컬 파일 다운로드 (profile=local) | 위 경로의 `/download` | 파일 본문을 직접 반환하고 `Content-Disposition: attachment`로 다운로드 파일명 지정 |
+| OAuth2 로그인 시작              | `/oauth2/authorization/kakao`, `/oauth2/authorization/naver` | 공급자 로그인 페이지로 HTTP redirect |
+| OAuth2 callback 처리 결과      | `/oauth2/code/kakao`, `/oauth2/code/naver` | 성공·실패 핸들러가 프론트 callback으로 redirect. 결과는 `auth_status` 또는 `error`, `error_description` query로 전달 |
+| 실시간 채팅 메시지                 | `/sub/chat/room/{roomId}` 구독 | STOMP 메시지 payload로 `ChatMessageDto`를 직접 전달. 텍스트 메시지와 첨부파일 메시지의 구독 알림 모두 해당 |
+| WebSocket·SockJS 연결        | `/ws`, `/ws/**` | 연결 handshake와 SockJS/STOMP 프로토콜 응답 |
+| 상태·메트릭 조회                  | `/actuator/health`, `/actuator/metrics`, `/actuator/metrics/{name}` | Actuator 자체 JSON 형식 |
+| Prometheus 수집              | `/actuator/prometheus` | 메트릭 수집용 텍스트 형식 |
+| API 명세·문서 화면               | `/v3/api-docs`, `/swagger-ui/**` | OpenAPI 명세 JSON과 Swagger UI의 HTML·정적 리소스. 현재 local 프로필에서 활성화 |
 
-권한 제어는 필터 체인보다 컨트롤러의 `@PreAuthorize`를 기준으로 합니다. 공개 API는 `permitAll()`, 인증 필요 API는 `isAuthenticated()`로 구분됩니다.
-
-## CSRF
-
-쿠키 기반 인증 상태에서 unsafe method를 호출할 때는 CSRF header를 함께 보냅니다.
-
-대상 method:
-
-- `POST`
-- `PUT`
-- `PATCH`
-- `DELETE`
-
-서버는 `XSRF-TOKEN` 쿠키와 `X-CSRF-TOKEN` 응답 헤더를 발급합니다. 프론트엔드는 unsafe 요청에 아래 헤더를 포함합니다.
-
-```http
-X-CSRF-TOKEN: {XSRF-TOKEN cookie value}
-```
-
-CSRF 검증 실패 시 `AUTH_ACCESS_DENIED` 응답을 반환합니다.
-
-## Multipart
-
-이미지나 파일이 포함된 요청은 `multipart/form-data`를 사용합니다. DTO와 파일 part 이름은 Swagger UI의 request schema를 기준으로 맞춥니다.
-
-파일 검증 정책은 [검증 정책](validation-policy.md)을 기준으로 합니다.
-
-## Pagination
-
-목록 조회 API는 Spring `Pageable`을 사용합니다. 일반적인 query parameter는 아래와 같습니다.
-
-```http
-?page=0&size=10&sort=createdAt,desc
-```
-
-컨트롤러에서 기본 정렬을 지정한 API는 별도 query parameter가 없으면 해당 기본값을 사용합니다.
-
-## ID 형식
-
-외부에 노출되는 주요 ID는 TSID 문자열을 사용합니다. 검증 정책상 TSID는 Crockford Base32 13자 형식입니다.
-
-서버 내부에서는 `Long`으로 변환해서 처리합니다.
-
-## WebSocket
-
-WebSocket은 [인증 흐름](auth-flow.md)의 WebSocket 섹션을 기준으로 연동합니다.
+S3 presigned URL로 접근한 파일은 S3가 직접 응답하므로 백엔드 공통 응답 형식의 적용 대상이 아닙니다.
