@@ -42,7 +42,6 @@ import com.sns.marigold.global.dto.ApiResult;
 import com.sns.marigold.global.tsid.TsidType;
 import com.sns.marigold.global.web.UrlConstants;
 
-import io.hypersistence.tsid.TSID;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -92,7 +91,7 @@ public class AdoptionPostController {
             ApiResult.success(
                 HttpStatus.CREATED,
                 "Adoption post created successfully",
-                Map.of("id", TSID.from(adoptionPostId).toString())));
+                Map.of("id", adoptionPostId.toString())));
   }
 
   /*

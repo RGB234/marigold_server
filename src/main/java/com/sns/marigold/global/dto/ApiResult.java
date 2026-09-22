@@ -32,15 +32,17 @@ public class ApiResult<T> {
   @Schema(description = "응답 메시지", example = "fetched successfully")
   private final String message;
 
-  // 데이터가 null일 경우 JSON 응답에서 필드 자체를 제외하고 싶다면 아래 어노테이션 추가
+  // 데이터가 null일 경우 JSON 응답에서 필드 자체를 제외
   @Schema(description = "응답 데이터")
   @JsonInclude(JsonInclude.Include.NON_NULL)
   private final T data;
 
   @Schema(description = "에러 코드. 성공 응답이면 null", example = "INVALID_INPUT_VALUE", nullable = true)
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   private final String errorCode;
 
   @Schema(description = "필드 단위 에러 목록", nullable = true)
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   private final List<? extends ErrorDetail> errors;
 
   // --- 성공 응답 팩토리 메서드 ---

@@ -19,10 +19,8 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NewChatDto {
-  @Schema(description = "TSID 형식 입양 게시글 ID", type = "string", example = "01JABCDEF1234")
+  @Schema(description = "입양 게시글 ID", type = "string", example = "123")
   @NotNull
-  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
   private Long adoptionPostId;
 
   @Schema(description = "TSID 형식 상대 사용자 ID", type = "string", example = "01JABCDEF1234")

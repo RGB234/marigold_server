@@ -6,7 +6,6 @@ import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import com.sns.marigold.global.tsid.TsidAnnotationFormatterFactory;
-import com.sns.marigold.global.tsid.TsidFormatter;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
@@ -14,7 +13,5 @@ public class WebConfig implements WebMvcConfigurer {
   @Override
   public void addFormatters(@NonNull FormatterRegistry registry) {
     registry.addFormatterForFieldAnnotation(new TsidAnnotationFormatterFactory());
-    // @PathVariable/@RequestParam의 Long 타입 변환에 사용 (숫자 및 Base32 TSID 모두 지원)
-    registry.addFormatter(new TsidFormatter());
   }
 }

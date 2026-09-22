@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.sns.marigold.chat.enums.ChatRoomStatus;
 import com.sns.marigold.global.tsid.TsidJacksonConfig;
 
@@ -27,9 +28,8 @@ public class ChatRoomDto {
   @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
   private Long id;
 
-  @Schema(description = "TSID 형식 입양 게시글 ID", type = "string", example = "01JABCDEG5678")
-  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
+  @Schema(description = "입양 게시글 ID", type = "string", example = "123")
+  @JsonSerialize(using = ToStringSerializer.class)
   private Long postId;
 
   @Schema(description = "입양 게시글 제목", example = "가족을 찾습니다")

@@ -7,11 +7,12 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import com.sns.marigold.user.entity.User;
 
-import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
@@ -44,7 +45,7 @@ import lombok.NoArgsConstructor;
 public class RoomParticipant {
 
   @Id
-  @Tsid
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
   @Column(updatable = false, nullable = false)
   private Long id;
 

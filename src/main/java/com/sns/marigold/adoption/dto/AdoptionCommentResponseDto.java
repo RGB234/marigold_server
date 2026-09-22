@@ -3,6 +3,8 @@ package com.sns.marigold.adoption.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.sns.marigold.adoption.entity.AdoptionComment;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 
@@ -21,10 +23,12 @@ import lombok.Setter;
 @Builder
 public class AdoptionCommentResponseDto {
 
-  @Schema(description = "댓글 ID", example = "1")
+  @JsonSerialize(using = ToStringSerializer.class)
+  @Schema(description = "댓글 ID", type = "string", example = "1")
   private Long id;
 
-  @Schema(description = "입양 게시글 ID", example = "10")
+  @JsonSerialize(using = ToStringSerializer.class)
+  @Schema(description = "입양 게시글 ID", type = "string", example = "10")
   private Long adoptionPostId;
 
   @Schema(description = "삭제 여부", example = "false")

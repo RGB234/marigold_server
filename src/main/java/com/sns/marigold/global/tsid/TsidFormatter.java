@@ -11,7 +11,7 @@ import org.springframework.util.StringUtils;
 import io.hypersistence.tsid.TSID;
 
 /*
-Formatter의 경우 URI나 폼 데이터의 경우에 호출. WebConfig로 등록하여 전역으로 적용.
+Formatter의 경우 URI나 폼 데이터의 @TsidType Long 값에 적용.
 @RequestBody 기반의 JSON 데이터에는 TsidJacksonConfig 담당.
  */
 public class TsidFormatter implements Formatter<Long> {

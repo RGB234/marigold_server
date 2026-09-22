@@ -28,7 +28,6 @@ import com.sns.marigold.global.config.SwaggerConfig;
 import com.sns.marigold.global.dto.ApiResult;
 import com.sns.marigold.global.web.UrlConstants;
 
-import io.hypersistence.tsid.TSID;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -80,7 +79,7 @@ public class AdoptionCommentController {
             ApiResult.success(
                 HttpStatus.CREATED,
                 "Comment created successfully",
-                Map.of("id", TSID.from(commentId).toString())));
+                Map.of("id", commentId.toString())));
   }
 
   @Operation(

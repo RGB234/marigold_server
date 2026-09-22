@@ -2,13 +2,12 @@ package com.sns.marigold.adoption.dto;
 
 import java.time.LocalDateTime;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.enums.AdoptionPostStatus;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
-import com.sns.marigold.global.tsid.TsidJacksonConfig;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AccessLevel;
@@ -25,9 +24,8 @@ import lombok.Setter;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AdoptionPostDto {
 
-  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
-  @Schema(description = "입양 게시글 ID (TSID)", type = "string", example = "0HZX7J8K9M2NP")
+  @JsonSerialize(using = ToStringSerializer.class)
+  @Schema(description = "입양 게시글 ID", type = "string", example = "123")
   private Long id;
 
   @Schema(description = "게시글 제목", example = "가족을 찾습니다")

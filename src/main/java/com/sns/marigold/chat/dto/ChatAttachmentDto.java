@@ -1,8 +1,7 @@
 package com.sns.marigold.chat.dto;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.sns.marigold.global.tsid.TsidJacksonConfig;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -19,9 +18,8 @@ import lombok.Setter;
 @Builder
 public class ChatAttachmentDto {
 
-  @Schema(description = "TSID 형식 첨부파일 ID", type = "string", example = "01JABCDEF1234")
-  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
+  @Schema(description = "첨부파일 ID", type = "string", example = "123")
+  @JsonSerialize(using = ToStringSerializer.class)
   private Long id;
 
   @Schema(description = "원본 파일명", example = "photo.jpg")
