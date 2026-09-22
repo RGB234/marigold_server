@@ -1,5 +1,6 @@
 package com.sns.marigold.auth.common;
 
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -10,6 +11,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.cors.CorsUtils;
@@ -18,6 +20,7 @@ import com.sns.marigold.auth.common.csrf.CsrfTokenValidationFilter;
 import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutSuccessHandler;
+import com.sns.marigold.auth.common.jwt.JwtAuthenticationFilter;
 import com.sns.marigold.global.config.UrlProperties;
 import com.sns.marigold.global.web.UrlConstants;
 
@@ -36,6 +39,7 @@ public class CommonSecurityConfig {
   private final CustomLogoutHandler customLogoutHandler;
   private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
   private final CsrfTokenValidationFilter csrfTokenValidationFilter;
+  private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
   private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
   private final UrlProperties urlProperties;
@@ -63,11 +67,15 @@ public class CommonSecurityConfig {
                     // Swagger
                     .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**")
                     .permitAll()
-                    // 구체적인 권한 제어는 Controller의 @PreAuthorize에서 처리하므로 필터 체인 레벨에서는 모든 요청을 통과.
+                    .requestMatchers("/ws", "/ws/**")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.POST, UrlConstants.AUTH_BASE + "/refresh")
+                    .permitAll()
                     .anyRequest()
                     .permitAll())
         .formLogin(AbstractHttpConfigurer::disable)
         .addFilterBefore(csrfTokenValidationFilter, LogoutFilter.class)
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
         .logout(
             logout ->
                 logout
@@ -82,5 +90,14 @@ public class CommonSecurityConfig {
                     .authenticationEntryPoint(customAuthenticationEntryPoint)); // 401 인증실패
 
     return http.build();
+  }
+
+  @Bean
+  public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(
+      JwtAuthenticationFilter filter) {
+    FilterRegistrationBean<JwtAuthenticationFilter> registration =
+        new FilterRegistrationBean<>(filter);
+    registration.setEnabled(false); // SecurityFilterChain에서만 실행
+    return registration;
   }
 }

@@ -3,6 +3,7 @@ package com.sns.marigold.auth.common;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.unauthenticated;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -12,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +26,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -33,12 +38,15 @@ import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.csrf.CsrfTokenValidationFilter;
 import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutSuccessHandler;
+import com.sns.marigold.auth.common.jwt.JwtAuthenticationFilter;
 import com.sns.marigold.auth.common.jwt.JwtProperties;
+import com.sns.marigold.auth.common.service.JwtAuthenticationService;
 import com.sns.marigold.auth.common.service.RecentAuthService;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.global.config.UrlProperties;
@@ -56,12 +64,59 @@ class CommonSecurityConfigTest {
   @MockitoBean private CustomAccessDeniedHandler accessDeniedHandler;
   @MockitoBean private CustomAuthenticationEntryPoint authenticationEntryPoint;
   @MockitoBean private RecentAuthService recentAuthService;
+  @MockitoBean private JwtAuthenticationService jwtAuthenticationService;
+  @MockitoBean private AuditLogger auditLogger;
 
   private MockMvc mockMvc;
+
+  @ParameterizedTest
+  @WithAnonymousUser
+  @ValueSource(strings = {"/ws", "/ws/info", "/ws/000/session/websocket"})
+  void sockJsHandshake_DoesNotRequireHttpBearerToken(String path) throws Exception {
+    mockMvc.perform(get(path)).andExpect(status().isNotFound());
+    verifyNoInteractions(authenticationEntryPoint);
+  }
+
+  @Test
+  @WithAnonymousUser
+  void refresh_WithCsrf_DoesNotRequireHttpBearerToken() throws Exception {
+    mockMvc
+        .perform(
+            post(UrlConstants.AUTH_BASE + "/refresh")
+                .cookie(
+                    refreshCookie(), new Cookie(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, "token"))
+                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, "token"))
+        .andExpect(status().isNotFound());
+    verifyNoInteractions(authenticationEntryPoint);
+  }
 
   @BeforeEach
   void setUp() {
     mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+  }
+
+  @Test
+  @WithAnonymousUser
+  void request_WithBearerToken_AuthenticatesThroughSecurityChain() throws Exception {
+    when(jwtAuthenticationService.getAuthentication("access-token"))
+        .thenReturn(new UsernamePasswordAuthenticationToken("jwt-user", null, List.of()));
+
+    mockMvc
+        .perform(get("/jwt-filter-test").header(HttpHeaders.AUTHORIZATION, "Bearer access-token"))
+        .andExpect(status().isNotFound())
+        .andExpect(authenticated().withUsername("jwt-user"));
+
+    verify(jwtAuthenticationService).getAuthentication("access-token");
+  }
+
+  @Test
+  @WithAnonymousUser
+  void oauth2Request_WithBearerToken_DoesNotRunJwtFilter() throws Exception {
+    mockMvc
+        .perform(get("/oauth2/test").header(HttpHeaders.AUTHORIZATION, "Bearer access-token"))
+        .andExpect(status().isNotFound());
+
+    verifyNoInteractions(jwtAuthenticationService);
   }
 
   @Test
@@ -120,6 +175,7 @@ class CommonSecurityConfigTest {
   @EnableConfigurationProperties({UrlProperties.class, JwtProperties.class})
   @Import({
     CommonSecurityConfig.class,
+    JwtAuthenticationFilter.class,
     CsrfTokenValidationFilter.class,
     CustomLogoutHandler.class,
     CustomLogoutSuccessHandler.class,

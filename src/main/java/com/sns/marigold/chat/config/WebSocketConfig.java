@@ -4,6 +4,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.Principal;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 
@@ -26,10 +27,14 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketHandler;
+import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
+import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
 import com.sns.marigold.audit.AuditLogger;
@@ -37,6 +42,7 @@ import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
 import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.chat.ChatDestinations;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.global.config.UrlProperties;
 
@@ -51,14 +57,40 @@ import lombok.extern.slf4j.Slf4j;
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-  private static final String CHAT_ROOM_SUBSCRIPTION_PREFIX = "/sub/chat/room/";
   private static final String CSRF_VALIDATED_SESSION_ATTRIBUTE = "csrfValidated";
+  private static final String JWT_EXPIRES_AT = "jwtExpiresAt";
 
   private final JwtAuthenticationService jwtAuthenticationService;
   private final RoomParticipantRepository participantRepository;
   private final CookieManager cookieManager;
   private final AuditLogger auditLogger;
   private final UrlProperties urlProperties;
+  private final WebSocketTokenSessions tokenSessions;
+
+  @Override
+  public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
+    registration.addDecoratorFactory(
+        handler ->
+            new WebSocketHandlerDecorator(handler) {
+              @Override
+              public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+                tokenSessions.register(session);
+                try {
+                  super.afterConnectionEstablished(session);
+                } catch (Exception e) {
+                  tokenSessions.remove(session.getId());
+                  throw e;
+                }
+              }
+
+              @Override
+              public void afterConnectionClosed(WebSocketSession session, CloseStatus status)
+                  throws Exception {
+                tokenSessions.remove(session.getId());
+                super.afterConnectionClosed(session, status);
+              }
+            });
+  }
 
   @Override
   public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
@@ -72,8 +104,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
   @Override
   public void configureMessageBroker(@NonNull MessageBrokerRegistry config) {
-    config.enableSimpleBroker("/sub"); // 해당 접두어로 시작하는 경로를 구독
-    config.setApplicationDestinationPrefixes("/pub"); // 클라이언트에서 서버로 메시지를 보낼 때 사용하는 접두어
+    config.enableSimpleBroker(ChatDestinations.BROKER_PREFIX); // 해당 접두어로 시작하는 경로를 구독
+    config.setApplicationDestinationPrefixes(ChatDestinations.APPLICATION_PREFIX); // 클라이언트 전송 접두어
   }
 
   @Override
@@ -96,8 +128,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 if (StompCommand.SEND.equals(accessor.getCommand())
                     || StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
                   requireCsrfValidated(accessor);
-                  if (accessor.getUser() == null) {
-                    authenticate(accessor);
+                  requireAuthenticatedSession(accessor);
+                  if (StompCommand.SEND.equals(accessor.getCommand())
+                      && !ChatDestinations.MESSAGE_SEND.equals(accessor.getDestination())) {
+                    throw new AccessDeniedException("SEND destination is not allowed");
                   }
                 }
 
@@ -127,6 +161,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             StompHeaderAccessor accessor =
                 MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
             if (accessor != null && accessor.getUser() instanceof Authentication authentication) {
+              if (StompCommand.SEND.equals(accessor.getCommand())
+                  || StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+                requireAuthenticatedSession(accessor);
+              }
               SecurityContextHolder.getContext().setAuthentication(authentication);
             }
             return message;
@@ -213,25 +251,46 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         left.getBytes(StandardCharsets.UTF_8), right.getBytes(StandardCharsets.UTF_8));
   }
 
-  private void authenticate(@NonNull StompHeaderAccessor accessor) {
+  void authenticate(@NonNull StompHeaderAccessor accessor) {
     String authorizationHeader = accessor.getFirstNativeHeader("Authorization");
     if (!StringUtils.hasText(authorizationHeader) || !authorizationHeader.startsWith("Bearer ")) {
-      return;
+      throw new AccessDeniedException("JWT is required for CONNECT");
     }
 
     String token = authorizationHeader.substring(7);
     try {
       Authentication authentication = jwtAuthenticationService.getAuthentication(token);
+      if (!authentication.isAuthenticated()
+          || !(authentication.getDetails() instanceof Instant expiresAt)
+          || !expiresAt.isAfter(Instant.now())) {
+        throw new AccessDeniedException("JWT is missing an unexpired expiration");
+      }
+      Map<String, Object> attributes = Objects.requireNonNull(accessor.getSessionAttributes());
+      tokenSessions.expireAt(Objects.requireNonNull(accessor.getSessionId()), expiresAt);
+      attributes.put(JWT_EXPIRES_AT, expiresAt);
       accessor.setUser(authentication);
     } catch (Exception e) {
       auditLogger.warn("event=ws_invalid_token");
+      throw new AccessDeniedException("JWT authentication failed", e);
+    }
+  }
+
+  void requireAuthenticatedSession(StompHeaderAccessor accessor) {
+    getAuthenticatedUserId(accessor.getUser());
+    Map<String, Object> attributes = accessor.getSessionAttributes();
+    if (attributes == null || !(attributes.get(JWT_EXPIRES_AT) instanceof Instant expiresAt)) {
+      throw new AccessDeniedException("Authenticated CONNECT is required");
+    }
+    if (!expiresAt.isAfter(Instant.now())) {
+      tokenSessions.close(Objects.requireNonNull(accessor.getSessionId()));
+      throw new AccessDeniedException("JWT expired");
     }
   }
 
   void authorizeSubscription(@NonNull StompHeaderAccessor accessor) {
     Long roomId = resolveChatRoomSubscriptionId(accessor.getDestination());
     if (roomId == null) {
-      return;
+      throw new AccessDeniedException("SUBSCRIBE destination is not allowed");
     }
 
     Long userId = getAuthenticatedUserId(accessor.getUser());
@@ -243,11 +302,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   @Nullable
   Long resolveChatRoomSubscriptionId(@Nullable String destination) {
     if (!StringUtils.hasText(destination)
-        || !destination.startsWith(CHAT_ROOM_SUBSCRIPTION_PREFIX)) {
+        || !destination.startsWith(ChatDestinations.ROOM_SUBSCRIPTION_PREFIX)) {
       return null;
     }
 
-    String roomId = destination.substring(CHAT_ROOM_SUBSCRIPTION_PREFIX.length());
+    String roomId = destination.substring(ChatDestinations.ROOM_SUBSCRIPTION_PREFIX.length());
     try {
       return TSID.from(roomId).toLong();
     } catch (Exception e) {
@@ -261,6 +320,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
   private Long getAuthenticatedUserId(@Nullable Principal principal) {
     if (principal instanceof Authentication authentication
+        && authentication.isAuthenticated()
         && authentication.getPrincipal() instanceof CustomPrincipal customPrincipal
         && customPrincipal.getUserId() != null) {
       return customPrincipal.getUserId();

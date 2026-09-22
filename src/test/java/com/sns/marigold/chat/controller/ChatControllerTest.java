@@ -33,7 +33,7 @@ class ChatControllerTest {
 
   @Mock private ChatService chatService;
 
-  @InjectMocks private ChatController chatController;
+  @InjectMocks private ChatWebSocketController chatController;
 
   @Test
   @DisplayName("WebSocket 메시지 발신자는 클라이언트 senderId가 아니라 인증 사용자다.")

@@ -46,7 +46,10 @@ public class JwtAuthenticationService {
     CustomPrincipal principal =
         new CustomPrincipal(user.getId(), authorities, null, AuthStatus.LOGIN_SUCCESS);
 
-    return new UsernamePasswordAuthenticationToken(principal, accessToken, authorities);
+    UsernamePasswordAuthenticationToken authentication =
+        new UsernamePasswordAuthenticationToken(principal, accessToken, authorities);
+    authentication.setDetails(Objects.requireNonNull(claims.getExpiration()).toInstant());
+    return authentication;
   }
 
   private void checkUserStatus(User user) {

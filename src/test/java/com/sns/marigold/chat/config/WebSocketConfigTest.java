@@ -4,7 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,10 +17,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -43,8 +53,129 @@ class WebSocketConfigTest {
   @Mock private CookieManager cookieManager;
 
   @Mock private AuditLogger auditLogger;
+  @Mock private WebSocketTokenSessions tokenSessions;
 
   private WebSocketConfig webSocketConfig;
+
+  @Test
+  void connectRequiresJwt() {
+    assertThatThrownBy(() -> inbound(connectAccessor("csrf-token")))
+        .isInstanceOf(AccessDeniedException.class);
+    verifyNoInteractions(jwtAuthenticationService);
+  }
+
+  @Test
+  void connectRejectsInvalidJwt() {
+    StompHeaderAccessor accessor = connectAccessor("csrf-token");
+    accessor.addNativeHeader("Authorization", "Bearer invalid");
+    given(jwtAuthenticationService.getAuthentication("invalid"))
+        .willThrow(new IllegalArgumentException("invalid"));
+    assertThatThrownBy(() -> inbound(accessor)).isInstanceOf(AccessDeniedException.class);
+  }
+
+  @Test
+  void connectStoresVerifiedExpiryAndSchedulesClosure() {
+    Instant expiresAt = Instant.now().plusSeconds(60);
+    UsernamePasswordAuthenticationToken auth =
+        (UsernamePasswordAuthenticationToken) authentication(1L);
+    auth.setDetails(expiresAt);
+    given(jwtAuthenticationService.getAuthentication("valid")).willReturn(auth);
+    StompHeaderAccessor accessor = connectAccessor("csrf-token");
+    accessor.setSessionId("session");
+    accessor.addNativeHeader("Authorization", "Bearer valid");
+    inbound(accessor);
+    assertThat(accessor.getUser()).isSameAs(auth);
+    assertThat(accessor.getSessionAttributes()).containsEntry("jwtExpiresAt", expiresAt);
+    verify(tokenSessions).expireAt("session", expiresAt);
+  }
+
+  @Test
+  void authenticatedSendDoesNotRevalidateJwt() {
+    inbound(authenticatedMessage(StompCommand.SEND, "/pub/chat/message"));
+    verifyNoInteractions(jwtAuthenticationService);
+  }
+
+  @Test
+  void connectRejectsExpiredAuthentication() {
+    UsernamePasswordAuthenticationToken auth =
+        (UsernamePasswordAuthenticationToken) authentication(1L);
+    auth.setDetails(Instant.now().minusSeconds(1));
+    given(jwtAuthenticationService.getAuthentication("expired")).willReturn(auth);
+    StompHeaderAccessor accessor = connectAccessor("csrf-token");
+    accessor.addNativeHeader("Authorization", "Bearer expired");
+    assertThatThrownBy(() -> inbound(accessor)).isInstanceOf(AccessDeniedException.class);
+    verifyNoInteractions(tokenSessions);
+  }
+
+  @Test
+  void authenticatedSendRequiresConnectExpiry() {
+    StompHeaderAccessor accessor = authenticatedMessage(StompCommand.SEND, "/pub/chat/message");
+    accessor.getSessionAttributes().remove("jwtExpiresAt");
+    assertThatThrownBy(() -> inbound(accessor)).isInstanceOf(AccessDeniedException.class);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"/sub/chat/room/100", "/pub/other", "/pub/chat/message/", ""})
+  void sendRejectsOtherDestinations(String destination) {
+    assertThatThrownBy(() -> inbound(authenticatedMessage(StompCommand.SEND, destination)))
+        .isInstanceOf(AccessDeniedException.class);
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "/sub/other",
+        "/pub/chat/message",
+        "/sub/chat/room/*",
+        "/sub/chat/room/100/extra",
+        ""
+      })
+  void subscribeRejectsOtherDestinations(String destination) {
+    assertThatThrownBy(() -> inbound(authenticatedMessage(StompCommand.SUBSCRIBE, destination)))
+        .isInstanceOf(AccessDeniedException.class);
+  }
+
+  @Test
+  void sendRejectsMissingUserEvenWithJwtHeader() {
+    StompHeaderAccessor accessor = authenticatedMessage(StompCommand.SEND, "/pub/chat/message");
+    accessor.setUser(null);
+    accessor.addNativeHeader("Authorization", "Bearer valid");
+    assertThatThrownBy(() -> inbound(accessor)).isInstanceOf(AccessDeniedException.class);
+    verifyNoInteractions(jwtAuthenticationService);
+  }
+
+  @Test
+  void expiredMessageClosesConnection() {
+    StompHeaderAccessor accessor = authenticatedMessage(StompCommand.SEND, "/pub/chat/message");
+    accessor.getSessionAttributes().put("jwtExpiresAt", Instant.now().minusSeconds(1));
+    assertThatThrownBy(() -> inbound(accessor)).isInstanceOf(AccessDeniedException.class);
+    verify(tokenSessions).close("session");
+  }
+
+  private StompHeaderAccessor authenticatedMessage(StompCommand command, String destination) {
+    StompHeaderAccessor accessor = StompHeaderAccessor.create(command);
+    accessor.setSessionId("session");
+    accessor.setUser(authentication(1L));
+    accessor.setDestination(destination);
+    accessor.setSessionAttributes(
+        new HashMap<>(
+            Map.of("csrfValidated", true, "jwtExpiresAt", Instant.now().plusSeconds(60))));
+    return accessor;
+  }
+
+  private void inbound(StompHeaderAccessor accessor) {
+    var registration =
+        new ChannelRegistration() {
+          public void receive(Message<?> message) {
+            getInterceptors().get(0).preSend(message, mock(MessageChannel.class));
+          }
+        };
+    webSocketConfig.configureClientInboundChannel(registration);
+    accessor.setLeaveMutable(true);
+    Message<byte[]> message =
+        MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+    registration.receive(message);
+  }
 
   @BeforeEach
   void setUp() {
@@ -54,7 +185,8 @@ class WebSocketConfigTest {
             participantRepository,
             cookieManager,
             auditLogger,
-            urlProperties());
+            urlProperties(),
+            tokenSessions);
   }
 
   @Test
