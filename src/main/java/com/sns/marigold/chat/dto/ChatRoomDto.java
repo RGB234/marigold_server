@@ -2,11 +2,10 @@ package com.sns.marigold.chat.dto;
 
 import java.time.LocalDateTime;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.sns.marigold.chat.enums.ChatRoomStatus;
-import com.sns.marigold.global.tsid.TsidJacksonConfig;
+import com.sns.marigold.global.tsid.TsidId;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -24,8 +23,7 @@ import lombok.Setter;
 public class ChatRoomDto {
 
   @Schema(description = "TSID 형식 채팅방 ID", type = "string", example = "01JABCDEF1234")
-  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
+  @TsidId
   private Long id;
 
   @Schema(description = "입양 게시글 ID", type = "string", example = "123")
@@ -36,24 +34,21 @@ public class ChatRoomDto {
   private String postTitle;
 
   @Schema(description = "TSID 형식 게시글 작성자 ID", type = "string", example = "01JABCDEG5678")
-  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
+  @TsidId
   private Long postWriterId;
 
   @Schema(description = "채팅방 생성 시각", example = "2026-06-04T12:34:56")
   private LocalDateTime createdAt;
 
   @Schema(description = "TSID 형식 참여자 1 ID", type = "string", example = "01JABCDEH9012")
-  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
+  @TsidId
   private Long user1Id;
 
   @Schema(description = "참여자 1 닉네임", example = "작성자")
   private String user1Nickname;
 
   @Schema(description = "TSID 형식 참여자 2 ID", type = "string", example = "01JABCDEK3456")
-  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
+  @TsidId
   private Long user2Id;
 
   @Schema(description = "참여자 2 닉네임", example = "입양희망자")

@@ -15,11 +15,10 @@ import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.service.ChatService;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Tag(name = "Chat WebSocket", description = "채팅 웹소켓 API")
-@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class ChatWebSocketController {
@@ -29,20 +28,10 @@ public class ChatWebSocketController {
 
   @PreAuthorize("isAuthenticated()")
   @MessageMapping(ChatDestinations.MESSAGE_MAPPING)
-  public void message(ChatMessageDto messageDto, Principal principal) {
-    try {
-      ChatMessageDto savedMessage =
-          chatService.saveMessage(messageDto, getAuthenticatedUserId(principal));
-      messagingTemplate.convertAndSend(
-          ChatDestinations.room(savedMessage.getRoomId()), savedMessage);
-    } catch (RuntimeException e) {
-      log.warn(
-          "Failed to process WebSocket chat message. roomId={}, authenticated={}",
-          messageDto == null ? null : messageDto.getRoomId(),
-          principal != null,
-          e);
-      throw e;
-    }
+  public void message(@Valid ChatMessageDto messageDto, Principal principal) {
+    ChatMessageDto savedMessage =
+        chatService.saveMessage(messageDto, getAuthenticatedUserId(principal));
+    messagingTemplate.convertAndSend(ChatDestinations.room(savedMessage.getRoomId()), savedMessage);
   }
 
   private Long getAuthenticatedUserId(Principal principal) {

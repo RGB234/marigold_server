@@ -14,8 +14,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
-import com.sns.marigold.global.dto.ApiResult;
 import com.sns.marigold.global.error.ErrorCode;
+import com.sns.marigold.global.error.ProblemDetailFactory;
 import com.sns.marigold.global.error.exception.BusinessException;
 
 import io.jsonwebtoken.ExpiredJwtException;
@@ -81,10 +81,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   private void writeErrorResponse(HttpServletResponse response, ErrorCode errorCode)
       throws IOException {
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
     response.setCharacterEncoding("UTF-8");
     response.setStatus(errorCode.getStatus().value());
-    response.getWriter().write(objectMapper.writeValueAsString(ApiResult.error(errorCode)));
+    response
+        .getWriter()
+        .write(objectMapper.writeValueAsString(ProblemDetailFactory.create(errorCode)));
   }
 
   /** Request Header에서 JWT 토큰 추출 */

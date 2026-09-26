@@ -1,8 +1,7 @@
 # Architecture
 
-이 문서는 코드 위치와 책임을 빠르게 찾기 위한 안내서입니다.
-
-전체 백엔드 구성도는 [backend-architecture.mmd](backend-architecture.mmd)에 있습니다.
+백엔드 다이어그램
+[backend-architecture.mmd](backend-architecture.mmd)
 
 다이어그램의 실선은 주요 요청·호출·메시지 전달, 점선은 이벤트 발행과 설정에 따른 구현체 선택을 나타냅니다.
 
@@ -17,7 +16,7 @@
 | `chat` | 채팅방, 메시지, 첨부파일, WebSocket/STOMP |
 | `storage` | 설정 기반 파일 업로드, 삭제, 접근 URL 생성 |
 | `user` | 사용자 계정, 프로필, 계정 상태 |
-| `global` | 공통 응답, 에러 처리, 설정, validation, TSID 변환 |
+| `global` | ProblemDetail 오류 처리, 설정, validation, TSID 변환 |
 | `audit` | 보안/인가 관련 감사 로그 |
 
 ## 계층 규칙
@@ -34,12 +33,17 @@ Service는 도메인 규칙과 트랜잭션을 담당합니다.
 
 Repository는 Spring Data JPA query를 담당합니다.
 
-## 공통 응답과 예외
+## HTTP 응답과 예외
 
-일반 API의 JSON 응답은 `global.dto.ApiResult`로 감쌉니다.
-`ApiResult`의 필드와 JSON 예시는 [API 가이드](api-guide.md)를 봅니다.
+일반 API의 성공 응답은 공통 래퍼 없이 DTO를 직접 반환합니다. 반환할 데이터가 없는 성공 응답은 `204 No Content`를 사용합니다. 오류 응답의 필드와 JSON 예시는 [API 가이드](api-guide.md)를 봅니다.
 
-커스텀 예외는 `BusinessException`을 상속하고 `ErrorCode`를 가집니다. MVC에서 처리되는 비즈니스 예외, validation 예외, 인증/인가 예외, 미처리 예외는 `GlobalExceptionHandler`가 공통 응답으로 변환합니다. 필터에서 발생한 JWT·CSRF 오류와 Security의 인증·인가 실패는 각 필터·보안 핸들러가 별도로 `ApiResult`를 작성합니다. 로그아웃 성공 응답도 `CustomLogoutSuccessHandler`가 `ApiResult`로 반환합니다. STOMP 오류까지 이 MVC 예외 처리기가 변환하는 것은 아닙니다.
+커스텀 예외는 `BusinessException`을 상속하고 `ErrorCode`를 가집니다.
+
+MVC에서 처리되는 비즈니스 예외, validation 예외, 인증/인가 예외, 미처리 예외는 `GlobalExceptionHandler`가 `ProblemDetail`로 변환합니다.
+
+필터에서 발생한 JWT·CSRF 오류와 Security의 인증·인가 실패도 같은 `ProblemDetail` 형식으로 작성합니다. 로그아웃 성공은 `CustomLogoutSuccessHandler`가 `204 No Content`로 반환합니다.
+
+STOMP는 HTTP와 별도의 오류 처리 경로를 사용합니다. `@MessageMapping` 처리 중 발생한 비즈니스·validation·인가·미처리 예외는 `StompExceptionHandler`가 `StompErrorResponse`로 변환하여 오류가 발생한 세션의 `/user/queue/errors`로 전송하고 연결을 유지합니다. CONNECT 인증/CSRF, 허용되지 않은 destination, STOMP 프로토콜 오류처럼 현재 연결을 계속 사용할 수 없는 오류는 `StompProtocolErrorHandler`가 같은 payload를 `ERROR` 프레임으로 반환하며, 이 경우 STOMP 연결은 종료됩니다. 두 응답은 각각 `fatal=false`, `fatal=true`로 구분합니다.
 
 ## 인증·인가 구조
 
@@ -76,7 +80,7 @@ WebSocket에서는 HTTP handshake에서 CSRF 쿠키를 세션 속성에 보관�
 
 #### SEND와 SUBSCRIBE
 
-`SEND`와 `SUBSCRIBE`에서는 저장된 인증 정보, CSRF 검증 완료 여부와 JWT 만료 시각을 확인하며 JWT 서명을 다시 검증하지 않습니다. `SEND`는 `/pub/chat/message`만 허용하고, `SUBSCRIBE`는 `/sub/chat/room/{roomId}`만 허용합니다. 클라이언트의 `/sub/**` 직접 전송을 포함한 그 외 목적지는 차단합니다. 채팅방 구독은 `WebSocketConfig`가 인증 사용자와 참여 여부를 `RoomParticipantRepository`로 직접 확인합니다. 텍스트 메시지 전송은 `ChatWebSocketController`의 `@PreAuthorize`와 `ChatService`의 전송 권한 검사를 거칩니다.
+`SEND`와 `SUBSCRIBE`에서는 저장된 인증 정보, CSRF 검증 완료 여부와 JWT 만료 시각을 확인하며 JWT 서명을 다시 검증하지 않습니다. `SEND`는 `/pub/chat/message`만 허용하고, `SUBSCRIBE`는 `/sub/chat/room/{roomId}`와 세션 전용 `/user/queue/errors`만 허용합니다. 클라이언트의 `/sub/**` 직접 전송과 `/queue/errors` 직접 구독을 포함한 그 외 목적지는 차단합니다. 채팅방 구독은 `WebSocketConfig`가 인증 사용자와 참여 여부를 `RoomParticipantRepository`로 직접 확인합니다. 텍스트 메시지 전송은 `ChatWebSocketController`의 `@PreAuthorize`와 `ChatService`의 전송 권한 검사를 거칩니다.
 
 ## 실시간 채팅 구조
 
@@ -84,9 +88,11 @@ WebSocket에서는 HTTP handshake에서 CSRF 쿠키를 세션 속성에 보관�
 
 - endpoint: `/ws`
 - application destination prefix: `/pub`
-- simple broker prefix: `/sub`
+- simple broker prefix: `/sub`, `/queue`
+- user destination prefix: `/user`
 - 채팅 메시지 publish: `/pub/chat/message`
 - 채팅방 구독: `/sub/chat/room/{roomId}`
+- 세션 전용 오류 구독: `/user/queue/errors`
 
 REST 채팅 API는 `ChatController`, STOMP 텍스트 메시지는 `ChatWebSocketController`가 처리합니다. 첨부파일 메시지와 텍스트 메시지는 각각 서비스 저장 성공 후 `SimpMessagingTemplate`으로 발행됩니다. 프로세스 내 Simple Broker가 `/sub/chat/room/{roomId}` 구독자에게 전달합니다.
 

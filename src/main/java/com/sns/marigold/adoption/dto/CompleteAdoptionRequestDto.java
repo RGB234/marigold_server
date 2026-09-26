@@ -1,7 +1,6 @@
 package com.sns.marigold.adoption.dto;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.sns.marigold.global.tsid.TsidJacksonConfig;
+import com.sns.marigold.global.tsid.TsidId;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
@@ -14,6 +13,6 @@ import lombok.Setter;
 @NoArgsConstructor
 public class CompleteAdoptionRequestDto {
   @Schema(description = "선택한 입양자 ID", type = "string", example = "01JABCDEF1234")
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
+  @TsidId
   private Long adopterId;
 }

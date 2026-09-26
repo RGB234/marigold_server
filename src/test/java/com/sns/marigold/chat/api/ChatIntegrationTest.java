@@ -32,6 +32,7 @@ import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.enums.Neutering;
@@ -48,11 +49,11 @@ import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.chat.entity.RoomParticipant;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
+import com.sns.marigold.global.tsid.TsidCodec;
 import com.sns.marigold.support.BaseIntegrationTest;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
 
-import io.hypersistence.tsid.TSID;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -124,51 +125,13 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
   @Test
   @DisplayName("WebSocket 메시지는 인증된 사용자를 발신자로 저장한다")
   void sendAndReceiveMessage() throws InterruptedException, ExecutionException, TimeoutException {
-    WebSocketStompClient client = Objects.requireNonNull(stompClient);
-    String token = Objects.requireNonNull(accessToken);
     ChatRoom room = Objects.requireNonNull(chatRoom);
     User sender = Objects.requireNonNull(user1);
 
     CompletableFuture<ChatMessageDto> resultKeeper = new CompletableFuture<>();
+    StompSession session = connect();
 
-    String csrfToken = "csrf-token";
-    StompHeaders connectHeaders = new StompHeaders();
-    connectHeaders.add("Authorization", "Bearer " + token);
-    connectHeaders.add(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfToken);
-
-    WebSocketHttpHeaders webSocketHeaders = new WebSocketHttpHeaders();
-    webSocketHeaders.add(
-        HttpHeaders.COOKIE, CsrfTokenService.CSRF_TOKEN_COOKIE_NAME + "=" + csrfToken);
-
-    // WebSocket Config에서 SockJS를 사용 중
-    // 따라서 순수 웹소켓 엔드포인트를 사용하려면 접속하는 경로인 /websocket을 URL 뒤에 추가해야 한다.
-    String url = Objects.requireNonNull(String.format("ws://localhost:%d/ws/websocket", port));
-    StompSession session =
-        client
-            .connectAsync(
-                url,
-                webSocketHeaders,
-                connectHeaders,
-                new StompSessionHandlerAdapter() {
-                  @Override
-                  public void handleException(
-                      @NonNull StompSession session,
-                      @Nullable StompCommand command,
-                      @NonNull StompHeaders headers,
-                      @NonNull byte[] payload,
-                      @NonNull Throwable exception) {
-                    log.error("STOMP Exception: {}", exception.getMessage(), exception);
-                  }
-
-                  @Override
-                  public void handleTransportError(
-                      @NonNull StompSession session, @NonNull Throwable exception) {
-                    log.error("STOMP Transport Error: {}", exception.getMessage(), exception);
-                  }
-                })
-            .get(5, TimeUnit.SECONDS);
-
-    String roomIdStr = TSID.from(room.getId()).toString();
+    String roomIdStr = TsidCodec.encode(room.getId());
 
     // Subscribe
     StompHeaders subscribeHeaders = new StompHeaders();
@@ -209,5 +172,104 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
 
     assertThat(receivedMessage.getMessage()).isEqualTo("Hello WebSocket");
     assertThat(receivedMessage.getSenderId()).isEqualTo(sender.getId());
+  }
+
+  @Test
+  @DisplayName("잘못된 WebSocket 메시지는 세션 오류 queue로 응답하고 연결을 유지한다")
+  void invalidMessageReturnsRecoverableError()
+      throws InterruptedException, ExecutionException, TimeoutException {
+    ChatRoom room = Objects.requireNonNull(chatRoom);
+    StompSession session = connect();
+    CompletableFuture<JsonNode> errorKeeper = new CompletableFuture<>();
+    CompletableFuture<ChatMessageDto> messageKeeper = new CompletableFuture<>();
+
+    session.subscribe(
+        "/user/queue/errors",
+        new StompFrameHandler() {
+          @Override
+          @NonNull
+          public Type getPayloadType(@NonNull StompHeaders headers) {
+            return JsonNode.class;
+          }
+
+          @Override
+          public void handleFrame(@NonNull StompHeaders headers, @Nullable Object payload) {
+            if (payload instanceof JsonNode error) {
+              errorKeeper.complete(error);
+            }
+          }
+        });
+
+    session.subscribe(
+        "/sub/chat/room/" + TsidCodec.encode(room.getId()),
+        new StompFrameHandler() {
+          @Override
+          @NonNull
+          public Type getPayloadType(@NonNull StompHeaders headers) {
+            return ChatMessageDto.class;
+          }
+
+          @Override
+          public void handleFrame(@NonNull StompHeaders headers, @Nullable Object payload) {
+            if (payload instanceof ChatMessageDto messageDto
+                && "valid after error".equals(messageDto.getMessage())) {
+              messageKeeper.complete(messageDto);
+            }
+          }
+        });
+
+    session.send(
+        "/pub/chat/message", ChatMessageDto.builder().roomId(room.getId()).message(" ").build());
+
+    JsonNode error = errorKeeper.get(5, TimeUnit.SECONDS);
+    assertThat(error.get("errorCode").asText()).isEqualTo("INVALID_INPUT_VALUE");
+    assertThat(error.get("fatal").asBoolean()).isFalse();
+    assertThat(error.get("errors").get(0).get("field").asText()).isEqualTo("message");
+    assertThat(session.isConnected()).isTrue();
+
+    session.send(
+        "/pub/chat/message",
+        ChatMessageDto.builder().roomId(room.getId()).message("valid after error").build());
+
+    assertThat(messageKeeper.get(5, TimeUnit.SECONDS).getMessage()).isEqualTo("valid after error");
+  }
+
+  private StompSession connect() throws InterruptedException, ExecutionException, TimeoutException {
+    WebSocketStompClient client = Objects.requireNonNull(stompClient);
+    String token = Objects.requireNonNull(accessToken);
+    String csrfToken = "csrf-token";
+    StompHeaders connectHeaders = new StompHeaders();
+    connectHeaders.add("Authorization", "Bearer " + token);
+    connectHeaders.add(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfToken);
+
+    WebSocketHttpHeaders webSocketHeaders = new WebSocketHttpHeaders();
+    webSocketHeaders.add(
+        HttpHeaders.COOKIE, CsrfTokenService.CSRF_TOKEN_COOKIE_NAME + "=" + csrfToken);
+
+    // WebSocket Config에서 SockJS를 사용 중이므로 순수 WebSocket 경로에는 /websocket을 붙인다.
+    String url = Objects.requireNonNull(String.format("ws://localhost:%d/ws/websocket", port));
+    return client
+        .connectAsync(
+            url,
+            webSocketHeaders,
+            connectHeaders,
+            new StompSessionHandlerAdapter() {
+              @Override
+              public void handleException(
+                  @NonNull StompSession session,
+                  @Nullable StompCommand command,
+                  @NonNull StompHeaders headers,
+                  @NonNull byte[] payload,
+                  @NonNull Throwable exception) {
+                log.error("STOMP Exception: {}", exception.getMessage(), exception);
+              }
+
+              @Override
+              public void handleTransportError(
+                  @NonNull StompSession session, @NonNull Throwable exception) {
+                log.error("STOMP Transport Error: {}", exception.getMessage(), exception);
+              }
+            })
+        .get(5, TimeUnit.SECONDS);
   }
 }

@@ -12,8 +12,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.auth.common.util.CookieManager;
-import com.sns.marigold.global.dto.ApiResult;
 import com.sns.marigold.global.error.ErrorCode;
+import com.sns.marigold.global.error.ProblemDetailFactory;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -82,10 +82,12 @@ public class CsrfTokenValidationFilter extends OncePerRequestFilter {
 
   private void writeForbidden(HttpServletResponse response) throws IOException {
     response.setStatus(ErrorCode.AUTH_ACCESS_DENIED.getStatus().value());
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
     response.setCharacterEncoding(StandardCharsets.UTF_8.name());
     response
         .getWriter()
-        .write(objectMapper.writeValueAsString(ApiResult.error(ErrorCode.AUTH_ACCESS_DENIED)));
+        .write(
+            objectMapper.writeValueAsString(
+                ProblemDetailFactory.create(ErrorCode.AUTH_ACCESS_DENIED)));
   }
 }

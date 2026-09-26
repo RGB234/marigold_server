@@ -37,8 +37,8 @@ public class S3StorageService extends AbstractStorageService {
 
   @Override
   protected FileUploadDto uploadFileWithMetadata(
-      MultipartFile file, StorageDirectory storageDirectory) {
-    StorageFileInfo fileInfo = prepareFile(file, storageDirectory);
+      MultipartFile file, StorageDirectory storageDirectory, String contentTypeOverride) {
+    StorageFileInfo fileInfo = prepareFile(file, storageDirectory, contentTypeOverride);
 
     try (InputStream inputStream = file.getInputStream()) {
       s3Template.upload(
@@ -77,10 +77,7 @@ public class S3StorageService extends AbstractStorageService {
     }
     validateStoredFileName(storedFileName);
     GetObjectRequest objectRequest =
-        GetObjectRequest.builder()
-            .bucket(bucketName())
-            .key(storedFileName)
-            .build();
+        GetObjectRequest.builder().bucket(bucketName()).key(storedFileName).build();
 
     GetObjectPresignRequest presignRequest =
         GetObjectPresignRequest.builder()

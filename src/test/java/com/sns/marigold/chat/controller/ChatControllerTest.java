@@ -23,8 +23,7 @@ import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.service.ChatService;
-
-import io.hypersistence.tsid.TSID;
+import com.sns.marigold.global.tsid.TsidCodec;
 
 @ExtendWith(MockitoExtension.class)
 class ChatControllerTest {
@@ -61,6 +60,6 @@ class ChatControllerTest {
     // then
     verify(chatService).saveMessage(same(request), eq(1L));
     verify(messagingTemplate)
-        .convertAndSend(eq("/sub/chat/room/" + TSID.from(100L)), same(savedMessage));
+        .convertAndSend(eq("/sub/chat/room/" + TsidCodec.encode(100L)), same(savedMessage));
   }
 }

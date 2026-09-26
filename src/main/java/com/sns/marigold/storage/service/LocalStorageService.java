@@ -36,8 +36,8 @@ public class LocalStorageService extends AbstractStorageService {
 
   @Override
   protected FileUploadDto uploadFileWithMetadata(
-      MultipartFile file, StorageDirectory storageDirectory) {
-    StorageFileInfo fileInfo = prepareFile(file, storageDirectory);
+      MultipartFile file, StorageDirectory storageDirectory, String contentTypeOverride) {
+    StorageFileInfo fileInfo = prepareFile(file, storageDirectory, contentTypeOverride);
     Path targetPath = resolveStoredFile(fileInfo.storedFileName());
 
     try (InputStream inputStream = file.getInputStream()) {

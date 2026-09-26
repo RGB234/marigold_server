@@ -16,7 +16,6 @@ import com.sns.marigold.auth.common.dto.LoginResponseDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.service.AuthService;
 import com.sns.marigold.global.config.SwaggerConfig;
-import com.sns.marigold.global.dto.ApiResult;
 import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.user.dto.create.LocalSignupDto;
 
@@ -54,10 +53,9 @@ public class AuthController {
   })
   @PreAuthorize("permitAll()")
   @PostMapping("/signup")
-  public ResponseEntity<ApiResult<Void>> localSignup(@Valid @RequestBody LocalSignupDto dto) {
+  public ResponseEntity<Void> localSignup(@Valid @RequestBody LocalSignupDto dto) {
     authService.localSignup(dto);
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(ApiResult.success(HttpStatus.CREATED, "local signup successfully", null));
+    return ResponseEntity.status(HttpStatus.CREATED).build();
   }
 
   @Operation(
@@ -70,13 +68,12 @@ public class AuthController {
   })
   @PreAuthorize("permitAll()")
   @PostMapping("/login")
-  public ResponseEntity<ApiResult<LoginResponseDto>> localLogin(
+  public LoginResponseDto localLogin(
       @Valid @RequestBody LocalLoginDto dto,
       @Parameter(hidden = true) HttpServletResponse response) {
     LoginResponseDto loginResponse = authService.emailLogin(dto, response);
     csrfTokenService.issue(response);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "local login successfully", loginResponse));
+    return loginResponse;
   }
 
   /*
@@ -93,7 +90,7 @@ public class AuthController {
   })
   @PreAuthorize("permitAll()")
   @GetMapping("/status")
-  public ResponseEntity<ApiResult<UserAuthStatusDto>> getAuthStatus(
+  public UserAuthStatusDto getAuthStatus(
       @Parameter(hidden = true) Authentication authentication,
       @Parameter(hidden = true) HttpServletRequest request,
       @Parameter(hidden = true) HttpServletResponse response) {
@@ -102,8 +99,7 @@ public class AuthController {
       csrfTokenService.issue(response);
     }
 
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "get auth status successfully", authStatus));
+    return authStatus;
   }
 
   @Operation(
@@ -117,12 +113,11 @@ public class AuthController {
   })
   @PreAuthorize("permitAll()")
   @PostMapping("/refresh")
-  public ResponseEntity<ApiResult<LoginResponseDto>> refresh(
+  public LoginResponseDto refresh(
       @Parameter(hidden = true) HttpServletRequest request,
       @Parameter(hidden = true) HttpServletResponse response) {
     LoginResponseDto loginResponse = authService.reissue(request, response);
     csrfTokenService.issue(response);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "token refreshed successfully", loginResponse));
+    return loginResponse;
   }
 }

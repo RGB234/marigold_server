@@ -25,10 +25,13 @@ flowchart TB
 
             ChatWebSocketController["ChatWebSocketController<br/>/pub/chat/message<br/>@PreAuthorize"]
 
+            StompExceptionHandler["StompExceptionHandler<br/>복구 가능한 메시지 예외<br/>/user/queue/errors"]
+            StompProtocolErrorHandler["StompProtocolErrorHandler<br/>치명적 CONNECT · 인가 · 프로토콜 오류<br/>STOMP ERROR 후 연결 종료"]
+
             LocalController["LocalStorageController<br/>/api/v1/storage/files/**<br/>서명 · 만료 검증 후 파일 응답<br/>app.storage.type=local"]
 
             Messaging["SimpMessagingTemplate<br/>저장된 채팅 메시지 발행"]
-            Broker["Simple Broker · /sub<br/>프로세스 내 구독자에게 전달"]
+            Broker["Simple Broker · /sub · /queue<br/>프로세스 내 구독자에게 전달"]
         end
 
         subgraph Application["서비스 계층 · 비즈니스 로직"]
@@ -58,7 +61,7 @@ flowchart TB
 
         subgraph Support["공통 처리 · 운영 지원"]
             direction LR
-            Common["ApiResult · GlobalExceptionHandler<br/>Bean Validation · ValidationPolicy<br/>TSID / Jackson · AuditLogger"]
+            Common["ProblemDetail · GlobalExceptionHandler<br/>Bean Validation · ValidationPolicy<br/>TSID / Jackson · AuditLogger"]
             Docs["Springdoc OpenAPI<br/>local에서 활성화"]
             Actuator["Actuator · Micrometer<br/>health · metrics · prometheus"]
         end
@@ -91,10 +94,15 @@ flowchart TB
     WS -->|"SEND /pub/chat/message"| ChatWebSocketController
     ChatWebSocketController --> Chat
     ChatWebSocketController -->|"메시지 저장 성공 후 발행"| Messaging
+    ChatWebSocketController -.->|"비즈니스 · validation 예외"| StompExceptionHandler
+    StompExceptionHandler -->|"세션 전용 오류"| Broker
+    WS -.->|"치명적 오류"| StompProtocolErrorHandler
+    StompProtocolErrorHandler -->|"STOMP ERROR"| FE
     REST -->|"채팅 첨부파일 메시지 저장 후 발행"| Messaging
     Messaging --> Broker
     WS -->|"참가자 검사 후 채팅방 SUBSCRIBE"| Broker
     Broker -->|"STOMP MESSAGE · /sub/chat/room/{roomId}"| FE
+    Broker -->|"STOMP MESSAGE · /user/queue/errors"| FE
 
     %% 데이터 영속화
     Auth --> JPA

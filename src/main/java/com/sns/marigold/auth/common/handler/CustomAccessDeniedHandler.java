@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -13,8 +14,8 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.audit.AuditLogger;
-import com.sns.marigold.global.dto.ApiResult;
 import com.sns.marigold.global.error.ErrorCode;
+import com.sns.marigold.global.error.ProblemDetailFactory;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -56,11 +57,11 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
 
     ErrorCode errorCode = ErrorCode.AUTH_ACCESS_DENIED;
 
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
     response.setCharacterEncoding("UTF-8");
     response.setStatus(errorCode.getStatus().value()); // HTTP 상태 코드 설정
 
-    ApiResult<Object> responseBody = ApiResult.error(errorCode);
+    ProblemDetail responseBody = ProblemDetailFactory.create(errorCode);
     response.getWriter().write(objectMapper.writeValueAsString(responseBody));
   }
 }

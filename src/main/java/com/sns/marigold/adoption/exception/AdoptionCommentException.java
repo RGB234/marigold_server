@@ -22,4 +22,8 @@ public class AdoptionCommentException extends BusinessException {
   public static AdoptionCommentException forAdoptionCommentPostMismatch() {
     return new AdoptionCommentException(ErrorCode.ADOPTION_COMMENT_POST_MISMATCH);
   }
+
+  public static AdoptionCommentException forInvalidCommentImages() {
+    return new AdoptionCommentException(ErrorCode.ADOPTION_COMMENT_IMAGE_INVALID);
+  }
 }

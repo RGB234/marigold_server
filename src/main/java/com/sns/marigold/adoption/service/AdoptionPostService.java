@@ -39,6 +39,7 @@ import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.global.error.ErrorCode;
 import com.sns.marigold.global.error.exception.BusinessException;
 import com.sns.marigold.global.error.exception.InternalServerException;
+import com.sns.marigold.global.validation.imagefile.ImageFiles;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
@@ -79,8 +80,9 @@ public class AdoptionPostService {
   }
 
   public Long create(AdoptionPostCreateDto dto, Long writerId) {
-    List<MultipartFile> images =
-        dto.getImages() != null ? dto.getImages() : Collections.emptyList();
+    List<MultipartFile> images = ImageFiles.nonEmpty(dto.getImages());
+    AdoptionPost.validateImageCount(images.size());
+
     List<ImageUploadDto> uploadedImages =
         storageService.uploadImages(images, StorageDirectory.ADOPTION_POST);
 
@@ -135,9 +137,8 @@ public class AdoptionPostService {
     validateWriter(adoptionPost, userId);
 
     List<String> imagesToKeep = normalizeImagesToKeep(dto.getImagesToKeep());
-    List<MultipartFile> images =
-        dto.getImages() != null ? dto.getImages() : Collections.emptyList();
-    adoptionPost.validateImageReplacement(imagesToKeep, countNewImages(images));
+    List<MultipartFile> images = ImageFiles.nonEmpty(dto.getImages());
+    adoptionPost.validateImageReplacement(imagesToKeep, images.size());
 
     // 1. 새 이미지 업로드 (실패 시 예외 발생, 파일 자동 삭제됨)
     // 트랜잭션 외부에서 수행하여 DB 커넥션 점유 최소화
@@ -225,14 +226,6 @@ public class AdoptionPostService {
         .filter(fileName -> !fileName.isEmpty())
         .distinct()
         .toList();
-  }
-
-  private int countNewImages(List<MultipartFile> images) {
-    if (images == null || images.isEmpty()) {
-      return 0;
-    }
-
-    return (int) images.stream().filter(file -> file != null && !file.isEmpty()).count();
   }
 
   private String resolveViewUrlOrNull(String storedFileName) {

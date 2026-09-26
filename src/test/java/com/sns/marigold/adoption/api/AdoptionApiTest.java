@@ -89,8 +89,7 @@ public class AdoptionApiTest extends ApiIntegrationTest {
                     "Authorization", "Bearer " + getAccessToken(Objects.requireNonNull(tester1)))
                 .contentType(Objects.requireNonNull(MediaType.MULTIPART_FORM_DATA)))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.status").value(201))
-        .andExpect(jsonPath("$.data.id").isString());
+        .andExpect(jsonPath("$.id").isString());
 
     // DB 상태 검증: setUp()에서 1개 + 새로 생성 1개 = 총 2개
     assertEquals(2, adoptionPostRepository.count());
@@ -145,7 +144,7 @@ public class AdoptionApiTest extends ApiIntegrationTest {
                 .contentType(Objects.requireNonNull(MediaType.MULTIPART_FORM_DATA)))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.status").value(401))
-        .andExpect(jsonPath("$.message").value(AuthException.forUnauthorized().getMessage()));
+        .andExpect(jsonPath("$.detail").value(AuthException.forUnauthorized().getMessage()));
   }
 
   @Test
@@ -182,8 +181,7 @@ public class AdoptionApiTest extends ApiIntegrationTest {
                 .header(
                     "Authorization", "Bearer " + getAccessToken(Objects.requireNonNull(tester1)))
                 .contentType(Objects.requireNonNull(MediaType.MULTIPART_FORM_DATA)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value(200));
+        .andExpect(status().isNoContent());
 
     // DB 상태 검증
     AdoptionPost updated = adoptionPostRepository.findById(postId).orElseThrow();
@@ -215,7 +213,7 @@ public class AdoptionApiTest extends ApiIntegrationTest {
                 .contentType(Objects.requireNonNull(MediaType.MULTIPART_FORM_DATA)))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.status").value(401))
-        .andExpect(jsonPath("$.message").value(AuthException.forUnauthorized().getMessage()));
+        .andExpect(jsonPath("$.detail").value(AuthException.forUnauthorized().getMessage()));
   }
 
   @Test
@@ -244,7 +242,7 @@ public class AdoptionApiTest extends ApiIntegrationTest {
                 .contentType(Objects.requireNonNull(MediaType.MULTIPART_FORM_DATA)))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.status").value(403))
-        .andExpect(jsonPath("$.message").value(AuthException.forAccessDenied().getMessage()));
+        .andExpect(jsonPath("$.detail").value(AuthException.forAccessDenied().getMessage()));
   }
 
   @Test
@@ -257,8 +255,7 @@ public class AdoptionApiTest extends ApiIntegrationTest {
             delete(UrlConstants.ADOPTION_BASE + "/{id}", postId)
                 .header(
                     "Authorization", "Bearer " + getAccessToken(Objects.requireNonNull(tester1))))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value(200));
+        .andExpect(status().isNoContent());
 
     // DB 상태 검증
     AdoptionPost deletedPost = adoptionPostRepository.findById(postId).orElseThrow();
@@ -294,8 +291,7 @@ public class AdoptionApiTest extends ApiIntegrationTest {
     mockMvc
         .perform(get(UrlConstants.ADOPTION_BASE).param("page", "0").param("size", "10"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value(200))
-        .andExpect(jsonPath("$.data.content").isArray())
-        .andExpect(jsonPath("$.data.content[0].title").value("Original Title"));
+        .andExpect(jsonPath("$.content").isArray())
+        .andExpect(jsonPath("$.content[0].title").value("Original Title"));
   }
 }

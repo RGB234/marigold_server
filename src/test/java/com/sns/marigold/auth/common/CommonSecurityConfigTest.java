@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
@@ -138,9 +137,8 @@ class CommonSecurityConfigTest {
                 .cookie(
                     refreshCookie(), new Cookie(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, "token"))
                 .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, "token"))
-        .andExpect(status().isOk())
+        .andExpect(status().isNoContent())
         .andExpect(unauthenticated())
-        .andExpect(jsonPath("$.success").value(true))
         .andExpect(cookie().maxAge(CookieManager.REFRESH_TOKEN_NAME, 0))
         .andExpect(cookie().maxAge(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, 0));
 

@@ -4,15 +4,21 @@ import java.util.List;
 
 import org.springframework.security.core.GrantedAuthority;
 
-import io.hypersistence.tsid.TSID;
+import com.sns.marigold.global.tsid.TsidId;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
 @Schema(description = "현재 인증 상태 응답")
 @Getter
 public class UserAuthStatusDto {
-  @Schema(description = "인증된 사용자 ID. 비로그인 상태면 null", example = "01JABCDEF1234", nullable = true)
-  private final String userId;
+  @Schema(
+      description = "인증된 사용자 ID. 비로그인 상태면 null",
+      type = "string",
+      example = "01JABCDEF1234",
+      nullable = true)
+  @TsidId
+  private final Long userId;
 
   @Schema(description = "인증된 사용자의 권한 목록", example = "[\"ROLE_USER\"]")
   private final List<String> authorities;
@@ -22,7 +28,7 @@ public class UserAuthStatusDto {
 
   public UserAuthStatusDto(
       Long userId, List<? extends GrantedAuthority> authorities, boolean refreshTokenPresent) {
-    this.userId = (userId != null) ? TSID.from(userId).toString() : null; // Crockford's BASE32
+    this.userId = userId;
     this.authorities = authorities.stream().map(GrantedAuthority::getAuthority).toList();
     this.refreshTokenPresent = refreshTokenPresent;
   }

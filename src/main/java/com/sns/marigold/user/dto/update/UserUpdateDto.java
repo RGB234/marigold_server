@@ -3,7 +3,6 @@ package com.sns.marigold.user.dto.update;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.sns.marigold.global.validation.ValidationPolicy;
-import com.sns.marigold.global.validation.imagefile.ImageFile;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
@@ -28,7 +27,6 @@ public class UserUpdateDto {
   private String nickname;
 
   @Schema(description = "새 프로필 이미지 파일", type = "string", format = "binary")
-  @ImageFile
   private MultipartFile image;
 
   @Schema(description = "현재 프로필 이미지 삭제 여부", type = "boolean", example = "false")

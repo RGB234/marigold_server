@@ -13,9 +13,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.sns.marigold.global.tsid.TsidType;
-
-import io.hypersistence.tsid.TSID;
+import com.sns.marigold.global.tsid.TsidCodec;
+import com.sns.marigold.global.tsid.TsidValue;
 
 class WebConfigTest {
 
@@ -41,13 +40,18 @@ class WebConfigTest {
   }
 
   @Test
-  void convertsOnlyAnnotatedLongAsTsid() throws Exception {
+  void convertsTsidValueFromTsid() throws Exception {
     long value = 991000000000000001L;
 
     mockMvc
-        .perform(get("/formatter/tsid/{value}", TSID.from(value).toString()))
+        .perform(get("/formatter/tsid/{value}", TsidCodec.encode(value)))
         .andExpect(status().isOk())
         .andExpect(content().string(Long.toString(value)));
+  }
+
+  @Test
+  void rejectsDecimalFallbackForTsidValue() throws Exception {
+    mockMvc.perform(get("/formatter/tsid/{value}", "123")).andExpect(status().isBadRequest());
   }
 
   @RestController
@@ -59,8 +63,8 @@ class WebConfigTest {
     }
 
     @GetMapping("/formatter/tsid/{value}")
-    String tsid(@PathVariable("value") @TsidType Long value) {
-      return value.toString();
+    String tsid(@PathVariable("value") TsidValue value) {
+      return Long.toString(value.value());
     }
   }
 }

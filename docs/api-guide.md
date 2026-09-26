@@ -27,30 +27,27 @@ REST API prefix는 `/api/v1`입니다.
 | Adoption | `/api/v1/adoption` | 입양 게시글, 댓글, 입양 완료 처리 |
 | Chat | `/api/v1/chat` | 채팅방, 메시지, 첨부파일 URL |
 
-## 공통 응답
+## HTTP 응답
 
-일반 업무 API의 JSON 응답은 `ApiResult<T>` 형태를 사용합니다.
+성공 응답은 공통 래퍼 없이 리소스 DTO를 JSON 본문으로 직접 반환합니다. 생성 API는 `201 Created`와 `Location` 헤더를 사용하고, 반환할 데이터가 없는 성공 응답은 `204 No Content`를 사용합니다.
 
-성공 응답 예시:
+조회 성공 예시:
 
 ```json
 {
-  "success": true,
-  "timestamp": "2026-06-04 12:34:56",
-  "status": 200,
-  "message": "fetched successfully",
-  "data": {}
+  "id": "01JABCDEF1234",
+  "nickname": "marigold"
 }
 ```
 
-에러 응답 예시:
+오류 응답은 RFC 9457 `ProblemDetail` 형식과 `application/problem+json` Content-Type을 사용합니다. `errorCode`는 클라이언트 분기용 애플리케이션 오류 코드이고, validation 오류가 있으면 `errors` 확장 필드를 포함합니다.
 
 ```json
 {
-  "success": false,
-  "timestamp": "2026-06-04 12:34:56",
+  "type": "urn:marigold:error:INVALID_INPUT_VALUE",
+  "title": "Bad Request",
   "status": 400,
-  "message": "입력값이 올바르지 않습니다.",
+  "detail": "입력값이 올바르지 않습니다.",
   "errorCode": "INVALID_INPUT_VALUE",
   "errors": [
     {
@@ -61,11 +58,11 @@ REST API prefix는 `/api/v1`입니다.
 }
 ```
 
-`data`와 `errors`는 값이 없으면 응답에서 빠질 수 있습니다.
+`errors`는 필드 오류가 없으면 생략됩니다. HTTP 상태는 응답 본문의 `status`가 아니라 실제 응답 상태를 기준으로 처리합니다.
 
-## 공통 응답 예외
+## HTTP 응답 형식 예외
 
-`ApiResult`를 사용하지 않는 주요 응답은 다음과 같습니다. 아래 표는 정상 응답 또는 해당 프로토콜의 응답 형식을 설명합니다.
+DTO 또는 `ProblemDetail` JSON을 사용하지 않는 주요 응답은 다음과 같습니다. 아래 표는 정상 응답 또는 해당 프로토콜의 응답 형식을 설명합니다.
 
 | 구분                         | 경로·대상 | 응답 형식 |
 |----------------------------| --- | --- |
@@ -74,9 +71,34 @@ REST API prefix는 `/api/v1`입니다.
 | OAuth2 로그인 시작              | `/oauth2/authorization/kakao`, `/oauth2/authorization/naver` | 공급자 로그인 페이지로 HTTP redirect |
 | OAuth2 callback 처리 결과      | `/oauth2/code/kakao`, `/oauth2/code/naver` | 성공·실패 핸들러가 프론트 callback으로 redirect. 결과는 `auth_status` 또는 `error`, `error_description` query로 전달 |
 | 실시간 채팅 메시지                 | `/sub/chat/room/{roomId}` 구독 | STOMP 메시지 payload로 `ChatMessageDto`를 직접 전달. 텍스트 메시지와 첨부파일 메시지의 구독 알림 모두 해당 |
+| 복구 가능한 STOMP 오류             | `/user/queue/errors` 구독 | 오류를 발생시킨 세션에 `StompErrorResponse`를 전달하고 연결 유지 |
+| 치명적인 STOMP 오류               | STOMP `ERROR` 프레임 | `StompErrorResponse`를 전달한 뒤 연결 종료 |
 | WebSocket·SockJS 연결        | `/ws`, `/ws/**` | 연결 handshake와 SockJS/STOMP 프로토콜 응답 |
 | 상태·메트릭 조회                  | `/actuator/health`, `/actuator/metrics`, `/actuator/metrics/{name}` | Actuator 자체 JSON 형식 |
 | Prometheus 수집              | `/actuator/prometheus` | 메트릭 수집용 텍스트 형식 |
 | API 명세·문서 화면               | `/v3/api-docs`, `/swagger-ui/**` | OpenAPI 명세 JSON과 Swagger UI의 HTML·정적 리소스. 현재 local 프로필에서 활성화 |
 
-S3 presigned URL로 접근한 파일은 S3가 직접 응답하므로 백엔드 공통 응답 형식의 적용 대상이 아닙니다.
+S3 presigned URL로 접근한 파일은 S3가 직접 응답하므로 백엔드 HTTP 응답 형식의 적용 대상이 아닙니다.
+
+## STOMP 오류 응답
+
+STOMP 오류는 HTTP 상태를 갖지 않으므로 `ProblemDetail` 대신 다음과 같은 형태의 `StompErrorResponse` payload를 사용합니다.
+
+```json
+{
+  "timestamp": "2026-09-25T12:34:56",
+  "errorCode": "INVALID_INPUT_VALUE",
+  "message": "입력값이 올바르지 않습니다.",
+  "fatal": false,
+  "command": "SEND",
+  "destination": "/pub/chat/message",
+  "errors": [
+    {
+      "field": "message",
+      "message": "메시지를 입력해주세요."
+    }
+  ]
+}
+```
+
+`command`, `destination`, `errors`는 값이 없으면 생략됩니다. `fatal=false`는 `/user/queue/errors`로 전달되는 복구 가능한 메시지 오류이고, `fatal=true`는 현재 연결을 종료하는 STOMP `ERROR` 프레임입니다. `ERROR` 프레임은 동일한 값을 `error-code` native header에도 포함합니다.

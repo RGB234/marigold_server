@@ -53,9 +53,6 @@ import lombok.NoArgsConstructor;
         "deleted_at IS NOT NULL OR (species IS NOT NULL AND sex IS NOT NULL AND neutering IS NOT NULL)")
 public class AdoptionPost {
 
-  public static final int MIN_IMAGE_COUNT = ValidationPolicy.AdoptionPost.IMAGE_MIN_COUNT;
-  public static final int MAX_IMAGE_COUNT = ValidationPolicy.AdoptionPost.IMAGE_MAX_COUNT;
-
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY) // Auto increment
   @Column(name = "id", updatable = false, nullable = false)
@@ -199,8 +196,15 @@ public class AdoptionPost {
       throw AdoptionPostException.forInvalidPostImages();
     }
 
-    int imageCount = normalizedRemainingImageNames.size() + Math.max(newImageCount, 0);
-    if (imageCount < MIN_IMAGE_COUNT || imageCount > MAX_IMAGE_COUNT) {
+    if (newImageCount < 0) {
+      throw AdoptionPostException.forInvalidPostImages();
+    }
+
+    validateImageCount(normalizedRemainingImageNames.size() + newImageCount);
+  }
+
+  public static void validateImageCount(int imageCount) {
+    if (!ValidationPolicy.AdoptionPost.IMAGE_COUNT.allows(imageCount)) {
       throw AdoptionPostException.forInvalidPostImages();
     }
   }

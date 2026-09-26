@@ -8,6 +8,8 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import com.sns.marigold.adoption.exception.AdoptionCommentException;
+import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.user.entity.User;
 
 import jakarta.persistence.CascadeType;
@@ -35,6 +37,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Table(name = "adoption_comment")
 public class AdoptionComment {
+
+  public static void validateImageCount(int imageCount) {
+    if (!ValidationPolicy.Comment.IMAGE_COUNT.allows(imageCount)) {
+      throw AdoptionCommentException.forInvalidCommentImages();
+    }
+  }
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)

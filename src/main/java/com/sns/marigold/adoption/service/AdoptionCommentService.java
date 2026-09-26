@@ -28,6 +28,7 @@ import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.global.error.exception.InternalServerException;
+import com.sns.marigold.global.validation.imagefile.ImageFiles;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
@@ -61,6 +62,9 @@ public class AdoptionCommentService {
   }
 
   public Long createComment(Long postId, Long userId, AdoptionCommentCreateDto dto) {
+    List<MultipartFile> images = ImageFiles.nonEmpty(dto.getImages());
+    AdoptionComment.validateImageCount(images.size());
+
     AdoptionPost adoptionPost =
         adoptionPostRepository
             .findById(postId)
@@ -89,8 +93,6 @@ public class AdoptionCommentService {
       }
     }
 
-    List<MultipartFile> images =
-        dto.getImages() != null ? dto.getImages() : Collections.emptyList();
     List<ImageUploadDto> uploadedImages =
         storageService.uploadImages(images, StorageDirectory.ADOPTION_COMMENT);
 
@@ -145,12 +147,17 @@ public class AdoptionCommentService {
 
   public void updateComment(
       Long postId, Long commentId, Long userId, AdoptionCommentUpdateDto dto) {
-    List<MultipartFile> newImageFiles =
-        dto.getImages().stream().filter(file -> file != null && !file.isEmpty()).toList();
+    List<MultipartFile> newImageFiles = ImageFiles.nonEmpty(dto.getImages());
+    if (dto.shouldRemoveImage() && !newImageFiles.isEmpty()) {
+      throw AdoptionCommentException.forInvalidCommentImages();
+    }
 
     if (!newImageFiles.isEmpty()) {
+      AdoptionComment.validateImageCount(newImageFiles.size());
       transactionTemplate.executeWithoutResult(
           status -> getUpdatableComment(postId, commentId, userId));
+    } else if (dto.shouldRemoveImage()) {
+      AdoptionComment.validateImageCount(0);
     }
 
     List<ImageUploadDto> uploadedImages =
@@ -168,6 +175,9 @@ public class AdoptionCommentService {
             }
 
             AdoptionComment comment = getUpdatableComment(postId, commentId, userId);
+            if (newImageFiles.isEmpty() && !dto.shouldRemoveImage()) {
+              AdoptionComment.validateImageCount(comment.getImages().size());
+            }
 
             comment.update(dto.getContent());
 

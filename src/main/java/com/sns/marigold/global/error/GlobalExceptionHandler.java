@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.NonNull;
@@ -20,7 +21,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.sns.marigold.audit.AuditLogger;
-import com.sns.marigold.global.dto.ApiResult;
+import com.sns.marigold.global.error.dto.ErrorDetail;
 import com.sns.marigold.global.error.dto.FieldErrorDetail;
 import com.sns.marigold.global.error.exception.BusinessException;
 
@@ -37,7 +38,7 @@ public class GlobalExceptionHandler {
 
   /** 비즈니스 예외 처리. 모든 커스텀 예외는 BusinessException을 상속합니다. */
   @ExceptionHandler(BusinessException.class)
-  public ResponseEntity<ApiResult<?>> handleBusinessException(@NonNull final BusinessException e) {
+  public ResponseEntity<ProblemDetail> handleBusinessException(@NonNull final BusinessException e) {
     if (e.getErrorCode().getStatus().is5xxServerError()) {
       log.error("Business exception occurred: {}", e.getErrorCode().getCode(), e);
     } else {
@@ -47,13 +48,12 @@ public class GlobalExceptionHandler {
           e.getMessage());
     }
 
-    return ResponseEntity.status(e.getErrorCode().getStatus())
-        .body(ApiResult.error(e.getErrorCode()));
+    return problem(e.getErrorCode());
   }
 
   /** Spring Security의 @PreAuthorize 등에서 발생하는 인가 예외 처리 */
   @ExceptionHandler(org.springframework.security.authorization.AuthorizationDeniedException.class)
-  public ResponseEntity<ApiResult<?>> handleAuthorizationDeniedException(
+  public ResponseEntity<ProblemDetail> handleAuthorizationDeniedException(
       org.springframework.security.authorization.AuthorizationDeniedException e) {
 
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -62,30 +62,27 @@ public class GlobalExceptionHandler {
         || !authentication.isAuthenticated()) {
       log.debug("Unauthorized access attempt: {}", e.getMessage());
 
-      return ResponseEntity.status(ErrorCode.AUTH_UNAUTHORIZED.getStatus())
-          .body(ApiResult.error(ErrorCode.AUTH_UNAUTHORIZED));
+      return problem(ErrorCode.AUTH_UNAUTHORIZED);
     }
 
     auditLogger.warn(
         "event=authorization_denied user={} reason={}", authentication.getName(), e.getMessage());
 
-    return ResponseEntity.status(ErrorCode.AUTH_ACCESS_DENIED.getStatus())
-        .body(ApiResult.error(ErrorCode.AUTH_ACCESS_DENIED));
+    return problem(ErrorCode.AUTH_ACCESS_DENIED);
   }
 
   /** SecurityContext가 비어 있는 상태에서 @PreAuthorize가 실행되면 401로 변환 */
   @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
-  public ResponseEntity<ApiResult<?>> handleAuthenticationCredentialsNotFoundException(
+  public ResponseEntity<ProblemDetail> handleAuthenticationCredentialsNotFoundException(
       AuthenticationCredentialsNotFoundException e) {
     log.debug("Authentication not found in security context: {}", e.getMessage());
 
-    return ResponseEntity.status(ErrorCode.AUTH_UNAUTHORIZED.getStatus())
-        .body(ApiResult.error(ErrorCode.AUTH_UNAUTHORIZED));
+    return problem(ErrorCode.AUTH_UNAUTHORIZED);
   }
 
   /** Request Body 필드 검증 실패 (@Valid) 처리 */
   @ExceptionHandler(MethodArgumentNotValidException.class)
-  public ResponseEntity<ApiResult<?>> handleMethodArgumentNotValidException(
+  public ResponseEntity<ProblemDetail> handleMethodArgumentNotValidException(
       final MethodArgumentNotValidException e) {
     BindingResult bindingResult = e.getBindingResult();
     List<FieldErrorDetail> errors =
@@ -95,58 +92,62 @@ public class GlobalExceptionHandler {
 
     log.debug("MethodArgumentNotValidException occurred. errorCount={}", errors.size());
 
-    return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
-        .body(ApiResult.error(ErrorCode.INVALID_INPUT_VALUE, errors));
+    return problem(ErrorCode.INVALID_INPUT_VALUE, errors);
   }
 
   /** Request Parameter 바인딩 타입 변환 실패 (예: Enum 타입 오류) 처리 */
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-  public ResponseEntity<ApiResult<?>> handleMethodArgumentTypeMismatchException(
+  public ResponseEntity<ProblemDetail> handleMethodArgumentTypeMismatchException(
       final MethodArgumentTypeMismatchException e) {
     log.debug(
         "MethodArgumentTypeMismatchException occurred. name={}, requiredType={}",
         e.getName(),
         e.getRequiredType());
 
-    return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
-        .body(ApiResult.error(ErrorCode.INVALID_INPUT_VALUE));
+    return problem(ErrorCode.INVALID_INPUT_VALUE);
   }
 
   /** Request Body 파싱 실패 처리 */
   @ExceptionHandler(HttpMessageNotReadableException.class)
-  public ResponseEntity<ApiResult<?>> handleHttpMessageNotReadableException(
+  public ResponseEntity<ProblemDetail> handleHttpMessageNotReadableException(
       final HttpMessageNotReadableException e) {
     log.debug("HttpMessageNotReadableException occurred: {}", e.getMessage());
 
-    return ResponseEntity.status(ErrorCode.INVALID_INPUT_VALUE.getStatus())
-        .body(ApiResult.error(ErrorCode.INVALID_INPUT_VALUE));
+    return problem(ErrorCode.INVALID_INPUT_VALUE);
   }
 
   /** 서블릿의 파일 또는 요청 전체 업로드 용량 제한 초과 처리 */
   @ExceptionHandler(MaxUploadSizeExceededException.class)
-  public ResponseEntity<ApiResult<?>> handleMaxUploadSizeExceededException(
+  public ResponseEntity<ProblemDetail> handleMaxUploadSizeExceededException(
       final MaxUploadSizeExceededException e) {
-    return ResponseEntity.status(ErrorCode.FILE_TOO_LARGE.getStatus())
-        .body(ApiResult.error(ErrorCode.FILE_TOO_LARGE));
+    return problem(ErrorCode.FILE_TOO_LARGE);
   }
 
   /** 존재하지 않는 정적 리소스 요청 처리 */
   @ExceptionHandler(NoResourceFoundException.class)
-  public ResponseEntity<ApiResult<?>> handleNoResourceFoundException(
+  public ResponseEntity<ProblemDetail> handleNoResourceFoundException(
       final NoResourceFoundException e) {
     log.debug("No resource found: {} {}", e.getHttpMethod(), e.getResourcePath());
 
-    return ResponseEntity.status(ErrorCode.RESOURCE_NOT_FOUND.getStatus())
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(ApiResult.error(ErrorCode.RESOURCE_NOT_FOUND));
+    return problem(ErrorCode.RESOURCE_NOT_FOUND);
   }
 
   /** 그 외 처리되지 않은 모든 예외 처리 */
   @ExceptionHandler(Exception.class)
-  protected ResponseEntity<ApiResult<?>> handleException(Exception e) {
+  protected ResponseEntity<ProblemDetail> handleException(Exception e) {
     log.error("Unhandled Exception occurred", e);
 
-    return ResponseEntity.status(ErrorCode.INTERNAL_SERVER_ERROR.getStatus())
-        .body(ApiResult.error(ErrorCode.INTERNAL_SERVER_ERROR));
+    return problem(ErrorCode.INTERNAL_SERVER_ERROR);
+  }
+
+  private ResponseEntity<ProblemDetail> problem(ErrorCode errorCode) {
+    return problem(errorCode, null);
+  }
+
+  private ResponseEntity<ProblemDetail> problem(
+      ErrorCode errorCode, List<? extends ErrorDetail> errors) {
+    return ResponseEntity.status(errorCode.getStatus())
+        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+        .body(ProblemDetailFactory.create(errorCode, errors));
   }
 }

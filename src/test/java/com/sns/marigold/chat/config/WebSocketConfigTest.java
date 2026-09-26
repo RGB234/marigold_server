@@ -38,10 +38,11 @@ import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
 import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.global.config.UrlProperties;
-
-import io.hypersistence.tsid.TSID;
+import com.sns.marigold.global.error.ErrorCode;
+import com.sns.marigold.global.tsid.TsidCodec;
 
 @ExtendWith(MockitoExtension.class)
 class WebSocketConfigTest {
@@ -54,13 +55,17 @@ class WebSocketConfigTest {
 
   @Mock private AuditLogger auditLogger;
   @Mock private WebSocketTokenSessions tokenSessions;
+  @Mock private StompProtocolErrorHandler stompProtocolErrorHandler;
 
   private WebSocketConfig webSocketConfig;
 
   @Test
   void connectRequiresJwt() {
     assertThatThrownBy(() -> inbound(connectAccessor("csrf-token")))
-        .isInstanceOf(AccessDeniedException.class);
+        .isInstanceOfSatisfying(
+            AuthException.class,
+            exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.AUTH_UNAUTHORIZED));
     verifyNoInteractions(jwtAuthenticationService);
   }
 
@@ -70,7 +75,11 @@ class WebSocketConfigTest {
     accessor.addNativeHeader("Authorization", "Bearer invalid");
     given(jwtAuthenticationService.getAuthentication("invalid"))
         .willThrow(new IllegalArgumentException("invalid"));
-    assertThatThrownBy(() -> inbound(accessor)).isInstanceOf(AccessDeniedException.class);
+    assertThatThrownBy(() -> inbound(accessor))
+        .isInstanceOfSatisfying(
+            AuthException.class,
+            exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.AUTH_TOKEN_INVALID));
   }
 
   @Test
@@ -103,7 +112,11 @@ class WebSocketConfigTest {
     given(jwtAuthenticationService.getAuthentication("expired")).willReturn(auth);
     StompHeaderAccessor accessor = connectAccessor("csrf-token");
     accessor.addNativeHeader("Authorization", "Bearer expired");
-    assertThatThrownBy(() -> inbound(accessor)).isInstanceOf(AccessDeniedException.class);
+    assertThatThrownBy(() -> inbound(accessor))
+        .isInstanceOfSatisfying(
+            AuthException.class,
+            exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.AUTH_TOKEN_EXPIRED));
     verifyNoInteractions(tokenSessions);
   }
 
@@ -111,7 +124,11 @@ class WebSocketConfigTest {
   void authenticatedSendRequiresConnectExpiry() {
     StompHeaderAccessor accessor = authenticatedMessage(StompCommand.SEND, "/pub/chat/message");
     accessor.getSessionAttributes().remove("jwtExpiresAt");
-    assertThatThrownBy(() -> inbound(accessor)).isInstanceOf(AccessDeniedException.class);
+    assertThatThrownBy(() -> inbound(accessor))
+        .isInstanceOfSatisfying(
+            AuthException.class,
+            exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.AUTH_UNAUTHORIZED));
   }
 
   @ParameterizedTest
@@ -140,7 +157,11 @@ class WebSocketConfigTest {
     StompHeaderAccessor accessor = authenticatedMessage(StompCommand.SEND, "/pub/chat/message");
     accessor.setUser(null);
     accessor.addNativeHeader("Authorization", "Bearer valid");
-    assertThatThrownBy(() -> inbound(accessor)).isInstanceOf(AccessDeniedException.class);
+    assertThatThrownBy(() -> inbound(accessor))
+        .isInstanceOfSatisfying(
+            AuthException.class,
+            exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.AUTH_UNAUTHORIZED));
     verifyNoInteractions(jwtAuthenticationService);
   }
 
@@ -148,7 +169,11 @@ class WebSocketConfigTest {
   void expiredMessageClosesConnection() {
     StompHeaderAccessor accessor = authenticatedMessage(StompCommand.SEND, "/pub/chat/message");
     accessor.getSessionAttributes().put("jwtExpiresAt", Instant.now().minusSeconds(1));
-    assertThatThrownBy(() -> inbound(accessor)).isInstanceOf(AccessDeniedException.class);
+    assertThatThrownBy(() -> inbound(accessor))
+        .isInstanceOfSatisfying(
+            AuthException.class,
+            exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.AUTH_TOKEN_EXPIRED));
     verify(tokenSessions).close("session");
   }
 
@@ -186,7 +211,8 @@ class WebSocketConfigTest {
             cookieManager,
             auditLogger,
             urlProperties(),
-            tokenSessions);
+            tokenSessions,
+            stompProtocolErrorHandler);
   }
 
   @Test
@@ -247,6 +273,22 @@ class WebSocketConfigTest {
         .isInstanceOf(AccessDeniedException.class);
   }
 
+  @Test
+  @DisplayName("인증된 사용자는 자신의 STOMP 오류 queue를 구독할 수 있다.")
+  void authorizeSubscription_AllowsUserErrorQueue() {
+    StompHeaderAccessor accessor =
+        authenticatedMessage(StompCommand.SUBSCRIBE, "/user/queue/errors");
+
+    assertThatCode(() -> inbound(accessor)).doesNotThrowAnyException();
+    verifyNoInteractions(participantRepository);
+  }
+
+  @Test
+  void resolveChatRoomSubscriptionIdRejectsDecimalFallback() {
+    assertThatThrownBy(() -> webSocketConfig.resolveChatRoomSubscriptionId("/sub/chat/room/100"))
+        .isInstanceOf(AccessDeniedException.class);
+  }
+
   private StompHeaderAccessor connectAccessor(String csrfHeader) {
     StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
     Map<String, Object> sessionAttributes = new HashMap<>();
@@ -258,7 +300,7 @@ class WebSocketConfigTest {
 
   private StompHeaderAccessor chatRoomSubscribeAccessor(Long roomId, Long userId) {
     StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
-    accessor.setDestination("/sub/chat/room/" + TSID.from(roomId));
+    accessor.setDestination("/sub/chat/room/" + TsidCodec.encode(roomId));
     accessor.setUser(authentication(userId));
     return accessor;
   }

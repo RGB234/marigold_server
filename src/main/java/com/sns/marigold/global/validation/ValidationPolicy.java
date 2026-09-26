@@ -1,5 +1,7 @@
 package com.sns.marigold.global.validation;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,16 +37,14 @@ public final class ValidationPolicy {
     public static final int TITLE_MAX_LENGTH = 16;
     public static final int FEATURES_MIN_LENGTH = 20;
     public static final int FEATURES_MAX_LENGTH = 500;
-    public static final int IMAGE_MIN_COUNT = 1;
-    public static final int IMAGE_MAX_COUNT = 8;
+    public static final ImageCountPolicy IMAGE_COUNT = new ImageCountPolicy(1, 8);
 
     private AdoptionPost() {}
   }
 
   public static final class Comment {
     public static final int CONTENT_MAX_LENGTH = 1000;
-    public static final int IMAGE_MIN_COUNT = 0;
-    public static final int IMAGE_MAX_COUNT = 1;
+    public static final ImageCountPolicy IMAGE_COUNT = new ImageCountPolicy(0, 1);
 
     private Comment() {}
   }
@@ -52,11 +52,23 @@ public final class ValidationPolicy {
   public static final class Image {
     public static final int MAX_SIZE_MB = 5;
     public static final long MAX_SIZE_BYTES = MAX_SIZE_MB * 1024L * 1024L;
+    public static final Map<String, List<String>> ALLOWED_MIME_TYPES_BY_EXTENSION =
+        createAllowedMimeTypesByExtension();
     public static final List<String> ALLOWED_MIME_TYPES =
-        List.of("image/jpeg", "image/png", "image/webp");
-    public static final List<String> ALLOWED_EXTENSIONS = List.of("jpg", "jpeg", "png", "webp");
+        ALLOWED_MIME_TYPES_BY_EXTENSION.values().stream().flatMap(List::stream).distinct().toList();
+    public static final List<String> ALLOWED_EXTENSIONS =
+        List.copyOf(ALLOWED_MIME_TYPES_BY_EXTENSION.keySet());
 
     private Image() {}
+
+    private static Map<String, List<String>> createAllowedMimeTypesByExtension() {
+      Map<String, List<String>> mimeTypes = new LinkedHashMap<>();
+      mimeTypes.put("jpg", List.of("image/jpeg"));
+      mimeTypes.put("jpeg", List.of("image/jpeg"));
+      mimeTypes.put("png", List.of("image/png"));
+      mimeTypes.put("webp", List.of("image/webp"));
+      return Collections.unmodifiableMap(mimeTypes);
+    }
   }
 
   public static final class ChatAttachment {
@@ -138,17 +150,17 @@ public final class ValidationPolicy {
                     AdoptionPost.FEATURES_MAX_LENGTH),
                 "images",
                 Map.of(
-                    "minCount",
-                    AdoptionPost.IMAGE_MIN_COUNT,
-                    "maxCount",
-                    AdoptionPost.IMAGE_MAX_COUNT))),
+                    "minCount", AdoptionPost.IMAGE_COUNT.min(),
+                    "maxCount", AdoptionPost.IMAGE_COUNT.max()))),
         Map.entry(
             "comment",
             Map.of(
                 "content",
                 Map.of("maxLength", Comment.CONTENT_MAX_LENGTH),
                 "images",
-                Map.of("minCount", Comment.IMAGE_MIN_COUNT, "maxCount", Comment.IMAGE_MAX_COUNT))),
+                Map.of(
+                    "minCount", Comment.IMAGE_COUNT.min(),
+                    "maxCount", Comment.IMAGE_COUNT.max()))),
         Map.entry(
             "image",
             Map.of(

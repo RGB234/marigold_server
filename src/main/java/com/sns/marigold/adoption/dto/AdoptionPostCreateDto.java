@@ -1,6 +1,5 @@
 package com.sns.marigold.adoption.dto;
 
-import java.util.Collections;
 import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
@@ -11,9 +10,6 @@ import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
 import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.global.validation.enumvalue.EnumValue;
-import com.sns.marigold.global.validation.imagecount.ImageCount;
-import com.sns.marigold.global.validation.imagecount.ImageCountValidatable;
-import com.sns.marigold.global.validation.imagefile.ImageFile;
 import com.sns.marigold.user.entity.User;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -32,11 +28,8 @@ import lombok.Setter;
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
-@ImageCount(
-    min = ValidationPolicy.AdoptionPost.IMAGE_MIN_COUNT,
-    max = ValidationPolicy.AdoptionPost.IMAGE_MAX_COUNT)
 @Schema(description = "입양 게시글 생성 요청")
-public class AdoptionPostCreateDto implements ImageCountValidatable {
+public class AdoptionPostCreateDto {
 
   @Schema(description = "동물 종", example = "DOG")
   @NotNull(message = "값이 비어있습니다.")
@@ -83,17 +76,7 @@ public class AdoptionPostCreateDto implements ImageCountValidatable {
   private String features;
 
   @Schema(description = "업로드할 이미지 파일 목록", type = "string", format = "binary")
-  @ImageFile()
   private List<MultipartFile> images;
-
-  public List<String> getImagesToKeep() {
-    return Collections.emptyList();
-  }
-
-  @Override
-  public List<MultipartFile> getImages() {
-    return images != null ? images : java.util.Collections.emptyList();
-  }
 
   /*
   이미지는 Entity에서 setter 메서드로 설정

@@ -96,9 +96,11 @@ OAuth2 성공 시 서버는 정상 상태에서 refresh token, CSRF token, recen
 
 ## CSRF
 
-일반 HTTP 요청은 `POST`, `PUT`, `PATCH`, `DELETE`이면서 `refresh_token` 또는 `recent_auth` 쿠키가 있을 때 CSRF 검사를 수행합니다. 서버가 발급한 `XSRF-TOKEN` 쿠키 값을 `X-CSRF-TOKEN` 헤더로 전송합니다. 누락·불일치 시 HTTP 403과 `AUTH_ACCESS_DENIED`를 반환합니다.
+일반 HTTP 요청은 `POST`, `PUT`, `PATCH`, `DELETE`이면서 `refresh_token` 또는 `recent_auth` 쿠키가 있을 때 CSRF 검사를 수행합니다.
 
-쿠키 존재 여부로 적용되므로 로그인·회원가입 요청도 기존 인증 쿠키가 있으면 검사 대상입니다. `/ws`와 `/ws/**`는 HTTP 검사에서 제외하고 STOMP 단계에서 검사합니다. OAuth2 경로는 별도 security chain이 처리합니다. 구현 기준은 [CsrfTokenValidationFilter](../src/main/java/com/sns/marigold/auth/common/csrf/CsrfTokenValidationFilter.java)입니다.
+Double-Submit Cookie 방식으로 구현하였습니다. 클라이언트는 서버가 발급한 `XSRF-TOKEN` 쿠키 값을 받아 `X-CSRF-TOKEN` 헤더로 서버에 전송합니다. 누락·불일치 시 HTTP 403과 `AUTH_ACCESS_DENIED`를 반환합니다.
+
+`/ws`와 `/ws/**`는 HTTP 검사에서 제외하고 STOMP 단계에서 검사합니다. OAuth2 경로는 별도 security chain이 처리합니다. 구현 기준은 [CsrfTokenValidationFilter](../src/main/java/com/sns/marigold/auth/common/csrf/CsrfTokenValidationFilter.java)입니다.
 
 ## CORS
 
@@ -112,6 +114,7 @@ STOMP prefix:
 
 - publish: `/pub`
 - subscribe: `/sub`
+- user destination: `/user`
 
 텍스트 메시지 publish destination:
 
@@ -125,6 +128,12 @@ STOMP prefix:
 /sub/chat/room/{roomId}
 ```
 
+세션 전용 오류 subscribe destination:
+
+```text
+/user/queue/errors
+```
+
 STOMP `CONNECT` 요청에는 아래 native header를 포함합니다. 이후 같은 연결에서 메시지 전송과 구독을 수행합니다.
 
 ```http
@@ -132,9 +141,11 @@ Authorization: Bearer {accessToken}
 X-CSRF-TOKEN: {XSRF-TOKEN cookie value}
 ```
 
-채팅방 구독은 참여자만 허용됩니다. `/sub/chat/room/{roomId}`의 `roomId`는 TSID 문자열 또는 Long 문자열로 해석됩니다.
+채팅방 구독은 참여자만 허용됩니다. `/sub/chat/room/{roomId}`의 `roomId`는 TSID 문자열로 해석됩니다.
 
-`CONNECT`는 유효한 JWT와 CSRF를 모두 요구합니다. 서버는 인증 정보와 검증된 만료 시각을 연결에 저장하며, 이후 메시지에서는 JWT를 다시 파싱하지 않고 인증·만료 여부와 작업별 권한을 검사합니다. `SEND`는 `/pub/chat/message`, `SUBSCRIBE`는 `/sub/chat/room/{roomId}`만 허용합니다. 클라이언트의 `/sub/**` 직접 전송과 그 외 전송·구독 목적지는 거부합니다.
+`CONNECT`는 유효한 JWT와 CSRF를 모두 요구합니다. 서버는 인증 정보와 검증된 만료 시각을 연결에 저장하며, 이후 메시지에서는 JWT를 다시 파싱하지 않고 인증·만료 여부와 작업별 권한을 검사합니다. `SEND`는 `/pub/chat/message`, `SUBSCRIBE`는 `/sub/chat/room/{roomId}`와 `/user/queue/errors`만 허용합니다. 클라이언트의 `/sub/**` 직접 전송, `/queue/errors` 직접 구독과 그 외 전송·구독 목적지는 거부합니다.
+
+정상 연결에서 메시지 하나만 실패한 경우 서버는 `StompErrorResponse`를 `/user/queue/errors`로 전송하고 연결을 유지합니다. CONNECT 인증/CSRF, 목적지 인가 및 프로토콜 오류는 `fatal=true`인 JSON payload를 STOMP `ERROR` 프레임으로 전송한 뒤 연결을 종료합니다. 프론트엔드는 CONNECT 인증 오류와 일시적인 서버 오류만 재연결 대상으로 보고, 잘못된 SEND/SUBSCRIBE처럼 재시도로 해결되지 않는 치명적 오류에서는 자동 재연결을 중단합니다.
 
 토큰 만료 시 서버는 메시지 전송 여부와 관계없이 연결을 종료합니다(종료 코드 `4001`, 사유 `JWT expired`). 프론트엔드는 각 연결 시도 전에 `/api/v1/auth/refresh`로 토큰을 갱신하고 최신 JWT·CSRF 헤더로 연결한 뒤 채팅방을 다시 구독합니다. 갱신 실패 시 재접속을 중단하고 로그인 화면으로 이동합니다. `/ws/**`의 HTTP 요청과 `POST /api/v1/auth/refresh`는 access token 인증 요구에서 제외하되 각각 STOMP 인증과 refresh cookie·CSRF 검증을 적용합니다.
 

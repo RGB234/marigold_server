@@ -1,8 +1,6 @@
 package com.sns.marigold.chat.dto;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.sns.marigold.global.tsid.TsidJacksonConfig;
+import com.sns.marigold.global.tsid.TsidId;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -25,7 +23,6 @@ public class NewChatDto {
 
   @Schema(description = "TSID 형식 상대 사용자 ID", type = "string", example = "01JABCDEF1234")
   @NotNull
-  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
+  @TsidId
   private Long receiverId;
 }

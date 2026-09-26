@@ -1,8 +1,6 @@
 package com.sns.marigold.adoption.dto;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.sns.marigold.global.tsid.TsidJacksonConfig;
+import com.sns.marigold.global.tsid.TsidId;
 import com.sns.marigold.user.entity.User;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -18,8 +16,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AdoptionCandidateDto {
   @Schema(description = "TSID 형식 후보자 사용자 ID", type = "string", example = "01JABCDEF1234")
-  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
+  @TsidId
   private Long id;
 
   @Schema(description = "후보자 닉네임", example = "입양희망자")

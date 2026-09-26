@@ -81,6 +81,8 @@ public enum ErrorCode {
   ADOPTION_COMMENT_DELETED(HttpStatus.BAD_REQUEST, "ADOPTION_COMMENT_DELETED", "이미 삭제된 댓글입니다."),
   ADOPTION_COMMENT_POST_MISMATCH(
       HttpStatus.BAD_REQUEST, "ADOPTION_COMMENT_POST_MISMATCH", "해당 게시글의 댓글이 아닙니다."),
+  ADOPTION_COMMENT_IMAGE_INVALID(
+      HttpStatus.BAD_REQUEST, "ADOPTION_COMMENT_IMAGE_INVALID", "댓글 이미지 정보가 올바르지 않습니다."),
 
   // Chat
   CHAT_MESSAGE_EMPTY(HttpStatus.BAD_REQUEST, "CHAT_MESSAGE_EMPTY", "메시지 또는 첨부파일을 입력해주세요.");

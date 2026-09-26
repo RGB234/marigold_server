@@ -1,8 +1,6 @@
 package com.sns.marigold.user.dto.response;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.sns.marigold.global.tsid.TsidJacksonConfig;
+import com.sns.marigold.global.tsid.TsidId;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.enums.UserStatus;
 
@@ -20,8 +18,7 @@ import lombok.Setter;
 @RequiredArgsConstructor
 public class UserInfoDto {
   @Schema(description = "TSID 형식 사용자 ID", type = "string", example = "01JABCDEF1234")
-  @JsonSerialize(using = TsidJacksonConfig.Serializer.class)
-  @JsonDeserialize(using = TsidJacksonConfig.Deserializer.class)
+  @TsidId
   private final Long id;
 
   @Schema(description = "표시 닉네임", example = "마리골드")

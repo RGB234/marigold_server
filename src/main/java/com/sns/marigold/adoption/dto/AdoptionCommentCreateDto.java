@@ -1,14 +1,10 @@
 package com.sns.marigold.adoption.dto;
 
-import java.util.Collections;
 import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
 import com.sns.marigold.global.validation.ValidationPolicy;
-import com.sns.marigold.global.validation.imagecount.ImageCount;
-import com.sns.marigold.global.validation.imagecount.ImageCountValidatable;
-import com.sns.marigold.global.validation.imagefile.ImageFile;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -24,11 +20,8 @@ import lombok.Setter;
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
-@ImageCount(
-    min = ValidationPolicy.Comment.IMAGE_MIN_COUNT,
-    max = ValidationPolicy.Comment.IMAGE_MAX_COUNT)
 @Schema(description = "입양 댓글 생성 요청")
-public class AdoptionCommentCreateDto implements ImageCountValidatable {
+public class AdoptionCommentCreateDto {
 
   @Schema(description = "부모 댓글 ID. 대댓글이 아니면 null", example = "1", nullable = true)
   private Long parentId;
@@ -39,15 +32,5 @@ public class AdoptionCommentCreateDto implements ImageCountValidatable {
   private String content;
 
   @Schema(description = "업로드할 댓글 이미지 파일 목록. 최대 1개", type = "string", format = "binary")
-  @ImageFile()
   private List<MultipartFile> images;
-
-  public List<String> getImagesToKeep() {
-    return Collections.emptyList();
-  }
-
-  @Override
-  public List<MultipartFile> getImages() {
-    return images != null ? images : Collections.emptyList();
-  }
 }

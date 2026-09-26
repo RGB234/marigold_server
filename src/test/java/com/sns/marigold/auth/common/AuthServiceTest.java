@@ -44,7 +44,6 @@ import com.sns.marigold.user.enums.UserStatus;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
 
-import io.hypersistence.tsid.TSID;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -88,7 +87,7 @@ class AuthServiceTest {
 
     testUser =
         User.builder()
-            .id(TSID.from(1L).toLong())
+            .id(1L)
             .email("test@example.com")
             .password("encodedPassword")
             .nickname("tester")
@@ -278,7 +277,7 @@ class AuthServiceTest {
     // given
     CustomPrincipal principal =
         new CustomPrincipal(
-            TSID.from(1L).toLong(),
+            1L,
             List.of(new SimpleGrantedAuthority(Role.ROLE_PERSON.name())),
             null,
             AuthStatus.LOGIN_SUCCESS);
@@ -290,7 +289,7 @@ class AuthServiceTest {
     UserAuthStatusDto statusDto = authService.getAuthStatus(authentication, request);
 
     // then
-    assertThat(statusDto.getUserId()).isEqualTo(TSID.from(1L).toString());
+    assertThat(statusDto.getUserId()).isEqualTo(1L);
     assertThat(statusDto.getAuthorities()).hasSize(1);
     assertThat(statusDto.getAuthorities().get(0)).isEqualTo(Role.ROLE_PERSON.name());
     assertThat(statusDto.isRefreshTokenPresent()).isFalse();

@@ -3,13 +3,14 @@ package com.sns.marigold.auth.common;
 import java.io.IOException;
 
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sns.marigold.global.dto.ApiResult;
 import com.sns.marigold.global.error.ErrorCode;
+import com.sns.marigold.global.error.ProblemDetailFactory;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,9 +40,9 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
       errorCode = ErrorCode.AUTH_UNAUTHORIZED;
     }
 
-    ApiResult<Object> responseBody = ApiResult.error(errorCode);
+    ProblemDetail responseBody = ProblemDetailFactory.create(errorCode);
 
-    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
     response.setCharacterEncoding("UTF-8");
     response.setStatus(errorCode.getStatus().value());
 

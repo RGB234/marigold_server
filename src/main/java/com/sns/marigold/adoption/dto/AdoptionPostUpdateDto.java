@@ -9,9 +9,6 @@ import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
 import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.global.validation.enumvalue.EnumValue;
-import com.sns.marigold.global.validation.imagecount.ImageCount;
-import com.sns.marigold.global.validation.imagecount.ImageCountValidatable;
-import com.sns.marigold.global.validation.imagefile.ImageFile;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
@@ -29,11 +26,8 @@ import lombok.Setter;
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
-@ImageCount(
-    min = ValidationPolicy.AdoptionPost.IMAGE_MIN_COUNT,
-    max = ValidationPolicy.AdoptionPost.IMAGE_MAX_COUNT)
 @Schema(description = "입양 게시글 수정 요청")
-public class AdoptionPostUpdateDto implements ImageCountValidatable {
+public class AdoptionPostUpdateDto {
 
   @Schema(description = "동물 종", example = "DOG")
   @NotNull(message = "값이 비어있습니다.")
@@ -84,16 +78,5 @@ public class AdoptionPostUpdateDto implements ImageCountValidatable {
   private List<String> imagesToKeep;
 
   @Schema(description = "새로 업로드할 이미지 파일 목록", type = "string", format = "binary", nullable = true)
-  @ImageFile()
   private List<MultipartFile> images;
-
-  @Override
-  public List<String> getImagesToKeep() {
-    return imagesToKeep != null ? imagesToKeep : java.util.Collections.emptyList();
-  }
-
-  @Override
-  public List<MultipartFile> getImages() {
-    return images != null ? images : java.util.Collections.emptyList();
-  }
 }

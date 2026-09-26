@@ -35,8 +35,7 @@ import com.sns.marigold.chat.dto.NewChatDto;
 import com.sns.marigold.chat.enums.ChatRoomType;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.global.config.SwaggerConfig;
-import com.sns.marigold.global.dto.ApiResult;
-import com.sns.marigold.global.tsid.TsidType;
+import com.sns.marigold.global.tsid.TsidValue;
 import com.sns.marigold.global.web.UrlConstants;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -73,17 +72,13 @@ public class ChatController {
   })
   @PreAuthorize("isAuthenticated()")
   @PostMapping("")
-  public ResponseEntity<ApiResult<ChatRoomDto>> getOrCreateChatRoom(
+  public ChatRoomDto getOrCreateChatRoom(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @RequestBody @Validated({Default.class}) NewChatDto newChatDto) {
-    return ResponseEntity.ok(
-        ApiResult.success(
-            HttpStatus.OK,
-            "fetched successfully",
-            chatService.getOrCreateChatRoom(
-                Objects.requireNonNull(principal.getUserId()),
-                Objects.requireNonNull(newChatDto.getReceiverId()),
-                Objects.requireNonNull(newChatDto.getAdoptionPostId()))));
+    return chatService.getOrCreateChatRoom(
+        Objects.requireNonNull(principal.getUserId()),
+        Objects.requireNonNull(newChatDto.getReceiverId()),
+        Objects.requireNonNull(newChatDto.getAdoptionPostId()));
   }
 
   @Operation(
@@ -97,7 +92,7 @@ public class ChatController {
   })
   @PreAuthorize("isAuthenticated()")
   @GetMapping("")
-  public ResponseEntity<ApiResult<Page<ChatRoomDto>>> getMyRooms(
+  public Page<ChatRoomDto> getMyRooms(
       @Parameter(description = "채팅방 타입", required = false)
           @RequestParam(name = "type", required = false)
           String type,
@@ -106,14 +101,10 @@ public class ChatController {
           @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
           @NonNull
           Pageable pageable) {
-    return ResponseEntity.ok(
-        ApiResult.success(
-            HttpStatus.OK,
-            "fetched successfully",
-            chatService.getUserRooms(
-                Objects.requireNonNull(principal.getUserId()),
-                Objects.requireNonNull(ChatRoomType.fromString(type)),
-                pageable)));
+    return chatService.getUserRooms(
+        Objects.requireNonNull(principal.getUserId()),
+        Objects.requireNonNull(ChatRoomType.fromString(type)),
+        pageable);
   }
 
   @Operation(
@@ -129,18 +120,11 @@ public class ChatController {
   })
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/{roomId}")
-  public ResponseEntity<ApiResult<ChatRoomDto>> getChatRoom(
+  public ChatRoomDto getChatRoom(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "TSID 형식 채팅방 ID", required = true)
-          @PathVariable("roomId")
-          @TsidType
-          @NonNull
-          Long roomId) {
-    return ResponseEntity.ok(
-        ApiResult.success(
-            HttpStatus.OK,
-            "fetched successfully",
-            chatService.getChatRoom(roomId, Objects.requireNonNull(principal.getUserId()))));
+      @Parameter(description = "TSID 형식 채팅방 ID", required = true) @PathVariable("roomId") @NonNull
+          TsidValue roomId) {
+    return chatService.getChatRoom(roomId.value(), Objects.requireNonNull(principal.getUserId()));
   }
 
   @Operation(
@@ -156,18 +140,12 @@ public class ChatController {
   })
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/{roomId}/messages")
-  public ResponseEntity<ApiResult<List<ChatMessageDto>>> getRoomMessages(
+  public List<ChatMessageDto> getRoomMessages(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "TSID 형식 채팅방 ID", required = true)
-          @PathVariable("roomId")
-          @TsidType
-          @NonNull
-          Long roomId) {
-    return ResponseEntity.ok(
-        ApiResult.success(
-            HttpStatus.OK,
-            "fetched successfully",
-            chatService.getRoomMessages(roomId, Objects.requireNonNull(principal.getUserId()))));
+      @Parameter(description = "TSID 형식 채팅방 ID", required = true) @PathVariable("roomId") @NonNull
+          TsidValue roomId) {
+    return chatService.getRoomMessages(
+        roomId.value(), Objects.requireNonNull(principal.getUserId()));
   }
 
   @Operation(
@@ -183,21 +161,14 @@ public class ChatController {
   })
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/{roomId}/attachments/{attachmentId}/download-url")
-  public ResponseEntity<ApiResult<String>> getAttachmentDownloadUrl(
+  public String getAttachmentDownloadUrl(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "TSID 형식 채팅방 ID", required = true)
-          @PathVariable("roomId")
-          @TsidType
-          @NonNull
-          Long roomId,
+      @Parameter(description = "TSID 형식 채팅방 ID", required = true) @PathVariable("roomId") @NonNull
+          TsidValue roomId,
       @Parameter(description = "첨부파일 ID", required = true) @PathVariable("attachmentId") @NonNull
           Long attachmentId) {
-    return ResponseEntity.ok(
-        ApiResult.success(
-            HttpStatus.OK,
-            "fetched successfully",
-            chatService.getAttachmentDownloadUrl(
-                roomId, attachmentId, Objects.requireNonNull(principal.getUserId()))));
+    return chatService.getAttachmentDownloadUrl(
+        roomId.value(), attachmentId, Objects.requireNonNull(principal.getUserId()));
   }
 
   @Operation(
@@ -216,13 +187,10 @@ public class ChatController {
   })
   @PreAuthorize("isAuthenticated()")
   @PostMapping(value = "/{roomId}/messages/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public ResponseEntity<ApiResult<ChatMessageDto>> createFileMessage(
+  public ResponseEntity<ChatMessageDto> createFileMessage(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "TSID 형식 채팅방 ID", required = true)
-          @PathVariable("roomId")
-          @TsidType
-          @NonNull
-          Long roomId,
+      @Parameter(description = "TSID 형식 채팅방 ID", required = true) @PathVariable("roomId") @NonNull
+          TsidValue roomId,
       @Parameter(description = "메시지 본문", required = false)
           @RequestPart(value = "message", required = false)
           String message,
@@ -230,10 +198,9 @@ public class ChatController {
           List<MultipartFile> files) {
     ChatMessageDto savedMessage =
         chatService.saveFileMessage(
-            roomId, message, files, Objects.requireNonNull(principal.getUserId()));
+            roomId.value(), message, files, Objects.requireNonNull(principal.getUserId()));
     messagingTemplate.convertAndSend(ChatDestinations.room(savedMessage.getRoomId()), savedMessage);
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(ApiResult.success(HttpStatus.CREATED, "created successfully", savedMessage));
+    return ResponseEntity.status(HttpStatus.CREATED).body(savedMessage);
   }
 
   @Operation(
@@ -244,7 +211,7 @@ public class ChatController {
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
       })
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "나가기 성공"),
+    @ApiResponse(responseCode = "204", description = "나가기 성공"),
     @ApiResponse(responseCode = "400", description = "채팅방 ID 형식 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "403", description = "채팅방 참여자 아님 또는 CSRF token 오류"),
@@ -252,14 +219,11 @@ public class ChatController {
   })
   @PreAuthorize("isAuthenticated()")
   @DeleteMapping("/{roomId}/leave")
-  public ResponseEntity<ApiResult<Void>> leaveRoom(
+  public ResponseEntity<Void> leaveRoom(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "TSID 형식 채팅방 ID", required = true)
-          @PathVariable("roomId")
-          @TsidType
-          @NonNull
-          Long roomId) {
-    chatService.leaveRoom(roomId, Objects.requireNonNull(principal.getUserId()));
-    return ResponseEntity.ok(ApiResult.success(HttpStatus.OK, "deleted successfully"));
+      @Parameter(description = "TSID 형식 채팅방 ID", required = true) @PathVariable("roomId") @NonNull
+          TsidValue roomId) {
+    chatService.leaveRoom(roomId.value(), Objects.requireNonNull(principal.getUserId()));
+    return ResponseEntity.noContent().build();
   }
 }

@@ -225,6 +225,19 @@ class AdoptionPostServiceTest {
   }
 
   @Test
+  @DisplayName("게시글 생성 시 이미지가 없으면 업로드 전에 실패한다.")
+  void create_WithoutImages() {
+    AdoptionPostCreateDto dto = AdoptionPostCreateDto.builder().images(List.of()).build();
+
+    assertThatThrownBy(() -> adoptionPostService.create(dto, 1L))
+        .isInstanceOf(AdoptionPostException.class)
+        .hasMessageContaining(AdoptionPostException.forInvalidPostImages().getMessage());
+
+    verify(storageService, never()).uploadImages(any(), any());
+    verifyNoInteractions(userService, adoptionPostRepository);
+  }
+
+  @Test
   @DisplayName("업로드 후 트랜잭션 시작 전 실패하면 새 파일을 직접 삭제한다.")
   void create_FailureBeforeTransactionDeletesUploadedImages() {
     MockMultipartFile image =

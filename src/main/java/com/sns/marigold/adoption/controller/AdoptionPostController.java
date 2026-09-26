@@ -1,7 +1,7 @@
 package com.sns.marigold.adoption.controller;
 
+import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 import org.springdoc.core.annotations.ParameterObject;
@@ -9,7 +9,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,8 +37,8 @@ import com.sns.marigold.adoption.service.AdoptionPostService;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.global.config.SwaggerConfig;
-import com.sns.marigold.global.dto.ApiResult;
-import com.sns.marigold.global.tsid.TsidType;
+import com.sns.marigold.global.dto.IdResponseDto;
+import com.sns.marigold.global.tsid.TsidValue;
 import com.sns.marigold.global.web.UrlConstants;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -75,7 +74,7 @@ public class AdoptionPostController {
   })
   @PreAuthorize("isAuthenticated()")
   @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public ResponseEntity<ApiResult<Map<String, String>>> create(
+  public ResponseEntity<IdResponseDto> create(
       @Parameter(description = "생성할 입양 게시글 정보") @ModelAttribute @Validated({Default.class})
           AdoptionPostCreateDto dto,
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal) {
@@ -86,12 +85,8 @@ public class AdoptionPostController {
     }
     Long adoptionPostId = adoptionPostService.create(dto, userId);
 
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(
-            ApiResult.success(
-                HttpStatus.CREATED,
-                "Adoption post created successfully",
-                Map.of("id", adoptionPostId.toString())));
+    URI location = URI.create(UrlConstants.ADOPTION_BASE + "/" + adoptionPostId);
+    return ResponseEntity.created(location).body(new IdResponseDto(adoptionPostId.toString()));
   }
 
   /*
@@ -103,14 +98,12 @@ public class AdoptionPostController {
   @ApiResponses({@ApiResponse(responseCode = "200", description = "조회 성공")})
   @PreAuthorize("permitAll()")
   @GetMapping("")
-  public ResponseEntity<ApiResult<Page<AdoptionPostDto>>> search(
+  public Page<AdoptionPostDto> search(
       @ParameterObject @ModelAttribute AdoptionPostSearchFilterDto dto,
       @ParameterObject
           @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
           Pageable pageable) {
-    Page<AdoptionPostDto> result = adoptionPostService.search(dto, pageable);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "Adoption post search successfully", result));
+    return adoptionPostService.search(dto, pageable);
   }
 
   @Operation(summary = "작성자별 입양 게시글 조회", description = "특정 사용자가 작성한 입양 게시글 목록을 조회합니다.")
@@ -120,17 +113,13 @@ public class AdoptionPostController {
   })
   @PreAuthorize("permitAll()")
   @GetMapping("/writer/{userId}")
-  public ResponseEntity<ApiResult<Page<AdoptionPostDto>>> searchByWriter(
-      @Parameter(description = "TSID 형식 사용자 ID", required = true) @PathVariable @TsidType
-          Long userId,
+  public Page<AdoptionPostDto> searchByWriter(
+      @Parameter(description = "TSID 형식 사용자 ID", required = true) @PathVariable("userId")
+          TsidValue userId,
       @ParameterObject
           @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
           Pageable pageable) {
-    Page<AdoptionPostDto> result = adoptionPostService.searchByWriter(userId, pageable);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(
-            ApiResult.success(
-                HttpStatus.OK, "Adoption post search by writer successfully", result));
+    return adoptionPostService.searchByWriter(userId.value(), pageable);
   }
 
   @Operation(
@@ -145,23 +134,19 @@ public class AdoptionPostController {
   })
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/adopter/{userId}")
-  public ResponseEntity<ApiResult<Page<AdoptionPostDto>>> searchByAdopter(
+  public Page<AdoptionPostDto> searchByAdopter(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "TSID 형식 사용자 ID", required = true) @PathVariable @TsidType
-          Long userId,
+      @Parameter(description = "TSID 형식 사용자 ID", required = true) @PathVariable("userId")
+          TsidValue userId,
       @ParameterObject
           @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
           Pageable pageable) {
     Long loggedInUserId = principal.getUserId();
-    if (loggedInUserId == null || !loggedInUserId.equals(userId)) {
+    if (loggedInUserId == null || !loggedInUserId.equals(userId.value())) {
       throw AuthException.forAccessDenied();
     }
 
-    Page<AdoptionPostDto> result = adoptionPostService.searchByAdopter(userId, pageable);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(
-            ApiResult.success(
-                HttpStatus.OK, "Adoption post search by adopter successfully", result));
+    return adoptionPostService.searchByAdopter(userId.value(), pageable);
   }
 
   @Operation(summary = "입양 게시글 요약 조회", description = "입양 게시글의 목록용 요약 정보를 조회합니다.")
@@ -171,11 +156,9 @@ public class AdoptionPostController {
   })
   @PreAuthorize("permitAll()")
   @GetMapping("/{id}/summary")
-  public ResponseEntity<ApiResult<AdoptionPostDto>> getSummary(
+  public AdoptionPostDto getSummary(
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id) {
-    AdoptionPostDto result = adoptionPostService.getSummary(id);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "Adoption post successfully", result));
+    return adoptionPostService.getSummary(id);
   }
 
   @Operation(summary = "입양 게시글 상세 조회", description = "입양 게시글의 상세 정보를 조회합니다.")
@@ -185,11 +168,9 @@ public class AdoptionPostController {
   })
   @PreAuthorize("permitAll()")
   @GetMapping("/{id}")
-  public ResponseEntity<ApiResult<AdoptionPostDetailDto>> getDetail(
+  public AdoptionPostDetailDto getDetail(
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id) {
-    AdoptionPostDetailDto result = adoptionPostService.getDetail(id);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "Adoption post detail successfully", result));
+    return adoptionPostService.getDetail(id);
   }
 
   @Operation(
@@ -200,7 +181,7 @@ public class AdoptionPostController {
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
       })
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "수정 성공"),
+    @ApiResponse(responseCode = "204", description = "수정 성공"),
     @ApiResponse(responseCode = "400", description = "입력값 또는 이미지 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
@@ -208,7 +189,7 @@ public class AdoptionPostController {
   })
   @PreAuthorize("isAuthenticated()")
   @PatchMapping("/{id}")
-  public ResponseEntity<ApiResult<?>> update(
+  public ResponseEntity<Void> update(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id,
       @Parameter(description = "수정할 입양 게시글 정보") @Validated({Default.class}) @ModelAttribute
@@ -221,8 +202,7 @@ public class AdoptionPostController {
     Objects.requireNonNull(dto, "dto cannot be null");
     adoptionPostService.update(id, userId, dto);
 
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "Adoption post updated successfully"));
+    return ResponseEntity.noContent().build();
   }
 
   @Operation(
@@ -233,7 +213,7 @@ public class AdoptionPostController {
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
       })
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "상태 변경 성공"),
+    @ApiResponse(responseCode = "204", description = "상태 변경 성공"),
     @ApiResponse(responseCode = "400", description = "상태값 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
@@ -241,7 +221,7 @@ public class AdoptionPostController {
   })
   @PreAuthorize("isAuthenticated()")
   @PatchMapping("/{id}/status")
-  public ResponseEntity<ApiResult<?>> updateStatus(
+  public ResponseEntity<Void> updateStatus(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id,
       @Parameter(description = "변경할 게시글 상태", required = true) @RequestParam("status")
@@ -251,8 +231,7 @@ public class AdoptionPostController {
       throw AuthException.forUnauthorized();
     }
     adoptionPostService.updateStatus(id, status, userId);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "Adoption status updated successfully"));
+    return ResponseEntity.noContent().build();
   }
 
   @Operation(
@@ -263,14 +242,14 @@ public class AdoptionPostController {
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
       })
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "삭제 성공"),
+    @ApiResponse(responseCode = "204", description = "삭제 성공"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
     @ApiResponse(responseCode = "404", description = "게시글 없음")
   })
   @PreAuthorize("isAuthenticated()")
   @DeleteMapping("/{id}")
-  public ResponseEntity<ApiResult<?>> delete(
+  public ResponseEntity<Void> delete(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id) {
     Long userId = principal.getUserId();
@@ -278,8 +257,7 @@ public class AdoptionPostController {
       throw AuthException.forUnauthorized();
     }
     adoptionPostService.delete(id, userId);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "Adoption post deleted successfully"));
+    return ResponseEntity.noContent().build();
   }
 
   @Operation(
@@ -294,18 +272,14 @@ public class AdoptionPostController {
   })
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/{id}/candidates")
-  public ResponseEntity<ApiResult<List<AdoptionCandidateDto>>> getCandidates(
+  public List<AdoptionCandidateDto> getCandidates(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw AuthException.forUnauthorized();
     }
-    List<AdoptionCandidateDto> candidates = adoptionPostService.getCandidates(id, userId);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(
-            ApiResult.success(
-                HttpStatus.OK, "Adoption candidates fetched successfully", candidates));
+    return adoptionPostService.getCandidates(id, userId);
   }
 
   @Operation(
@@ -316,7 +290,7 @@ public class AdoptionPostController {
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
       })
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "입양 완료 성공"),
+    @ApiResponse(responseCode = "204", description = "입양 완료 성공"),
     @ApiResponse(responseCode = "400", description = "요청값 또는 상태 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
@@ -324,7 +298,7 @@ public class AdoptionPostController {
   })
   @PreAuthorize("isAuthenticated()")
   @PostMapping("/{id}/complete")
-  public ResponseEntity<ApiResult<?>> completeAdoption(
+  public ResponseEntity<Void> completeAdoption(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id,
       @RequestBody @Validated CompleteAdoptionRequestDto request) {
@@ -333,8 +307,7 @@ public class AdoptionPostController {
       throw AuthException.forUnauthorized();
     }
     adoptionPostService.completeAdoption(id, request.getAdopterId(), userId);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "Adoption completed successfully"));
+    return ResponseEntity.noContent().build();
   }
 
   @Operation(
@@ -345,7 +318,7 @@ public class AdoptionPostController {
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
       })
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "입양 완료 취소 성공"),
+    @ApiResponse(responseCode = "204", description = "입양 완료 취소 성공"),
     @ApiResponse(responseCode = "400", description = "상태 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
@@ -353,7 +326,7 @@ public class AdoptionPostController {
   })
   @PreAuthorize("isAuthenticated()")
   @PostMapping("/{id}/cancel-complete")
-  public ResponseEntity<ApiResult<?>> cancelAdoption(
+  public ResponseEntity<Void> cancelAdoption(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id) {
     Long userId = principal.getUserId();
@@ -361,7 +334,6 @@ public class AdoptionPostController {
       throw AuthException.forUnauthorized();
     }
     adoptionPostService.cancelAdoption(id, userId);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "Adoption canceled successfully"));
+    return ResponseEntity.noContent().build();
   }
 }

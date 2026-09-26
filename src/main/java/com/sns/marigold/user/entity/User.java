@@ -4,9 +4,9 @@ import java.time.LocalDateTime;
 
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+import com.sns.marigold.global.tsid.TsidCodec;
 import com.sns.marigold.user.enums.UserStatus;
 
-import io.hypersistence.tsid.TSID;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -132,7 +132,7 @@ public class User {
   }
 
   public void softDelete() {
-    this.nickname = "deleted-user-" + TSID.from(this.id);
+    this.nickname = "deleted-user-" + TsidCodec.encode(this.id);
     deleteImage();
     this.providerInfo = null;
     this.providerId = null;

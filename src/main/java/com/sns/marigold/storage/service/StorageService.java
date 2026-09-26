@@ -26,6 +26,4 @@ public interface StorageService {
   String getViewUrlOrNull(String storedFileName);
 
   String getDownloadUrl(String storedFileName, String originalFileName);
-
-  void validateRealImageFiles(List<MultipartFile> files);
 }

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.util.List;
 import java.util.Optional;
@@ -96,11 +97,6 @@ class AdoptionCommentServiceTest {
             .storedFileName("adoption/comment/11111111-1111-1111-1111-111111111111.jpg")
             .originalFileName("comment-image-1.jpg")
             .build());
-    comment.addImage(
-        AdoptionCommentImage.builder()
-            .storedFileName("adoption/comment/22222222-2222-2222-2222-222222222222.jpg")
-            .originalFileName("comment-image-2.jpg")
-            .build());
 
     org.mockito.Mockito.lenient()
         .doAnswer(
@@ -153,6 +149,27 @@ class AdoptionCommentServiceTest {
   }
 
   @Test
+  @DisplayName("댓글 생성 시 이미지가 두 개 이상이면 업로드 전에 실패한다.")
+  void createComment_WithTooManyImages() {
+    MockMultipartFile first =
+        new MockMultipartFile("images", "first.jpg", "image/jpeg", new byte[] {1});
+    MockMultipartFile second =
+        new MockMultipartFile("images", "second.jpg", "image/jpeg", new byte[] {2});
+    AdoptionCommentCreateDto dto =
+        AdoptionCommentCreateDto.builder()
+            .content("new comment")
+            .images(List.of(first, second))
+            .build();
+
+    assertThatThrownBy(() -> adoptionCommentService.createComment(100L, 1L, dto))
+        .isInstanceOf(AdoptionCommentException.class)
+        .hasMessageContaining(AdoptionCommentException.forInvalidCommentImages().getMessage());
+
+    verify(storageService, never()).uploadImages(any(), any());
+    verifyNoInteractions(adoptionPostRepository);
+  }
+
+  @Test
   @DisplayName("댓글 작성자는 댓글 내용을 수정할 수 있다.")
   void updateComment_Success() {
     // given
@@ -165,8 +182,28 @@ class AdoptionCommentServiceTest {
 
     // then
     assertThat(comment.getContent()).isEqualTo("updated comment");
-    assertThat(comment.getImages()).hasSize(2);
+    assertThat(comment.getImages()).hasSize(1);
     verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
+  @DisplayName("댓글 수정 시 이미지 삭제와 추가를 동시에 요청하면 실패한다.")
+  void updateComment_WithConflictingImageChange() {
+    MockMultipartFile image =
+        new MockMultipartFile("images", "new.jpg", "image/jpeg", new byte[] {1});
+    AdoptionCommentUpdateDto dto =
+        AdoptionCommentUpdateDto.builder()
+            .content("updated comment")
+            .removeImage(true)
+            .images(List.of(image))
+            .build();
+
+    assertThatThrownBy(() -> adoptionCommentService.updateComment(100L, 10L, 1L, dto))
+        .isInstanceOf(AdoptionCommentException.class)
+        .hasMessageContaining(AdoptionCommentException.forInvalidCommentImages().getMessage());
+
+    verify(storageService, never()).uploadImages(any(), any());
+    verifyNoInteractions(adoptionCommentRepository);
   }
 
   @Test
@@ -202,9 +239,7 @@ class AdoptionCommentServiceTest {
         .isEqualTo("adoption/comment/33333333-3333-3333-3333-333333333333.jpg");
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
     assertThat(eventCaptor.getValue().fileNames())
-        .containsExactlyInAnyOrder(
-            "adoption/comment/11111111-1111-1111-1111-111111111111.jpg",
-            "adoption/comment/22222222-2222-2222-2222-222222222222.jpg");
+        .containsExactly("adoption/comment/11111111-1111-1111-1111-111111111111.jpg");
     verify(eventPublisher)
         .publishEvent(
             new DeleteUploadedStorageFilesEvent(
@@ -229,9 +264,7 @@ class AdoptionCommentServiceTest {
     assertThat(comment.getImages()).isEmpty();
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
     assertThat(eventCaptor.getValue().fileNames())
-        .containsExactlyInAnyOrder(
-            "adoption/comment/11111111-1111-1111-1111-111111111111.jpg",
-            "adoption/comment/22222222-2222-2222-2222-222222222222.jpg");
+        .containsExactly("adoption/comment/11111111-1111-1111-1111-111111111111.jpg");
   }
 
   @Test
@@ -297,9 +330,7 @@ class AdoptionCommentServiceTest {
     assertThat(comment.getImages()).isEmpty();
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
     assertThat(eventCaptor.getValue().fileNames())
-        .containsExactlyInAnyOrder(
-            "adoption/comment/11111111-1111-1111-1111-111111111111.jpg",
-            "adoption/comment/22222222-2222-2222-2222-222222222222.jpg");
+        .containsExactly("adoption/comment/11111111-1111-1111-1111-111111111111.jpg");
   }
 
   @Test

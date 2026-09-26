@@ -2,7 +2,6 @@ package com.sns.marigold.user.controller;
 
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,16 +19,14 @@ import org.springframework.web.bind.annotation.RestController;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.service.RecentAuthService;
 import com.sns.marigold.global.config.SwaggerConfig;
-import com.sns.marigold.global.dto.ApiResult;
+import com.sns.marigold.global.tsid.TsidValue;
 import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.response.UserSecurityInfoDto;
 import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
-import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.service.UserService;
 
-import io.hypersistence.tsid.TSID;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
@@ -58,7 +55,7 @@ public class UserController {
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
       })
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "등록 성공"),
+    @ApiResponse(responseCode = "204", description = "등록 성공"),
     @ApiResponse(responseCode = "400", description = "입력값 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "403", description = "최근 인증 필요"),
@@ -66,7 +63,7 @@ public class UserController {
   })
   @PreAuthorize("isAuthenticated()")
   @PostMapping("/credentials")
-  public ResponseEntity<ApiResult<Void>> registerEmailAndPassword(
+  public ResponseEntity<Void> registerEmailAndPassword(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Valid
           @RequestBody(description = "등록할 이메일과 비밀번호", required = true)
@@ -79,8 +76,7 @@ public class UserController {
     }
     recentAuthService.validate(request, userId);
     userService.registerEmailAndPassword(userId, dto);
-    return ResponseEntity.ok(
-        ApiResult.success(HttpStatus.OK, "Credentials registered successfully"));
+    return ResponseEntity.noContent().build();
   }
 
   @Operation(
@@ -91,14 +87,14 @@ public class UserController {
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
       })
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "수정 성공"),
+    @ApiResponse(responseCode = "204", description = "수정 성공"),
     @ApiResponse(responseCode = "400", description = "입력값 또는 이미지 파일 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "409", description = "중복 닉네임")
   })
   @PreAuthorize("isAuthenticated()")
   @PatchMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public ResponseEntity<ApiResult<Void>> update(
+  public ResponseEntity<Void> update(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Parameter(description = "수정할 프로필 정보") @ModelAttribute @Valid UserUpdateDto dto) {
     Long userId = principal.getUserId();
@@ -106,7 +102,7 @@ public class UserController {
       throw com.sns.marigold.auth.exception.AuthException.forUnauthorized();
     }
     userService.updateUser(userId, dto);
-    return ResponseEntity.ok(ApiResult.success(HttpStatus.OK, "User updated successfully"));
+    return ResponseEntity.noContent().build();
   }
 
   // ** get **
@@ -122,17 +118,13 @@ public class UserController {
   })
   @PreAuthorize("isAuthenticated()")
   @GetMapping("/security")
-  public ResponseEntity<ApiResult<UserSecurityInfoDto>> getSecurityInfo(
+  public UserSecurityInfoDto getSecurityInfo(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw com.sns.marigold.auth.exception.AuthException.forUnauthorized();
     }
-    return ResponseEntity.ok(
-        ApiResult.success(
-            HttpStatus.OK,
-            "User security info fetched successfully",
-            userService.getSecurityInfo(userId)));
+    return userService.getSecurityInfo(userId);
   }
 
   // 검색
@@ -143,33 +135,24 @@ public class UserController {
   })
   @PreAuthorize("permitAll()")
   @GetMapping("/search")
-  public ApiResult<List<UserInfoDto>> getPersonByNickname(
+  public List<UserInfoDto> getPersonByNickname(
       @Parameter(description = "검색할 닉네임 키워드", required = true) @RequestParam("query")
           String nickname) {
-    return ApiResult.success(
-        HttpStatus.OK, "User search fetched successfully", userService.getUserByNickname(nickname));
+    return userService.getUserByNickname(nickname);
   }
 
   @Operation(summary = "사용자 프로필 조회", description = "사용자 ID로 공개 프로필을 조회합니다.")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "조회 성공"),
+    @ApiResponse(responseCode = "400", description = "사용자 ID 형식 오류"),
     @ApiResponse(responseCode = "404", description = "사용자 없음")
   })
   @PreAuthorize("permitAll()")
   @GetMapping("/profile/{userId}")
-  public ResponseEntity<ApiResult<UserInfoDto>> getPersonProfile(
+  public UserInfoDto getPersonProfile(
       @Parameter(description = "TSID 형식 사용자 ID", required = true) @PathVariable("userId")
-          String userId) {
-    long uid;
-    try {
-      uid = TSID.from(userId).toLong();
-    } catch (IllegalArgumentException e) {
-      throw UserException.forUserNotFound();
-    }
-
-    return ResponseEntity.ok(
-        ApiResult.success(
-            HttpStatus.OK, "User profile fetched successfully", userService.getUserById(uid)));
+          TsidValue userId) {
+    return userService.getUserById(userId.value());
   }
 
   // ** delete **
@@ -182,14 +165,14 @@ public class UserController {
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
       })
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "탈퇴 성공"),
+    @ApiResponse(responseCode = "204", description = "탈퇴 성공"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "403", description = "최근 인증 필요 또는 권한 없음"),
     @ApiResponse(responseCode = "404", description = "사용자 없음")
   })
   @PreAuthorize("isAuthenticated()")
   @DeleteMapping("/delete")
-  public ResponseEntity<ApiResult<Void>> deleteUser(
+  public ResponseEntity<Void> deleteUser(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Parameter(hidden = true) HttpServletRequest request) {
     Long userId = principal.getUserId();
@@ -198,6 +181,6 @@ public class UserController {
     }
     recentAuthService.validate(request, userId);
     userService.deleteUser(principal.getUserId());
-    return ResponseEntity.ok(ApiResult.success(HttpStatus.OK, "User deleted successfully"));
+    return ResponseEntity.noContent().build();
   }
 }

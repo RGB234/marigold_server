@@ -46,9 +46,8 @@ class AdoptionPostControllerTest {
     mockMvc
         .perform(get(UrlConstants.ADOPTION_BASE + "/{id}", postId))
         .andExpect(status().isGone())
-        .andExpect(jsonPath("$.success").value(false))
         .andExpect(jsonPath("$.status").value(410))
         .andExpect(jsonPath("$.errorCode").value("ADOPTION_POST_DELETED"))
-        .andExpect(jsonPath("$.message").value("삭제된 게시글입니다."));
+        .andExpect(jsonPath("$.detail").value("삭제된 게시글입니다."));
   }
 }

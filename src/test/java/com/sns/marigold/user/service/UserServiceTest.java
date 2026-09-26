@@ -34,6 +34,7 @@ import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.chat.service.ChatService;
+import com.sns.marigold.global.tsid.TsidCodec;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
@@ -45,8 +46,6 @@ import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.entity.UserImage;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
-
-import io.hypersistence.tsid.TSID;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -406,7 +405,7 @@ class UserServiceTest {
     assertThat(testUser.getProviderId()).isNull();
     assertThat(testUser.getImage()).isNull();
     assertThat(testUser.getDeletedAt()).isNotNull();
-    assertThat(testUser.getNickname()).isEqualTo("deleted-user-" + TSID.from(1L));
+    assertThat(testUser.getNickname()).isEqualTo("deleted-user-" + TsidCodec.encode(1L));
     verify(userRepository, times(1)).save(testUser);
     ArgumentCaptor<DeleteOldStorageFilesEvent> eventCaptor =
         ArgumentCaptor.forClass(DeleteOldStorageFilesEvent.class);

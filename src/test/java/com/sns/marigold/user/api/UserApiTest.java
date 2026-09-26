@@ -4,20 +4,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
 
 import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
+import com.sns.marigold.global.tsid.TsidCodec;
 import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.support.ApiIntegrationTest;
 import com.sns.marigold.user.entity.User;
-import com.sns.marigold.user.exception.UserException;
-
-import io.hypersistence.tsid.TSID;
 
 public class UserApiTest extends ApiIntegrationTest {
 
@@ -27,23 +27,21 @@ public class UserApiTest extends ApiIntegrationTest {
   @DisplayName("인증 없이 프로필을 조회할 수 있다")
   void getProfile_Success() throws Exception {
     User user = java.util.Objects.requireNonNull(tester1);
-    String tsid = TSID.from(user.getId()).toString();
+    String tsid = TsidCodec.encode(user.getId());
 
     mockMvc
         .perform(get(UrlConstants.USER_BASE + "/profile/{userId}", tsid))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value(200))
-        .andExpect(jsonPath("$.data.nickname").value(user.getNickname()));
+        .andExpect(jsonPath("$.nickname").value(user.getNickname()));
   }
 
   @Test
-  @DisplayName("잘못된 ID 형식으로 프로필 조회 시 404가 반환된다")
+  @DisplayName("잘못된 ID 형식으로 프로필 조회 시 400이 반환된다")
   void getProfile_InvalidTsid() throws Exception {
     mockMvc
         .perform(get(UrlConstants.USER_BASE + "/profile/invalid_tsid"))
-        .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.status").value(404))
-        .andExpect(jsonPath("$.message").value(UserException.forUserNotFound().getMessage()));
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
   }
 
   @Test
@@ -52,8 +50,7 @@ public class UserApiTest extends ApiIntegrationTest {
     mockMvc
         .perform(get(UrlConstants.USER_BASE + "/search").param("query", "tester1")) // 조회할 닉네임
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value(200))
-        .andExpect(jsonPath("$.data[0].nickname").value("tester1"));
+        .andExpect(jsonPath("$[0].nickname").value("tester1"));
   }
 
   @Test
@@ -69,11 +66,10 @@ public class UserApiTest extends ApiIntegrationTest {
             get(UrlConstants.USER_BASE + "/security")
                 .header("Authorization", "Bearer " + getAccessToken(user)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value(200))
-        .andExpect(jsonPath("$.data.email").value("tester1@example.com"))
-        .andExpect(jsonPath("$.data.hasLocalCredentials").value(true))
-        .andExpect(jsonPath("$.data.hasOAuth2Link").value(true))
-        .andExpect(jsonPath("$.data.providerInfo").value("KAKAO"));
+        .andExpect(jsonPath("$.email").value("tester1@example.com"))
+        .andExpect(jsonPath("$.hasLocalCredentials").value(true))
+        .andExpect(jsonPath("$.hasOAuth2Link").value(true))
+        .andExpect(jsonPath("$.providerInfo").value("KAKAO"));
   }
 
   @Test
@@ -96,8 +92,7 @@ public class UserApiTest extends ApiIntegrationTest {
                 .cookie(getRecentAuthCookie(user), getCsrfCookie(CSRF_TOKEN))
                 .contentType("application/json")
                 .content(requestBody))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value(200));
+        .andExpect(status().isNoContent());
 
     User updatedUser = userRepository.findById(user.getId()).orElseThrow();
     assertThat(updatedUser.getEmail()).isEqualTo("tester1@example.com");
@@ -168,8 +163,7 @@ public class UserApiTest extends ApiIntegrationTest {
                 .cookie(recentAuthCookie, getCsrfCookie(CSRF_TOKEN))
                 .contentType("application/json")
                 .content(validRequestBody))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value(200));
+        .andExpect(status().isNoContent());
   }
 
   @Test
@@ -182,8 +176,7 @@ public class UserApiTest extends ApiIntegrationTest {
                 .header("Authorization", "Bearer " + getAccessToken(user))
                 .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, CSRF_TOKEN)
                 .cookie(getRecentAuthCookie(user), getCsrfCookie(CSRF_TOKEN)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value(200));
+        .andExpect(status().isNoContent());
   }
 
   @Test
@@ -203,6 +196,8 @@ public class UserApiTest extends ApiIntegrationTest {
   void deleteUser_Unauthorized() throws Exception {
     mockMvc
         .perform(delete(UrlConstants.USER_BASE + "/delete"))
-        .andExpect(status().isUnauthorized());
+        .andExpect(status().isUnauthorized())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.errorCode").value("AUTH_UNAUTHORIZED"));
   }
 }

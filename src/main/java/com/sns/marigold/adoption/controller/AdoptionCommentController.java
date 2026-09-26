@@ -1,9 +1,8 @@
 package com.sns.marigold.adoption.controller;
 
+import java.net.URI;
 import java.util.List;
-import java.util.Map;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,7 +24,7 @@ import com.sns.marigold.adoption.service.AdoptionCommentService;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.global.config.SwaggerConfig;
-import com.sns.marigold.global.dto.ApiResult;
+import com.sns.marigold.global.dto.IdResponseDto;
 import com.sns.marigold.global.web.UrlConstants;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -62,7 +61,7 @@ public class AdoptionCommentController {
   })
   @PreAuthorize("isAuthenticated()")
   @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public ResponseEntity<ApiResult<Map<String, String>>> createComment(
+  public ResponseEntity<IdResponseDto> createComment(
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("postId") Long postId,
       @Parameter(description = "생성할 댓글 정보") @ModelAttribute @Validated({Default.class})
           AdoptionCommentCreateDto dto,
@@ -74,12 +73,8 @@ public class AdoptionCommentController {
 
     Long commentId = adoptionCommentService.createComment(postId, userId, dto);
 
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(
-            ApiResult.success(
-                HttpStatus.CREATED,
-                "Comment created successfully",
-                Map.of("id", commentId.toString())));
+    URI location = URI.create(UrlConstants.ADOPTION_BASE + "/" + postId + "/comments/" + commentId);
+    return ResponseEntity.created(location).body(new IdResponseDto(commentId.toString()));
   }
 
   @Operation(
@@ -90,7 +85,7 @@ public class AdoptionCommentController {
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
       })
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "수정 성공"),
+    @ApiResponse(responseCode = "204", description = "수정 성공"),
     @ApiResponse(responseCode = "400", description = "입력값 또는 이미지 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
@@ -98,7 +93,7 @@ public class AdoptionCommentController {
   })
   @PreAuthorize("isAuthenticated()")
   @PatchMapping(value = "/{commentId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public ResponseEntity<ApiResult<?>> updateComment(
+  public ResponseEntity<Void> updateComment(
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("postId") Long postId,
       @Parameter(description = "댓글 ID", required = true) @PathVariable("commentId") Long commentId,
       @Parameter(description = "수정할 댓글 정보") @ModelAttribute @Validated({Default.class})
@@ -110,8 +105,7 @@ public class AdoptionCommentController {
     }
 
     adoptionCommentService.updateComment(postId, commentId, userId, dto);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "Comment updated successfully"));
+    return ResponseEntity.noContent().build();
   }
 
   @Operation(summary = "댓글 목록 조회", description = "입양 게시글의 댓글 목록을 조회합니다.")
@@ -121,11 +115,9 @@ public class AdoptionCommentController {
   })
   @PreAuthorize("permitAll()")
   @GetMapping("")
-  public ResponseEntity<ApiResult<List<AdoptionCommentResponseDto>>> getComments(
+  public List<AdoptionCommentResponseDto> getComments(
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("postId") Long postId) {
-    List<AdoptionCommentResponseDto> result = adoptionCommentService.getComments(postId);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "Comments fetched successfully", result));
+    return adoptionCommentService.getComments(postId);
   }
 
   @Operation(
@@ -136,14 +128,14 @@ public class AdoptionCommentController {
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
       })
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "삭제 성공"),
+    @ApiResponse(responseCode = "204", description = "삭제 성공"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
     @ApiResponse(responseCode = "404", description = "댓글 없음")
   })
   @PreAuthorize("isAuthenticated()")
   @DeleteMapping("/{commentId}")
-  public ResponseEntity<ApiResult<?>> deleteComment(
+  public ResponseEntity<Void> deleteComment(
       @Parameter(description = "댓글 ID", required = true) @PathVariable("commentId") Long commentId,
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal) {
     Long userId = principal.getUserId();
@@ -152,7 +144,6 @@ public class AdoptionCommentController {
     }
 
     adoptionCommentService.deleteComment(commentId, userId);
-    return ResponseEntity.status(HttpStatus.OK)
-        .body(ApiResult.success(HttpStatus.OK, "Comment deleted successfully"));
+    return ResponseEntity.noContent().build();
   }
 }
