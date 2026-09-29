@@ -40,6 +40,7 @@ public class CommonSecurityConfig {
   private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
   private final CsrfTokenValidationFilter csrfTokenValidationFilter;
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
+  private final SecurityBoundaryExceptionFilter securityBoundaryExceptionFilter;
 
   private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
   private final UrlProperties urlProperties;
@@ -76,6 +77,7 @@ public class CommonSecurityConfig {
         .formLogin(AbstractHttpConfigurer::disable)
         .addFilterBefore(csrfTokenValidationFilter, LogoutFilter.class)
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterBefore(securityBoundaryExceptionFilter, CsrfTokenValidationFilter.class)
         .logout(
             logout ->
                 logout
@@ -98,6 +100,24 @@ public class CommonSecurityConfig {
     FilterRegistrationBean<JwtAuthenticationFilter> registration =
         new FilterRegistrationBean<>(filter);
     registration.setEnabled(false); // SecurityFilterChain에서만 실행
+    return registration;
+  }
+
+  @Bean
+  public FilterRegistrationBean<CsrfTokenValidationFilter> csrfFilterRegistration(
+      CsrfTokenValidationFilter filter) {
+    FilterRegistrationBean<CsrfTokenValidationFilter> registration =
+        new FilterRegistrationBean<>(filter);
+    registration.setEnabled(false);
+    return registration;
+  }
+
+  @Bean
+  public FilterRegistrationBean<SecurityBoundaryExceptionFilter>
+      securityBoundaryExceptionFilterRegistration(SecurityBoundaryExceptionFilter filter) {
+    FilterRegistrationBean<SecurityBoundaryExceptionFilter> registration =
+        new FilterRegistrationBean<>(filter);
+    registration.setEnabled(false);
     return registration;
   }
 }

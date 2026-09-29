@@ -36,13 +36,11 @@ import com.sns.marigold.chat.entity.RoomParticipant;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.chat.service.ChatService;
-import com.sns.marigold.global.error.ErrorCode;
-import com.sns.marigold.global.error.exception.BusinessException;
-import com.sns.marigold.global.error.exception.InternalServerException;
 import com.sns.marigold.global.validation.imagefile.ImageFiles;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
+import com.sns.marigold.storage.exception.StorageError;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
@@ -111,19 +109,10 @@ public class AdoptionPostService {
             return adoptionPostRepository.save(adoptionPost).getId();
           });
 
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
       log.debug("Create failed. Deleting uploaded storage files.");
-
-      try {
-        storageService.deleteUploadedImages(uploadedImages);
-      } catch (Exception s3Ex) {
-        log.error("event=s3_rollback_delete_failed fileCount={}", uploadedImages.size(), s3Ex);
-      }
-
-      if (e instanceof BusinessException) {
-        throw e;
-      }
-      throw InternalServerException.forInternalServerError(e);
+      storageService.deleteUploadedImagesBestEffort(uploadedImages);
+      throw e;
     }
   }
 
@@ -197,21 +186,13 @@ public class AdoptionPostService {
             }
           });
 
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
       // 5. 실패 시 보상 트랜잭션: 새로 업로드한 파일 삭제
       // 트랜잭션 롤백과 무관하게 업로드된 파일은 지워야 함
       log.debug("Update failed. Deleting uploaded storage files.");
 
-      try {
-        storageService.deleteUploadedImages(uploadedImages);
-      } catch (Exception s3Ex) {
-        log.error("event=s3_rollback_delete_failed fileCount={}", uploadedImages.size(), s3Ex);
-      }
-
-      if (e instanceof BusinessException) {
-        throw e;
-      }
-      throw InternalServerException.forInternalServerError(e);
+      storageService.deleteUploadedImagesBestEffort(uploadedImages);
+      throw e;
     }
   }
 
@@ -236,7 +217,7 @@ public class AdoptionPostService {
     try {
       return storageService.getViewUrlOrNull(storedFileName);
     } catch (StorageException e) {
-      if (e.getErrorCode() == ErrorCode.FILE_NOT_FOUND) {
+      if (e.getErrorSpec() == StorageError.FILE_NOT_FOUND) {
         log.warn("event=adoption_image_url_not_found storedFileName={}", storedFileName);
         return null;
       }

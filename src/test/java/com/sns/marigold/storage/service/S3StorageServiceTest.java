@@ -27,10 +27,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.sns.marigold.global.error.ErrorCode;
 import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.storage.config.S3Properties;
 import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.exception.StorageError;
 import com.sns.marigold.storage.exception.StorageException;
 
 import io.awspring.cloud.s3.ObjectMetadata;
@@ -182,7 +182,7 @@ class S3StorageServiceTest {
         .isInstanceOfSatisfying(
             StorageException.class,
             exception ->
-                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.FILE_READ_FAILED));
+                assertThat(exception.getErrorSpec()).isEqualTo(StorageError.FILE_READ_FAILED));
     verify(s3Template, never()).upload(any(), any(), any(), any());
   }
 

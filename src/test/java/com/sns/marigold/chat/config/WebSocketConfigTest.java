@@ -38,10 +38,10 @@ import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
 import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.auth.exception.AuthError;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.global.config.UrlProperties;
-import com.sns.marigold.global.error.ErrorCode;
 import com.sns.marigold.global.tsid.TsidCodec;
 
 @ExtendWith(MockitoExtension.class)
@@ -64,8 +64,7 @@ class WebSocketConfigTest {
     assertThatThrownBy(() -> inbound(connectAccessor("csrf-token")))
         .isInstanceOfSatisfying(
             AuthException.class,
-            exception ->
-                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.AUTH_UNAUTHORIZED));
+            exception -> assertThat(exception.getErrorSpec()).isEqualTo(AuthError.UNAUTHORIZED));
     verifyNoInteractions(jwtAuthenticationService);
   }
 
@@ -78,8 +77,7 @@ class WebSocketConfigTest {
     assertThatThrownBy(() -> inbound(accessor))
         .isInstanceOfSatisfying(
             AuthException.class,
-            exception ->
-                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.AUTH_TOKEN_INVALID));
+            exception -> assertThat(exception.getErrorSpec()).isEqualTo(AuthError.TOKEN_INVALID));
   }
 
   @Test
@@ -115,8 +113,7 @@ class WebSocketConfigTest {
     assertThatThrownBy(() -> inbound(accessor))
         .isInstanceOfSatisfying(
             AuthException.class,
-            exception ->
-                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.AUTH_TOKEN_EXPIRED));
+            exception -> assertThat(exception.getErrorSpec()).isEqualTo(AuthError.TOKEN_EXPIRED));
     verifyNoInteractions(tokenSessions);
   }
 
@@ -127,8 +124,7 @@ class WebSocketConfigTest {
     assertThatThrownBy(() -> inbound(accessor))
         .isInstanceOfSatisfying(
             AuthException.class,
-            exception ->
-                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.AUTH_UNAUTHORIZED));
+            exception -> assertThat(exception.getErrorSpec()).isEqualTo(AuthError.UNAUTHORIZED));
   }
 
   @ParameterizedTest
@@ -160,8 +156,7 @@ class WebSocketConfigTest {
     assertThatThrownBy(() -> inbound(accessor))
         .isInstanceOfSatisfying(
             AuthException.class,
-            exception ->
-                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.AUTH_UNAUTHORIZED));
+            exception -> assertThat(exception.getErrorSpec()).isEqualTo(AuthError.UNAUTHORIZED));
     verifyNoInteractions(jwtAuthenticationService);
   }
 
@@ -172,8 +167,7 @@ class WebSocketConfigTest {
     assertThatThrownBy(() -> inbound(accessor))
         .isInstanceOfSatisfying(
             AuthException.class,
-            exception ->
-                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.AUTH_TOKEN_EXPIRED));
+            exception -> assertThat(exception.getErrorSpec()).isEqualTo(AuthError.TOKEN_EXPIRED));
     verify(tokenSessions).close("session");
   }
 

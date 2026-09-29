@@ -20,9 +20,12 @@ import org.springframework.web.socket.messaging.StompSubProtocolErrorHandler;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sns.marigold.auth.exception.AuthError;
 import com.sns.marigold.chat.dto.StompErrorResponse;
-import com.sns.marigold.global.error.ErrorCode;
-import com.sns.marigold.global.error.exception.BusinessException;
+import com.sns.marigold.global.error.CommonError;
+import com.sns.marigold.global.error.ErrorSpec;
+import com.sns.marigold.global.error.FailureReporter;
+import com.sns.marigold.global.error.exception.ApplicationException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +39,7 @@ public class StompProtocolErrorHandler extends StompSubProtocolErrorHandler {
   public static final String ERROR_CODE_HEADER = "error-code";
 
   private final ObjectMapper objectMapper;
+  private final FailureReporter failureReporter;
 
   @Override
   protected Message<byte[]> handleInternal(
@@ -43,48 +47,39 @@ public class StompProtocolErrorHandler extends StompSubProtocolErrorHandler {
       byte[] errorPayload,
       @Nullable Throwable cause,
       @Nullable StompHeaderAccessor clientHeaderAccessor) {
-    ErrorCode errorCode = resolveErrorCode(cause);
+    ErrorSpec error = resolveError(cause);
     StompCommand command = clientHeaderAccessor == null ? null : clientHeaderAccessor.getCommand();
     String destination =
         clientHeaderAccessor == null ? null : clientHeaderAccessor.getDestination();
     StompErrorResponse response =
-        StompErrorResponse.error(
-            errorCode, true, command == null ? null : command.name(), destination);
+        StompErrorResponse.error(error, true, command == null ? null : command.name(), destination);
 
-    if (errorCode.getStatus().is5xxServerError()) {
-      log.error("Fatal STOMP processing error", cause);
-    } else {
-      log.debug(
-          "Fatal STOMP message rejected: code={}, command={}, destination={}",
-          errorCode.getCode(),
-          command,
-          destination);
-    }
+    failureReporter.report(error, cause, "stomp-protocol");
 
-    errorHeaderAccessor.setMessage(errorCode.getMessage());
-    errorHeaderAccessor.setNativeHeader(ERROR_CODE_HEADER, errorCode.getCode());
+    errorHeaderAccessor.setMessage(error.publicMessage());
+    errorHeaderAccessor.setNativeHeader(ERROR_CODE_HEADER, error.code());
     errorHeaderAccessor.setContentType(MediaType.APPLICATION_JSON);
     return MessageBuilder.createMessage(
         serialize(response), errorHeaderAccessor.getMessageHeaders());
   }
 
-  private ErrorCode resolveErrorCode(@Nullable Throwable cause) {
-    BusinessException businessException = findCause(cause, BusinessException.class);
-    if (businessException != null) {
-      return businessException.getErrorCode();
+  private ErrorSpec resolveError(@Nullable Throwable cause) {
+    ApplicationException applicationException = findCause(cause, ApplicationException.class);
+    if (applicationException != null) {
+      return applicationException.getErrorSpec();
     }
     if (findCause(cause, StompConversionException.class) != null
         || findCause(cause, MessageConversionException.class) != null) {
-      return ErrorCode.BAD_REQUEST;
+      return CommonError.INVALID_INPUT_VALUE;
     }
     if (findCause(cause, AuthenticationException.class) != null) {
-      return ErrorCode.AUTH_UNAUTHORIZED;
+      return AuthError.UNAUTHORIZED;
     }
     if (findCause(cause, AuthorizationDeniedException.class) != null
         || findCause(cause, AccessDeniedException.class) != null) {
-      return ErrorCode.AUTH_ACCESS_DENIED;
+      return AuthError.ACCESS_DENIED;
     }
-    return ErrorCode.INTERNAL_SERVER_ERROR;
+    return CommonError.INTERNAL_SERVER_ERROR;
   }
 
   @Nullable

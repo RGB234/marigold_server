@@ -20,6 +20,7 @@ import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.dto.StompErrorResponse;
 import com.sns.marigold.chat.exception.ChatException;
+import com.sns.marigold.global.error.FailureReporter;
 
 class StompExceptionHandlerTest {
 
@@ -27,15 +28,18 @@ class StompExceptionHandlerTest {
 
   @BeforeEach
   void setUp() {
-    exceptionHandler = new StompExceptionHandler(org.mockito.Mockito.mock(AuditLogger.class));
+    exceptionHandler =
+        new StompExceptionHandler(
+            org.mockito.Mockito.mock(AuditLogger.class),
+            org.mockito.Mockito.mock(FailureReporter.class));
   }
 
   @Test
-  void convertsBusinessExceptionToRecoverableError() {
+  void convertsApplicationExceptionToRecoverableError() {
     Message<byte[]> message = message();
 
     StompErrorResponse response =
-        exceptionHandler.handleBusinessException(ChatException.forEmptyMessage(), message);
+        exceptionHandler.handleApplicationException(ChatException.forEmptyMessage(), message);
 
     assertThat(response.getErrorCode()).isEqualTo("CHAT_MESSAGE_EMPTY");
     assertThat(response.isFatal()).isFalse();
@@ -61,8 +65,8 @@ class StompExceptionHandlerTest {
         .singleElement()
         .satisfies(
             error -> {
-              assertThat(error.getField()).isEqualTo("message");
-              assertThat(error.getMessage()).isEqualTo("메시지를 입력해주세요.");
+              assertThat(error.field()).isEqualTo("message");
+              assertThat(error.message()).isEqualTo("메시지를 입력해주세요.");
             });
   }
 

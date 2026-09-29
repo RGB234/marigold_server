@@ -15,13 +15,14 @@ public interface StorageService {
 
   List<FileUploadDto> uploadFiles(List<MultipartFile> files, StorageDirectory storageDirectory);
 
-  void deleteFile(String storedFileName);
+  /** 삭제 실패를 로그로 남기고 호출자에게 전파하지 않습니다. */
+  void deleteFileBestEffort(String storedFileName);
 
-  void deleteUploadedImages(List<ImageUploadDto> images);
+  void deleteUploadedImagesBestEffort(List<ImageUploadDto> images);
 
-  void deleteUploadedImagesByStoredFileNames(List<String> storedFileNames);
+  void deleteFilesBestEffort(List<String> storedFileNames);
 
-  void deleteUploadedFiles(List<FileUploadDto> files);
+  void deleteUploadedFilesBestEffort(List<FileUploadDto> files);
 
   String getViewUrlOrNull(String storedFileName);
 

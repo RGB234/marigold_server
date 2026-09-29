@@ -291,7 +291,7 @@ class UserServiceTest {
         .publishEvent(
             new DeleteUploadedStorageFilesEvent(List.of(imageUploadDto.getStoredFileName())));
     verify(eventPublisher, never()).publishEvent(any(DeleteOldStorageFilesEvent.class));
-    verify(storageService, never()).deleteUploadedImages(any());
+    verify(storageService, never()).deleteUploadedImagesBestEffort(any());
   }
 
   @Test

@@ -43,7 +43,7 @@ public abstract class AbstractStorageService implements StorageService {
                 images.get(index), storageDirectory, detectedContentTypes.get(index)));
       }
     } catch (StorageException e) {
-      this.deleteUploadedImages(result);
+      this.deleteUploadedImagesBestEffort(result);
       throw e;
     }
     return result;
@@ -61,14 +61,14 @@ public abstract class AbstractStorageService implements StorageService {
         result.add(this.uploadFileWithMetadata(file, storageDirectory, null));
       }
     } catch (StorageException e) {
-      this.deleteUploadedFiles(result);
+      this.deleteUploadedFilesBestEffort(result);
       throw e;
     }
     return result;
   }
 
   @Override
-  public void deleteFile(String storedFileName) {
+  public void deleteFileBestEffort(String storedFileName) {
     Objects.requireNonNull(storedFileName, "storedFileName must not be null");
     try {
       validateStoredFileName(storedFileName);
@@ -79,23 +79,23 @@ public abstract class AbstractStorageService implements StorageService {
   }
 
   @Override
-  public void deleteUploadedImages(List<ImageUploadDto> images) {
+  public void deleteUploadedImagesBestEffort(List<ImageUploadDto> images) {
     for (ImageUploadDto dto : images) {
-      this.deleteFile(dto.getStoredFileName());
+      this.deleteFileBestEffort(dto.getStoredFileName());
     }
   }
 
   @Override
-  public void deleteUploadedImagesByStoredFileNames(List<String> storedFileNames) {
+  public void deleteFilesBestEffort(List<String> storedFileNames) {
     for (String storedFileName : storedFileNames) {
-      this.deleteFile(storedFileName);
+      this.deleteFileBestEffort(storedFileName);
     }
   }
 
   @Override
-  public void deleteUploadedFiles(List<FileUploadDto> files) {
+  public void deleteUploadedFilesBestEffort(List<FileUploadDto> files) {
     for (FileUploadDto dto : files) {
-      this.deleteFile(dto.getStoredFileName());
+      this.deleteFileBestEffort(dto.getStoredFileName());
     }
   }
 

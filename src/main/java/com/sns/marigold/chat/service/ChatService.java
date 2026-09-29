@@ -21,6 +21,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.sns.marigold.adoption.entity.AdoptionPost;
+import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.dto.ChatAttachmentDto;
@@ -44,6 +45,7 @@ import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.entity.User;
+import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -79,9 +81,12 @@ public class ChatService {
   @Transactional
   public ChatRoomDto getOrCreateChatRoom(
       @NonNull Long user1Id, @NonNull Long user2Id, @NonNull Long postId) {
-    User user1 = userRepository.getReferenceById(user1Id);
-    User user2 = userRepository.getReferenceById(user2Id);
-    AdoptionPost adoptionPost = adoptionPostRepository.getReferenceById(postId);
+    User user1 = userRepository.findById(user1Id).orElseThrow(UserException::forUserNotFound);
+    User user2 = userRepository.findById(user2Id).orElseThrow(UserException::forUserNotFound);
+    AdoptionPost adoptionPost =
+        adoptionPostRepository
+            .findById(postId)
+            .orElseThrow(AdoptionPostException::forAdoptionPostNotExists);
 
     ChatRoom chatRoom =
         chatRoomRepository
@@ -104,15 +109,9 @@ public class ChatService {
    * 이전의 대화내용은 볼 수 있지만 새로 메시지를 보낼 수 없는 상태가 된다.
    */
   public void closeChatRoom(@NonNull Long roomId, @NonNull Long currentUserId) {
-    ChatRoom chatRoom =
-        chatRoomRepository
-            .findById(roomId)
-            .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
+    ChatRoom chatRoom = findChatRoom(roomId);
 
-    User user =
-        userRepository
-            .findById(currentUserId)
-            .orElseThrow(() -> new IllegalArgumentException("User not found: " + currentUserId));
+    User user = userRepository.findById(currentUserId).orElseThrow(UserException::forUserNotFound);
 
     // 권한 체크
     participantRepository
@@ -146,10 +145,7 @@ public class ChatService {
 
   public Page<ChatRoomDto> getUserRooms(
       @NonNull Long userId, @NonNull ChatRoomType type, @NonNull Pageable pageable) {
-    User user =
-        userRepository
-            .findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+    User user = userRepository.findById(userId).orElseThrow(UserException::forUserNotFound);
 
     return switch (type) {
       case WRITER ->
@@ -162,7 +158,6 @@ public class ChatService {
               .map(this::convertToRoomDto);
       case ALL ->
           chatRoomRepository.findAllActiveByUser(user, pageable).map(this::convertToRoomDto);
-      default -> throw new IllegalArgumentException("Invalid chat room type: " + type);
     };
   }
 
@@ -240,7 +235,7 @@ public class ChatService {
       reactivateParticipants(chatRoom);
       return convertToMessageDto(savedMessage);
     } catch (RuntimeException e) {
-      storageService.deleteUploadedFiles(uploadedFiles);
+      storageService.deleteUploadedFilesBestEffort(uploadedFiles);
       throw e;
     }
   }
@@ -261,14 +256,8 @@ public class ChatService {
 
   @Transactional
   public void leaveRoom(@NonNull Long roomId, @NonNull Long userId) {
-    ChatRoom chatRoom =
-        chatRoomRepository
-            .findById(roomId)
-            .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
-    User user =
-        userRepository
-            .findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+    ChatRoom chatRoom = findChatRoom(roomId);
+    User user = userRepository.findById(userId).orElseThrow(UserException::forUserNotFound);
 
     participantRepository.findByChatRoomAndUser(chatRoom, user).ifPresent(RoomParticipant::leave);
   }
@@ -305,9 +294,7 @@ public class ChatService {
   }
 
   private ChatRoom findChatRoom(@NonNull Long roomId) {
-    return chatRoomRepository
-        .findById(roomId)
-        .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
+    return chatRoomRepository.findById(roomId).orElseThrow(ChatException::forRoomNotFound);
   }
 
   private void validateParticipant(@NonNull ChatRoom chatRoom, @NonNull Long userId) {
@@ -317,9 +304,7 @@ public class ChatService {
   }
 
   private User findSender(@NonNull Long currentUserId) {
-    return userRepository
-        .findById(currentUserId)
-        .orElseThrow(() -> new IllegalArgumentException("Sender not found: " + currentUserId));
+    return userRepository.findById(currentUserId).orElseThrow(UserException::forUserNotFound);
   }
 
   private void validateCanSendMessage(@NonNull ChatRoom chatRoom, @NonNull User sender) {
@@ -328,7 +313,7 @@ public class ChatService {
         .orElseThrow(AuthException::forAccessDenied);
 
     if (chatRoom.getStatus() == ChatRoomStatus.CLOSED) {
-      throw new IllegalStateException("종료된 채팅방에는 메시지를 보낼 수 없습니다.");
+      throw ChatException.forClosedRoom();
     }
   }
 

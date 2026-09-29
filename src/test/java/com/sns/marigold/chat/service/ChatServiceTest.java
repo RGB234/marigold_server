@@ -42,6 +42,8 @@ import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.chat.entity.RoomParticipant;
 import com.sns.marigold.chat.enums.ChatRoomStatus;
 import com.sns.marigold.chat.enums.ChatRoomType;
+import com.sns.marigold.chat.exception.ChatError;
+import com.sns.marigold.chat.exception.ChatException;
 import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
@@ -142,8 +144,11 @@ class ChatServiceTest {
 
     // when & then
     assertThatThrownBy(() -> chatService.getChatRoom(999L, 1L))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Chat room not found: 999");
+        .isInstanceOf(ChatException.class)
+        .satisfies(
+            exception ->
+                assertThat(((ChatException) exception).getErrorSpec())
+                    .isEqualTo(ChatError.ROOM_NOT_FOUND));
   }
 
   @Test
@@ -199,9 +204,9 @@ class ChatServiceTest {
   @DisplayName("새로운 1:1 채팅방을 생성하고 반환한다.")
   void getOrCreateChatRoom_CreateNew() {
     // given
-    given(userRepository.getReferenceById(1L)).willReturn(user1);
-    given(userRepository.getReferenceById(2L)).willReturn(user2);
-    given(adoptionPostRepository.getReferenceById(10L)).willReturn(post);
+    given(userRepository.findById(1L)).willReturn(Optional.of(user1));
+    given(userRepository.findById(2L)).willReturn(Optional.of(user2));
+    given(adoptionPostRepository.findById(10L)).willReturn(Optional.of(post));
 
     given(chatRoomRepository.findByUsersAndAdoptionPost(user1, user2, post))
         .willReturn(Optional.empty());
@@ -233,9 +238,9 @@ class ChatServiceTest {
   @DisplayName("이미 존재하는 채팅방이 있을 경우 해당 채팅방을 반환한다.")
   void getOrCreateChatRoom_ReturnExisting() {
     // given
-    given(userRepository.getReferenceById(1L)).willReturn(user1);
-    given(userRepository.getReferenceById(2L)).willReturn(user2);
-    given(adoptionPostRepository.getReferenceById(10L)).willReturn(post);
+    given(userRepository.findById(1L)).willReturn(Optional.of(user1));
+    given(userRepository.findById(2L)).willReturn(Optional.of(user2));
+    given(adoptionPostRepository.findById(10L)).willReturn(Optional.of(post));
 
     given(chatRoomRepository.findByUsersAndAdoptionPost(user1, user2, post))
         .willReturn(Optional.of(chatRoom));
@@ -461,7 +466,7 @@ class ChatServiceTest {
                     "chat/attachment/11111111-1111-1111-1111-111111111111.txt",
                     "chat/attachment/22222222-2222-2222-2222-222222222222.csv")));
     order.verify(chatMessageRepository).saveAndFlush(any(ChatMessage.class));
-    verify(storageService, never()).deleteUploadedFiles(any());
+    verify(storageService, never()).deleteUploadedFilesBestEffort(any());
     verify(storageService, times(1)).uploadFiles(any(), eq(StorageDirectory.CHAT_ATTACHMENT));
     verify(chatMessageRepository, times(1)).saveAndFlush(any(ChatMessage.class));
     verify(p1, times(1)).reJoin();
@@ -499,7 +504,7 @@ class ChatServiceTest {
     verify(eventPublisher)
         .publishEvent(
             new DeleteUploadedStorageFilesEvent(List.of(uploadedFiles.get(0).getStoredFileName())));
-    verify(storageService).deleteUploadedFiles(uploadedFiles);
+    verify(storageService).deleteUploadedFilesBestEffort(uploadedFiles);
   }
 
   @Test
@@ -559,8 +564,11 @@ class ChatServiceTest {
 
     // when & then
     assertThatThrownBy(() -> chatService.saveMessage(reqDto, 1L))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("종료된 채팅방에는 메시지를 보낼 수 없습니다");
+        .isInstanceOf(ChatException.class)
+        .satisfies(
+            exception ->
+                assertThat(((ChatException) exception).getErrorSpec())
+                    .isEqualTo(ChatError.ROOM_CLOSED));
   }
 
   @Test

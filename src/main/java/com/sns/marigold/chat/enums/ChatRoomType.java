@@ -1,6 +1,9 @@
 package com.sns.marigold.chat.enums;
 
+import java.util.Locale;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.sns.marigold.chat.exception.ChatException;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -19,9 +22,9 @@ public enum ChatRoomType {
       return ALL;
     }
     try {
-      return ChatRoomType.valueOf(value.toUpperCase());
+      return ChatRoomType.valueOf(value.toUpperCase(Locale.ROOT));
     } catch (IllegalArgumentException e) {
-      return ALL;
+      throw ChatException.forInvalidRoomType();
     }
   }
 }

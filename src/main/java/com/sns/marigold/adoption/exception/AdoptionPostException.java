@@ -2,31 +2,30 @@ package com.sns.marigold.adoption.exception;
 
 import org.springframework.lang.NonNull;
 
-import com.sns.marigold.global.error.ErrorCode;
-import com.sns.marigold.global.error.exception.BusinessException;
+import com.sns.marigold.global.error.exception.ApplicationException;
 
-public class AdoptionPostException extends BusinessException {
-  protected AdoptionPostException(@NonNull ErrorCode errorCode) {
-    super(errorCode);
+public class AdoptionPostException extends ApplicationException {
+  protected AdoptionPostException(@NonNull AdoptionError error) {
+    super(error);
   }
 
   public static AdoptionPostException forAdoptionPostNotExists() {
-    return new AdoptionPostException(ErrorCode.ADOPTION_POST_NOT_FOUND);
+    return new AdoptionPostException(AdoptionError.POST_NOT_FOUND);
   }
 
   public static AdoptionPostException forAdoptionPostAlreadyCompleted() {
-    return new AdoptionPostException(ErrorCode.ADOPTION_POST_ALREADY_COMPLETED);
+    return new AdoptionPostException(AdoptionError.POST_ALREADY_COMPLETED);
   }
 
   public static AdoptionPostException forAdoptionPostNotCompleted() {
-    return new AdoptionPostException(ErrorCode.ADOPTION_POST_NOT_COMPLETED);
+    return new AdoptionPostException(AdoptionError.POST_NOT_COMPLETED);
   }
 
   public static AdoptionPostException forAdoptionPostDeleted() {
-    return new AdoptionPostException(ErrorCode.ADOPTION_POST_DELETED);
+    return new AdoptionPostException(AdoptionError.POST_DELETED);
   }
 
   public static AdoptionPostException forInvalidPostImages() {
-    return new AdoptionPostException(ErrorCode.ADOPTION_POST_IMAGE_INVALID);
+    return new AdoptionPostException(AdoptionError.POST_IMAGE_INVALID);
   }
 }

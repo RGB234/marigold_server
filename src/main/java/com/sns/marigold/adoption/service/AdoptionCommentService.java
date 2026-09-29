@@ -27,7 +27,6 @@ import com.sns.marigold.adoption.repository.AdoptionCommentImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
-import com.sns.marigold.global.error.exception.InternalServerException;
 import com.sns.marigold.global.validation.imagefile.ImageFiles;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
@@ -131,17 +130,10 @@ public class AdoptionCommentService {
 
             return adoptionCommentRepository.save(comment).getId();
           });
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
       log.debug("Comment creation failed. Deleting uploaded storage files.");
-      try {
-        storageService.deleteUploadedImages(uploadedImages);
-      } catch (Exception s3Ex) {
-        log.error("event=s3_rollback_delete_failed fileCount={}", uploadedImages.size(), s3Ex);
-      }
-      if (e instanceof RuntimeException runtimeException) {
-        throw runtimeException;
-      }
-      throw InternalServerException.forInternalServerError(e);
+      storageService.deleteUploadedImagesBestEffort(uploadedImages);
+      throw e;
     }
   }
 
@@ -204,19 +196,12 @@ public class AdoptionCommentService {
               }
             }
           });
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
       if (!uploadedImages.isEmpty()) {
         log.debug("Comment update failed. Deleting uploaded storage files.");
-        try {
-          storageService.deleteUploadedImages(uploadedImages);
-        } catch (Exception s3Ex) {
-          log.error("event=s3_rollback_delete_failed fileCount={}", uploadedImages.size(), s3Ex);
-        }
+        storageService.deleteUploadedImagesBestEffort(uploadedImages);
       }
-      if (e instanceof RuntimeException runtimeException) {
-        throw runtimeException;
-      }
-      throw InternalServerException.forInternalServerError(e);
+      throw e;
     }
   }
 

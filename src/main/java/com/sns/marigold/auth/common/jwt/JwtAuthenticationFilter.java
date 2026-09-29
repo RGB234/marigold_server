@@ -2,7 +2,6 @@ package com.sns.marigold.auth.common.jwt;
 
 import java.io.IOException;
 
-import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
@@ -11,12 +10,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.audit.AuditLogger;
+import com.sns.marigold.auth.common.CustomAuthenticationEntryPoint;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
-import com.sns.marigold.global.error.ErrorCode;
-import com.sns.marigold.global.error.ProblemDetailFactory;
-import com.sns.marigold.global.error.exception.BusinessException;
+import com.sns.marigold.auth.exception.AuthError;
+import com.sns.marigold.global.error.ErrorSpec;
+import com.sns.marigold.global.error.exception.ApplicationException;
+import com.sns.marigold.global.error.http.ProblemDetailWriter;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -38,7 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   private final JwtAuthenticationService jwtAuthenticationService;
-  private final ObjectMapper objectMapper;
+  private final ProblemDetailWriter problemDetailWriter;
   private final AuditLogger auditLogger;
 
   @Override
@@ -60,33 +60,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Authentication authentication = jwtAuthenticationService.getAuthentication(accessToken);
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-      } catch (BusinessException e) {
-        ErrorCode errorCode = e.getErrorCode();
-        auditLogger.warn("event=jwt_user_status_rejected errorCode={}", errorCode.getCode());
+      } catch (ApplicationException e) {
+        ErrorSpec error = e.getErrorSpec();
+        auditLogger.warn("event=jwt_user_status_rejected errorCode={}", error.code());
         SecurityContextHolder.clearContext();
-        writeErrorResponse(response, errorCode);
+        problemDetailWriter.write(request, response, error);
         return;
       } catch (ExpiredJwtException e) {
         log.debug("Access token expired");
-        request.setAttribute("exception", ErrorCode.AUTH_TOKEN_EXPIRED);
+        request.setAttribute(
+            CustomAuthenticationEntryPoint.AUTH_ERROR_ATTRIBUTE, AuthError.TOKEN_EXPIRED);
       } catch (JwtException | IllegalArgumentException e) {
         auditLogger.warn("event=invalid_access_token");
-        request.setAttribute("exception", ErrorCode.AUTH_TOKEN_INVALID);
+        request.setAttribute(
+            CustomAuthenticationEntryPoint.AUTH_ERROR_ATTRIBUTE, AuthError.TOKEN_INVALID);
       }
     }
 
     // 3. 다음 필터로 진행
     filterChain.doFilter(request, response);
-  }
-
-  private void writeErrorResponse(HttpServletResponse response, ErrorCode errorCode)
-      throws IOException {
-    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-    response.setCharacterEncoding("UTF-8");
-    response.setStatus(errorCode.getStatus().value());
-    response
-        .getWriter()
-        .write(objectMapper.writeValueAsString(ProblemDetailFactory.create(errorCode)));
   }
 
   /** Request Header에서 JWT 토큰 추출 */

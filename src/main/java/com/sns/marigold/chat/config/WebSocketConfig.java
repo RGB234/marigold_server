@@ -46,7 +46,7 @@ import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.ChatDestinations;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.global.config.UrlProperties;
-import com.sns.marigold.global.error.exception.BusinessException;
+import com.sns.marigold.global.error.exception.ApplicationException;
 import com.sns.marigold.global.tsid.TsidCodec;
 
 import io.jsonwebtoken.ExpiredJwtException;
@@ -268,8 +268,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     Authentication authentication;
     try {
       authentication = jwtAuthenticationService.getAuthentication(token);
-    } catch (BusinessException e) {
-      auditLogger.warn("event=ws_authentication_rejected code={}", e.getErrorCode().getCode());
+    } catch (ApplicationException e) {
+      auditLogger.warn("event=ws_authentication_rejected code={}", e.getErrorSpec().code());
       throw e;
     } catch (ExpiredJwtException e) {
       auditLogger.warn("event=ws_authentication_rejected code=AUTH_TOKEN_EXPIRED");
@@ -278,7 +278,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
       auditLogger.warn("event=ws_authentication_rejected code=AUTH_TOKEN_INVALID");
       throw AuthException.forInvalidToken(e);
     } catch (RuntimeException e) {
-      log.error("Unexpected STOMP JWT authentication failure", e);
       throw AuthException.forInternalServerError(e);
     }
 

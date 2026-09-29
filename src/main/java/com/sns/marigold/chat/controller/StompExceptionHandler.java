@@ -19,12 +19,15 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 
 import com.sns.marigold.audit.AuditLogger;
+import com.sns.marigold.auth.exception.AuthError;
 import com.sns.marigold.chat.ChatDestinations;
 import com.sns.marigold.chat.dto.StompErrorResponse;
-import com.sns.marigold.global.error.ErrorCode;
-import com.sns.marigold.global.error.dto.ErrorDetail;
-import com.sns.marigold.global.error.dto.FieldErrorDetail;
-import com.sns.marigold.global.error.exception.BusinessException;
+import com.sns.marigold.global.error.CommonError;
+import com.sns.marigold.global.error.ErrorSpec;
+import com.sns.marigold.global.error.FailureReporter;
+import com.sns.marigold.global.error.ValidationViolationMapper;
+import com.sns.marigold.global.error.dto.ValidationViolation;
+import com.sns.marigold.global.error.exception.ApplicationException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,33 +39,26 @@ import lombok.extern.slf4j.Slf4j;
 public class StompExceptionHandler {
 
   private final AuditLogger auditLogger;
+  private final FailureReporter failureReporter;
 
-  @MessageExceptionHandler(BusinessException.class)
+  @MessageExceptionHandler(ApplicationException.class)
   @SendToUser(destinations = ChatDestinations.ERROR_QUEUE, broadcast = false)
-  public StompErrorResponse handleBusinessException(
-      BusinessException exception, Message<?> message) {
-    ErrorCode errorCode = exception.getErrorCode();
-    if (errorCode.getStatus().is5xxServerError()) {
-      log.error("STOMP business exception occurred: {}", errorCode.getCode(), exception);
-    } else {
-      log.debug(
-          "STOMP business exception occurred: code={}, message={}",
-          errorCode.getCode(),
-          exception.getMessage());
-    }
-    return response(errorCode, message, null);
+  public StompErrorResponse handleApplicationException(
+      ApplicationException exception, Message<?> message) {
+    failureReporter.report(exception, "stomp-message");
+    return response(exception.getErrorSpec(), message, null);
   }
 
   @MessageExceptionHandler({AuthorizationDeniedException.class, AccessDeniedException.class})
   @SendToUser(destinations = ChatDestinations.ERROR_QUEUE, broadcast = false)
   public StompErrorResponse handleAccessDeniedException(Exception exception, Message<?> message) {
     Principal principal = accessor(message).getUser();
-    ErrorCode errorCode =
+    ErrorSpec error =
         principal instanceof Authentication authentication && authentication.isAuthenticated()
-            ? ErrorCode.AUTH_ACCESS_DENIED
-            : ErrorCode.AUTH_UNAUTHORIZED;
+            ? AuthError.ACCESS_DENIED
+            : AuthError.UNAUTHORIZED;
 
-    if (errorCode == ErrorCode.AUTH_ACCESS_DENIED) {
+    if (error == AuthError.ACCESS_DENIED) {
       auditLogger.warn(
           "event=stomp_authorization_denied user={} reason={}",
           principal == null ? null : principal.getName(),
@@ -70,7 +66,7 @@ public class StompExceptionHandler {
     } else {
       log.debug("Unauthenticated STOMP message rejected: {}", exception.getMessage());
     }
-    return response(errorCode, message, null);
+    return response(error, message, null);
   }
 
   @MessageExceptionHandler(AuthenticationException.class)
@@ -78,19 +74,16 @@ public class StompExceptionHandler {
   public StompErrorResponse handleAuthenticationException(
       AuthenticationException exception, Message<?> message) {
     log.debug("STOMP authentication not found: {}", exception.getMessage());
-    return response(ErrorCode.AUTH_UNAUTHORIZED, message, null);
+    return response(AuthError.UNAUTHORIZED, message, null);
   }
 
   @MessageExceptionHandler(MethodArgumentNotValidException.class)
   @SendToUser(destinations = ChatDestinations.ERROR_QUEUE, broadcast = false)
   public StompErrorResponse handleValidationException(
       MethodArgumentNotValidException exception, Message<?> message) {
-    List<FieldErrorDetail> errors =
-        exception.getBindingResult().getFieldErrors().stream()
-            .map(error -> new FieldErrorDetail(error.getField(), error.getDefaultMessage()))
-            .toList();
+    List<ValidationViolation> errors = ValidationViolationMapper.from(exception.getBindingResult());
     log.debug("Invalid STOMP message payload. errorCount={}", errors.size());
-    return response(ErrorCode.INVALID_INPUT_VALUE, message, errors);
+    return response(CommonError.INVALID_INPUT_VALUE, message, errors);
   }
 
   @MessageExceptionHandler({
@@ -100,26 +93,22 @@ public class StompExceptionHandler {
   @SendToUser(destinations = ChatDestinations.ERROR_QUEUE, broadcast = false)
   public StompErrorResponse handleInvalidMessageException(Exception exception, Message<?> message) {
     log.debug("Invalid STOMP message: {}", exception.getMessage());
-    return response(ErrorCode.INVALID_INPUT_VALUE, message, null);
+    return response(CommonError.INVALID_INPUT_VALUE, message, null);
   }
 
   @MessageExceptionHandler(Exception.class)
   @SendToUser(destinations = ChatDestinations.ERROR_QUEUE, broadcast = false)
   public StompErrorResponse handleException(Exception exception, Message<?> message) {
-    log.error("Unhandled STOMP message exception", exception);
-    return response(ErrorCode.INTERNAL_SERVER_ERROR, message, null);
+    failureReporter.reportUnhandled(exception, "stomp-message");
+    return response(CommonError.INTERNAL_SERVER_ERROR, message, null);
   }
 
   private StompErrorResponse response(
-      ErrorCode errorCode, Message<?> message, List<? extends ErrorDetail> errors) {
+      ErrorSpec error, Message<?> message, List<ValidationViolation> errors) {
     StompHeaderAccessor accessor = accessor(message);
     StompCommand command = accessor.getCommand();
     return StompErrorResponse.error(
-        errorCode,
-        false,
-        command == null ? null : command.name(),
-        accessor.getDestination(),
-        errors);
+        error, false, command == null ? null : command.name(), accessor.getDestination(), errors);
   }
 
   private StompHeaderAccessor accessor(Message<?> message) {

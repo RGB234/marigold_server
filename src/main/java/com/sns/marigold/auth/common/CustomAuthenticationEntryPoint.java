@@ -2,15 +2,13 @@ package com.sns.marigold.auth.common;
 
 import java.io.IOException;
 
-import org.springframework.http.MediaType;
-import org.springframework.http.ProblemDetail;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sns.marigold.global.error.ErrorCode;
-import com.sns.marigold.global.error.ProblemDetailFactory;
+import com.sns.marigold.auth.exception.AuthError;
+import com.sns.marigold.global.error.ErrorSpec;
+import com.sns.marigold.global.error.http.ProblemDetailWriter;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,7 +22,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
-  private final ObjectMapper objectMapper;
+  public static final String AUTH_ERROR_ATTRIBUTE =
+      CustomAuthenticationEntryPoint.class.getName() + ".error";
+
+  private final ProblemDetailWriter problemDetailWriter;
 
   @Override
   public void commence(
@@ -33,19 +34,13 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
       AuthenticationException authException)
       throws IOException, ServletException {
     // Filter(JwtAuthenticationFilter)에서 설정한 상세 에러 코드가 있는지 확인
-    ErrorCode errorCode = (ErrorCode) request.getAttribute("exception");
+    Object requestError = request.getAttribute(AUTH_ERROR_ATTRIBUTE);
+    ErrorSpec error = requestError instanceof ErrorSpec errorSpec ? errorSpec : null;
 
     // 상세 에러가 없으면 기본 '인증 필요(401)' 에러 사용
-    if (errorCode == null) {
-      errorCode = ErrorCode.AUTH_UNAUTHORIZED;
+    if (error == null) {
+      error = AuthError.UNAUTHORIZED;
     }
-
-    ProblemDetail responseBody = ProblemDetailFactory.create(errorCode);
-
-    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-    response.setCharacterEncoding("UTF-8");
-    response.setStatus(errorCode.getStatus().value());
-
-    response.getWriter().write(objectMapper.writeValueAsString(responseBody));
+    problemDetailWriter.write(request, response, error);
   }
 }

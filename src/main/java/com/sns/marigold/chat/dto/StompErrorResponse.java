@@ -7,8 +7,8 @@ import org.springframework.lang.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.sns.marigold.global.error.ErrorCode;
-import com.sns.marigold.global.error.dto.ErrorDetail;
+import com.sns.marigold.global.error.ErrorSpec;
+import com.sns.marigold.global.error.dto.ValidationViolation;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -33,23 +33,23 @@ public class StompErrorResponse {
   private final String destination;
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  private final List<? extends ErrorDetail> errors;
+  private final List<ValidationViolation> errors;
 
   public static StompErrorResponse error(
-      ErrorCode errorCode, boolean fatal, @Nullable String command, @Nullable String destination) {
-    return error(errorCode, fatal, command, destination, null);
+      ErrorSpec error, boolean fatal, @Nullable String command, @Nullable String destination) {
+    return error(error, fatal, command, destination, null);
   }
 
   public static StompErrorResponse error(
-      ErrorCode errorCode,
+      ErrorSpec error,
       boolean fatal,
       @Nullable String command,
       @Nullable String destination,
-      @Nullable List<? extends ErrorDetail> errors) {
+      @Nullable List<ValidationViolation> errors) {
     return new StompErrorResponse(
         LocalDateTime.now(),
-        errorCode.getCode(),
-        errorCode.getMessage(),
+        error.code(),
+        error.publicMessage(),
         fatal,
         command,
         destination,

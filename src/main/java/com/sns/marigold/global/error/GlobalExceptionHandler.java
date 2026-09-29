@@ -1,153 +1,176 @@
 package com.sns.marigold.global.error;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.sns.marigold.audit.AuditLogger;
-import com.sns.marigold.global.error.dto.ErrorDetail;
-import com.sns.marigold.global.error.dto.FieldErrorDetail;
-import com.sns.marigold.global.error.exception.BusinessException;
+import com.sns.marigold.auth.exception.AuthError;
+import com.sns.marigold.global.error.dto.ValidationViolation;
+import com.sns.marigold.global.error.exception.ApplicationException;
+import com.sns.marigold.global.error.http.HttpErrorPolicy;
+import com.sns.marigold.global.error.http.ProblemDetailFactory;
+import com.sns.marigold.storage.exception.StorageError;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 전역 예외 처리를 담당하는 Advice 클래스입니다. */
+/** MVC 경계에서 애플리케이션 오류를 RFC 9457 Problem Details로 변환합니다. */
 @Slf4j
 @RestControllerAdvice
 @RequiredArgsConstructor
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
   private final AuditLogger auditLogger;
+  private final FailureReporter failureReporter;
 
-  /** 비즈니스 예외 처리. 모든 커스텀 예외는 BusinessException을 상속합니다. */
-  @ExceptionHandler(BusinessException.class)
-  public ResponseEntity<ProblemDetail> handleBusinessException(@NonNull final BusinessException e) {
-    if (e.getErrorCode().getStatus().is5xxServerError()) {
-      log.error("Business exception occurred: {}", e.getErrorCode().getCode(), e);
-    } else {
-      log.debug(
-          "Business exception occurred: code={}, message={}",
-          e.getErrorCode().getCode(),
-          e.getMessage());
-    }
-
-    return problem(e.getErrorCode());
+  @ExceptionHandler(ApplicationException.class)
+  public ResponseEntity<ProblemDetail> handleApplicationException(
+      @NonNull ApplicationException exception, HttpServletRequest request) {
+    failureReporter.report(exception, "http");
+    return problem(exception.getErrorSpec(), request, null);
   }
 
-  /** Spring Security의 @PreAuthorize 등에서 발생하는 인가 예외 처리 */
   @ExceptionHandler(org.springframework.security.authorization.AuthorizationDeniedException.class)
   public ResponseEntity<ProblemDetail> handleAuthorizationDeniedException(
-      org.springframework.security.authorization.AuthorizationDeniedException e) {
-
+      org.springframework.security.authorization.AuthorizationDeniedException exception,
+      HttpServletRequest request) {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     if (authentication == null
         || authentication instanceof AnonymousAuthenticationToken
         || !authentication.isAuthenticated()) {
-      log.debug("Unauthorized access attempt: {}", e.getMessage());
-
-      return problem(ErrorCode.AUTH_UNAUTHORIZED);
+      log.debug("Unauthorized access attempt: {}", exception.getMessage());
+      return problem(AuthError.UNAUTHORIZED, request, null);
     }
 
     auditLogger.warn(
-        "event=authorization_denied user={} reason={}", authentication.getName(), e.getMessage());
-
-    return problem(ErrorCode.AUTH_ACCESS_DENIED);
+        "event=authorization_denied user={} reason={}",
+        authentication.getName(),
+        exception.getMessage());
+    return problem(AuthError.ACCESS_DENIED, request, null);
   }
 
-  /** SecurityContext가 비어 있는 상태에서 @PreAuthorize가 실행되면 401로 변환 */
   @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
   public ResponseEntity<ProblemDetail> handleAuthenticationCredentialsNotFoundException(
-      AuthenticationCredentialsNotFoundException e) {
-    log.debug("Authentication not found in security context: {}", e.getMessage());
-
-    return problem(ErrorCode.AUTH_UNAUTHORIZED);
+      AuthenticationCredentialsNotFoundException exception, HttpServletRequest request) {
+    log.debug("Authentication not found in security context: {}", exception.getMessage());
+    return problem(AuthError.UNAUTHORIZED, request, null);
   }
 
-  /** Request Body 필드 검증 실패 (@Valid) 처리 */
-  @ExceptionHandler(MethodArgumentNotValidException.class)
-  public ResponseEntity<ProblemDetail> handleMethodArgumentNotValidException(
-      final MethodArgumentNotValidException e) {
-    BindingResult bindingResult = e.getBindingResult();
-    List<FieldErrorDetail> errors =
-        bindingResult.getFieldErrors().stream()
-            .map(error -> new FieldErrorDetail(error.getField(), error.getDefaultMessage()))
-            .collect(Collectors.toList());
-
-    log.debug("MethodArgumentNotValidException occurred. errorCount={}", errors.size());
-
-    return problem(ErrorCode.INVALID_INPUT_VALUE, errors);
+  @ExceptionHandler(ConstraintViolationException.class)
+  public ResponseEntity<ProblemDetail> handleConstraintViolationException(
+      ConstraintViolationException exception, HttpServletRequest request) {
+    List<ValidationViolation> errors =
+        exception.getConstraintViolations().stream()
+            .map(
+                violation ->
+                    ValidationViolation.parameter(
+                        violation.getPropertyPath().toString(), violation.getMessage()))
+            .toList();
+    return problem(CommonError.INVALID_INPUT_VALUE, request, errors);
   }
 
-  /** Request Parameter 바인딩 타입 변환 실패 (예: Enum 타입 오류) 처리 */
-  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-  public ResponseEntity<ProblemDetail> handleMethodArgumentTypeMismatchException(
-      final MethodArgumentTypeMismatchException e) {
-    log.debug(
-        "MethodArgumentTypeMismatchException occurred. name={}, requiredType={}",
-        e.getName(),
-        e.getRequiredType());
-
-    return problem(ErrorCode.INVALID_INPUT_VALUE);
-  }
-
-  /** Request Body 파싱 실패 처리 */
-  @ExceptionHandler(HttpMessageNotReadableException.class)
-  public ResponseEntity<ProblemDetail> handleHttpMessageNotReadableException(
-      final HttpMessageNotReadableException e) {
-    log.debug("HttpMessageNotReadableException occurred: {}", e.getMessage());
-
-    return problem(ErrorCode.INVALID_INPUT_VALUE);
-  }
-
-  /** 서블릿의 파일 또는 요청 전체 업로드 용량 제한 초과 처리 */
-  @ExceptionHandler(MaxUploadSizeExceededException.class)
-  public ResponseEntity<ProblemDetail> handleMaxUploadSizeExceededException(
-      final MaxUploadSizeExceededException e) {
-    return problem(ErrorCode.FILE_TOO_LARGE);
-  }
-
-  /** 존재하지 않는 정적 리소스 요청 처리 */
-  @ExceptionHandler(NoResourceFoundException.class)
-  public ResponseEntity<ProblemDetail> handleNoResourceFoundException(
-      final NoResourceFoundException e) {
-    log.debug("No resource found: {} {}", e.getHttpMethod(), e.getResourcePath());
-
-    return problem(ErrorCode.RESOURCE_NOT_FOUND);
-  }
-
-  /** 그 외 처리되지 않은 모든 예외 처리 */
   @ExceptionHandler(Exception.class)
-  protected ResponseEntity<ProblemDetail> handleException(Exception e) {
-    log.error("Unhandled Exception occurred", e);
-
-    return problem(ErrorCode.INTERNAL_SERVER_ERROR);
+  public ResponseEntity<ProblemDetail> handleUnhandledException(
+      Exception exception, HttpServletRequest request) {
+    failureReporter.reportUnhandled(exception, "http");
+    return problem(CommonError.INTERNAL_SERVER_ERROR, request, null);
   }
 
-  private ResponseEntity<ProblemDetail> problem(ErrorCode errorCode) {
-    return problem(errorCode, null);
+  @Override
+  protected ResponseEntity<Object> handleMethodArgumentNotValid(
+      MethodArgumentNotValidException exception,
+      HttpHeaders headers,
+      HttpStatusCode status,
+      WebRequest request) {
+    List<ValidationViolation> errors = ValidationViolationMapper.from(exception.getBindingResult());
+    log.debug("Invalid HTTP request body. errorCount={}", errors.size());
+    return frameworkProblem(CommonError.INVALID_INPUT_VALUE, status, headers, request, errors);
+  }
+
+  @Override
+  protected ResponseEntity<Object> handleHandlerMethodValidationException(
+      HandlerMethodValidationException exception,
+      HttpHeaders headers,
+      HttpStatusCode status,
+      WebRequest request) {
+    List<ValidationViolation> errors =
+        exception.getAllErrors().stream().map(ValidationViolationMapper::from).toList();
+    return frameworkProblem(CommonError.INVALID_INPUT_VALUE, status, headers, request, errors);
+  }
+
+  @Override
+  protected ResponseEntity<Object> handleExceptionInternal(
+      Exception exception,
+      Object body,
+      HttpHeaders headers,
+      HttpStatusCode status,
+      WebRequest request) {
+    ErrorSpec error = frameworkError(exception, status);
+    if (status.is5xxServerError()) {
+      failureReporter.reportUnhandled(exception, "http-framework");
+    } else {
+      log.debug(
+          "HTTP framework exception: type={}, status={}",
+          exception.getClass().getSimpleName(),
+          status.value());
+    }
+    return frameworkProblem(error, status, headers, request, null);
+  }
+
+  private ErrorSpec frameworkError(Exception exception, HttpStatusCode status) {
+    if (exception instanceof NoResourceFoundException) {
+      return CommonError.RESOURCE_NOT_FOUND;
+    }
+    if (exception instanceof MaxUploadSizeExceededException) {
+      return StorageError.FILE_TOO_LARGE;
+    }
+    return status.is5xxServerError()
+        ? CommonError.INTERNAL_SERVER_ERROR
+        : CommonError.INVALID_INPUT_VALUE;
   }
 
   private ResponseEntity<ProblemDetail> problem(
-      ErrorCode errorCode, List<? extends ErrorDetail> errors) {
-    return ResponseEntity.status(errorCode.getStatus())
-        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
-        .body(ProblemDetailFactory.create(errorCode, errors));
+      ErrorSpec error, HttpServletRequest request, List<ValidationViolation> validationErrors) {
+    HttpStatusCode status = HttpErrorPolicy.statusOf(error);
+    ProblemDetail body = ProblemDetailFactory.create(error, status, request, validationErrors);
+    return ResponseEntity.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON).body(body);
+  }
+
+  private ResponseEntity<Object> frameworkProblem(
+      ErrorSpec error,
+      HttpStatusCode status,
+      HttpHeaders sourceHeaders,
+      WebRequest webRequest,
+      List<ValidationViolation> validationErrors) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.putAll(sourceHeaders);
+    headers.setContentType(MediaType.APPLICATION_PROBLEM_JSON);
+    HttpServletRequest request =
+        webRequest instanceof ServletWebRequest servletWebRequest
+            ? servletWebRequest.getRequest()
+            : null;
+    ProblemDetail body = ProblemDetailFactory.create(error, status, request, validationErrors);
+    return new ResponseEntity<>(body, headers, status);
   }
 }

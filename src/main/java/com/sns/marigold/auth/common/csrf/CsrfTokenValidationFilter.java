@@ -5,15 +5,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Set;
 
-import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.auth.common.util.CookieManager;
-import com.sns.marigold.global.error.ErrorCode;
-import com.sns.marigold.global.error.ProblemDetailFactory;
+import com.sns.marigold.auth.exception.AuthError;
+import com.sns.marigold.global.error.http.ProblemDetailWriter;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -30,7 +28,7 @@ public class CsrfTokenValidationFilter extends OncePerRequestFilter {
   private static final String WEBSOCKET_ENDPOINT = "/ws";
 
   private final CookieManager cookieManager;
-  private final ObjectMapper objectMapper;
+  private final ProblemDetailWriter problemDetailWriter;
 
   @Override
   protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
@@ -60,7 +58,7 @@ public class CsrfTokenValidationFilter extends OncePerRequestFilter {
     if (csrfCookie == null
         || csrfHeader == null
         || !constantTimeEquals(csrfCookie.getValue(), csrfHeader)) {
-      writeForbidden(response);
+      problemDetailWriter.write(request, response, AuthError.ACCESS_DENIED);
       return;
     }
 
@@ -78,16 +76,5 @@ public class CsrfTokenValidationFilter extends OncePerRequestFilter {
     }
     return MessageDigest.isEqual(
         left.getBytes(StandardCharsets.UTF_8), right.getBytes(StandardCharsets.UTF_8));
-  }
-
-  private void writeForbidden(HttpServletResponse response) throws IOException {
-    response.setStatus(ErrorCode.AUTH_ACCESS_DENIED.getStatus().value());
-    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-    response
-        .getWriter()
-        .write(
-            objectMapper.writeValueAsString(
-                ProblemDetailFactory.create(ErrorCode.AUTH_ACCESS_DENIED)));
   }
 }

@@ -145,7 +145,7 @@ class AdoptionCommentServiceTest {
         .verify(eventPublisher)
         .publishEvent(new DeleteUploadedStorageFilesEvent(List.of(storedFileName)));
     order.verify(adoptionCommentRepository).save(any(AdoptionComment.class));
-    verify(storageService, never()).deleteUploadedImages(any());
+    verify(storageService, never()).deleteUploadedImagesBestEffort(any());
   }
 
   @Test

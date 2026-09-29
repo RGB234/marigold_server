@@ -221,7 +221,7 @@ class AdoptionPostServiceTest {
             new DeleteUploadedStorageFilesEvent(
                 List.of("adoption/post/33333333-3333-3333-3333-333333333333.jpg")));
     order.verify(adoptionPostRepository).save(any(AdoptionPost.class));
-    verify(storageService, never()).deleteUploadedImages(any());
+    verify(storageService, never()).deleteUploadedImagesBestEffort(any());
   }
 
   @Test
@@ -254,7 +254,7 @@ class AdoptionPostServiceTest {
 
     assertThatThrownBy(() -> adoptionPostService.create(dto, 1L)).isSameAs(failure);
 
-    verify(storageService).deleteUploadedImages(uploadedImages);
+    verify(storageService).deleteUploadedImagesBestEffort(uploadedImages);
     verify(eventPublisher, never()).publishEvent(any());
     verify(transactionTemplate, never()).execute(any());
   }

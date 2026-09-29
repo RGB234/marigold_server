@@ -22,12 +22,13 @@ import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.service.AuthService;
 import com.sns.marigold.auth.common.service.RecentAuthService;
 import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.auth.exception.AuthError;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfo;
 import com.sns.marigold.auth.oauth2.OAuth2UserInfoFactory;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.global.error.exception.BusinessException;
+import com.sns.marigold.global.error.exception.ApplicationException;
 import com.sns.marigold.user.dto.create.OAuth2SignupDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.exception.UserException;
@@ -70,7 +71,10 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
     if (requestAttributes == null) {
       throw new OAuth2AuthenticationException(
-          new OAuth2Error("INTERNAL_ERROR", "요청 정보를 가져올 수 없습니다.", null));
+          new OAuth2Error(
+              AuthError.INTERNAL_SERVER_ERROR.code(),
+              AuthError.INTERNAL_SERVER_ERROR.publicMessage(),
+              null));
     }
     HttpServletRequest request = requestAttributes.getRequest();
 
@@ -95,7 +99,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     if (refreshCookie == null) {
       throw new OAuth2AuthenticationException(
-          new OAuth2Error("UNAUTHORIZED", "로그인 상태가 아닙니다.", null));
+          new OAuth2Error(
+              AuthError.UNAUTHORIZED.code(), AuthError.UNAUTHORIZED.publicMessage(), null));
     }
 
     String refreshToken = refreshCookie.getValue();
@@ -105,7 +110,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
       userId = jwtManager.getUserId(claims);
     } catch (JwtException | IllegalArgumentException e) {
       throw new OAuth2AuthenticationException(
-          new OAuth2Error("INVALID_TOKEN", "유효하지 않은 인증 토큰입니다.", null));
+          new OAuth2Error(
+              AuthError.TOKEN_INVALID.code(), AuthError.TOKEN_INVALID.publicMessage(), null));
     }
 
     try {
@@ -159,8 +165,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         .orElseGet(() -> signupOAuth2User(providerInfo, providerId, attributes));
   }
 
-  private OAuth2AuthenticationException toOAuth2Exception(BusinessException e) {
+  private OAuth2AuthenticationException toOAuth2Exception(ApplicationException e) {
     return new OAuth2AuthenticationException(
-        new OAuth2Error(e.getErrorCode().getCode(), e.getMessage(), null));
+        new OAuth2Error(e.getErrorSpec().code(), e.getErrorSpec().publicMessage(), null));
   }
 }

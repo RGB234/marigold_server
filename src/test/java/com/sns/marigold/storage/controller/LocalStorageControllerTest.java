@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.sns.marigold.audit.AuditLogger;
+import com.sns.marigold.global.error.FailureReporter;
 import com.sns.marigold.global.error.GlobalExceptionHandler;
 import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.storage.config.LocalStorageProperties;
@@ -48,7 +49,8 @@ class LocalStorageControllerTest {
     mockMvc =
         MockMvcBuilders.standaloneSetup(
                 new LocalStorageController(storageService, localStorageUrlSigner))
-            .setControllerAdvice(new GlobalExceptionHandler(mock(AuditLogger.class)))
+            .setControllerAdvice(
+                new GlobalExceptionHandler(mock(AuditLogger.class), mock(FailureReporter.class)))
             .build();
   }
 

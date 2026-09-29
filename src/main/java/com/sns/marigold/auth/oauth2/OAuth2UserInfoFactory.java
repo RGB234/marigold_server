@@ -5,8 +5,8 @@ import java.util.Map;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 
+import com.sns.marigold.auth.exception.AuthError;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.global.error.ErrorCode;
 
 public class OAuth2UserInfoFactory {
 
@@ -22,8 +22,6 @@ public class OAuth2UserInfoFactory {
     }
     throw new OAuth2AuthenticationException(
         new OAuth2Error(
-            ErrorCode.AUTH_INVALID_PROVIDER.getCode(),
-            ErrorCode.AUTH_INVALID_PROVIDER.getMessage(),
-            null));
+            AuthError.INVALID_PROVIDER.code(), AuthError.INVALID_PROVIDER.publicMessage(), null));
   }
 }

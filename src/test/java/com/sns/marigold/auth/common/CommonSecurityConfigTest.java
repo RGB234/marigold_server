@@ -49,6 +49,8 @@ import com.sns.marigold.auth.common.service.JwtAuthenticationService;
 import com.sns.marigold.auth.common.service.RecentAuthService;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.global.config.UrlProperties;
+import com.sns.marigold.global.error.FailureReporter;
+import com.sns.marigold.global.error.http.ProblemDetailWriter;
 import com.sns.marigold.global.web.UrlConstants;
 
 import jakarta.servlet.http.Cookie;
@@ -178,7 +180,10 @@ class CommonSecurityConfigTest {
     CustomLogoutHandler.class,
     CustomLogoutSuccessHandler.class,
     CookieManager.class,
-    CsrfTokenService.class
+    CsrfTokenService.class,
+    ProblemDetailWriter.class,
+    FailureReporter.class,
+    SecurityBoundaryExceptionFilter.class
   })
   static class Config {
     @Bean

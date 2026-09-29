@@ -1,13 +1,9 @@
 package com.sns.marigold.auth.oauth2.handler;
 
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
-import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -15,7 +11,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.sns.marigold.global.config.UrlProperties;
-import com.sns.marigold.global.error.ErrorCode;
+import com.sns.marigold.global.error.ErrorSpec;
+import com.sns.marigold.global.error.http.RequestIdFilter;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,6 +28,7 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
 
   private final UrlProperties urlProperties;
   private final AuditLogger auditLogger;
+  private final OAuth2FailureMapper failureMapper;
   private final HttpCookieOAuth2AuthorizationRequestRepository
       httpCookieOAuth2AuthorizationRequestRepository;
 
@@ -39,8 +37,7 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
       HttpServletRequest request, HttpServletResponse response, AuthenticationException exception)
       throws IOException, ServletException {
 
-    String errorCode = ErrorCode.AUTH_OAUTH2_LOGIN_FAILURE.getCode();
-    String errorMessage = exception.getMessage();
+    ErrorSpec publicError = failureMapper.toPublicError(exception);
 
     // 비정상 callback으로 인해 실패하여 removeAuthorizationRequest() 호출이 되지 않은 경우를 대비한 방어코드
     httpCookieOAuth2AuthorizationRequestRepository.removeAuthorizationRequestCookies(
@@ -50,23 +47,17 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
     String callbackUrl = urlProperties.frontend().auth().callback();
     Objects.requireNonNull(callbackUrl, "url.frontend.auth.callback is not configured");
 
-    if (exception instanceof OAuth2AuthenticationException) {
-      OAuth2AuthenticationException oAuth2AuthenticationException =
-          (OAuth2AuthenticationException) exception;
-      OAuth2Error oAuth2Error = oAuth2AuthenticationException.getError();
-      errorCode = oAuth2Error.getErrorCode();
-      errorMessage = oAuth2Error.getDescription();
-    }
-
-    String redirectUrl =
+    UriComponentsBuilder redirectBuilder =
         UriComponentsBuilder.fromUriString(callbackUrl)
-            .queryParam("error", URLEncoder.encode(errorCode, StandardCharsets.UTF_8))
-            .queryParam(
-                "error_description", URLEncoder.encode(errorMessage, StandardCharsets.UTF_8))
-            .build()
-            .toUriString();
+            .queryParam("error", publicError.code())
+            .queryParam("error_description", publicError.publicMessage());
+    String requestId = RequestIdFilter.find(request);
+    if (requestId != null) {
+      redirectBuilder.queryParam("request_id", requestId);
+    }
+    String redirectUrl = redirectBuilder.build().encode().toUriString();
 
-    auditLogger.warn("event=oauth2_failure errorCode={}", errorCode);
+    auditLogger.warn("event=oauth2_failure errorCode={}", publicError.code());
 
     if (response.isCommitted()) {
       log.debug("응답이 이미 커밋되어 리다이렉트 할 수 없습니다.");

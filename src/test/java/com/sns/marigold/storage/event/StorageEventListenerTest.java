@@ -70,7 +70,7 @@ class StorageEventListenerTest {
           verifyNoInteractions(storageService);
         });
 
-    verify(storageService).deleteUploadedImagesByStoredFileNames(oldFiles);
+    verify(storageService).deleteFilesBestEffort(oldFiles);
     verifyNoMoreInteractions(storageService);
   }
 
@@ -88,7 +88,7 @@ class StorageEventListenerTest {
                     }))
         .isInstanceOf(IllegalStateException.class);
 
-    verify(storageService).deleteUploadedImagesByStoredFileNames(newFiles);
+    verify(storageService).deleteFilesBestEffort(newFiles);
     verifyNoMoreInteractions(storageService);
   }
 
@@ -103,7 +103,7 @@ class StorageEventListenerTest {
           outer.setRollbackOnly();
         });
 
-    verify(storageService).deleteUploadedImagesByStoredFileNames(newFiles);
+    verify(storageService).deleteFilesBestEffort(newFiles);
     verifyNoMoreInteractions(storageService);
   }
 
@@ -126,7 +126,7 @@ class StorageEventListenerTest {
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("flush failed");
 
-    verify(storageService).deleteUploadedImagesByStoredFileNames(newFiles);
+    verify(storageService).deleteFilesBestEffort(newFiles);
     verifyNoMoreInteractions(storageService);
   }
 

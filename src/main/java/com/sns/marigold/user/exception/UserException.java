@@ -2,47 +2,46 @@ package com.sns.marigold.user.exception;
 
 import org.springframework.lang.NonNull;
 
-import com.sns.marigold.global.error.ErrorCode;
-import com.sns.marigold.global.error.exception.BusinessException;
+import com.sns.marigold.global.error.exception.ApplicationException;
 
-public class UserException extends BusinessException {
-  protected UserException(@NonNull ErrorCode errorCode) {
-    super(errorCode);
+public class UserException extends ApplicationException {
+  protected UserException(@NonNull UserError error) {
+    super(error);
   }
 
   public static UserException forUserNotFound() {
-    return new UserException(ErrorCode.USER_NOT_FOUND);
+    return new UserException(UserError.NOT_FOUND);
   }
 
   public static UserException forUserAlreadyExists() {
-    return new UserException(ErrorCode.USER_ALREADY_EXISTS);
+    return new UserException(UserError.ALREADY_EXISTS);
   }
 
   public static UserException forUserNicknameAlreadyExists() {
-    return new UserException(ErrorCode.USER_NICKNAME_ALREADY_EXISTS);
+    return new UserException(UserError.NICKNAME_ALREADY_EXISTS);
   }
 
   public static UserException forUserLocalCredentialsAlreadyExists() {
-    return new UserException(ErrorCode.USER_LOCAL_CREDENTIALS_ALREADY_EXISTS);
+    return new UserException(UserError.LOCAL_CREDENTIALS_ALREADY_EXISTS);
   }
 
   public static UserException forUserOAuth2AlreadyLinked() {
-    return new UserException(ErrorCode.USER_OAUTH2_ALREADY_LINKED);
+    return new UserException(UserError.OAUTH2_ALREADY_LINKED);
   }
 
   public static UserException forUserOAuth2AccountAlreadyInUse() {
-    return new UserException(ErrorCode.USER_OAUTH2_ACCOUNT_ALREADY_IN_USE);
+    return new UserException(UserError.OAUTH2_ACCOUNT_ALREADY_IN_USE);
   }
 
   public static UserException forUserDeleted() {
-    return new UserException(ErrorCode.USER_DELETED);
+    return new UserException(UserError.DELETED);
   }
 
   public static UserException forUserBanned() {
-    return new UserException(ErrorCode.USER_BANNED);
+    return new UserException(UserError.BANNED);
   }
 
   public static UserException forUserSleeping() {
-    return new UserException(ErrorCode.USER_SLEEPING);
+    return new UserException(UserError.SLEEPING);
   }
 }

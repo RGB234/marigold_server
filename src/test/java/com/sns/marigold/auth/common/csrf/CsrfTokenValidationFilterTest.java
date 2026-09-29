@@ -12,6 +12,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.global.error.http.ProblemDetailWriter;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.Cookie;
@@ -25,7 +26,8 @@ class CsrfTokenValidationFilterTest {
   void setUp() {
     filter =
         new CsrfTokenValidationFilter(
-            new CookieManager(), new ObjectMapper().findAndRegisterModules());
+            new CookieManager(),
+            new ProblemDetailWriter(new ObjectMapper().findAndRegisterModules()));
     filterChain = Mockito.mock(FilterChain.class);
   }
 

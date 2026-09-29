@@ -17,6 +17,7 @@ import org.springframework.security.access.AccessDeniedException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.auth.exception.AuthException;
+import com.sns.marigold.global.error.FailureReporter;
 
 class StompProtocolErrorHandlerTest {
 
@@ -25,11 +26,13 @@ class StompProtocolErrorHandlerTest {
 
   @BeforeEach
   void setUp() {
-    errorHandler = new StompProtocolErrorHandler(objectMapper);
+    errorHandler =
+        new StompProtocolErrorHandler(
+            objectMapper, org.mockito.Mockito.mock(FailureReporter.class));
   }
 
   @Test
-  void convertsNestedBusinessExceptionToJsonErrorFrame() throws Exception {
+  void convertsNestedApplicationExceptionToJsonErrorFrame() throws Exception {
     Message<byte[]> clientMessage = message(StompCommand.CONNECT, null);
     MessageDeliveryException exception =
         new MessageDeliveryException(clientMessage, AuthException.forExpiredToken());

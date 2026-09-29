@@ -37,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.sns.marigold.audit.AuditLogger;
+import com.sns.marigold.global.error.FailureReporter;
 import com.sns.marigold.global.error.GlobalExceptionHandler;
 
 @SpringBootTest(
@@ -108,7 +109,7 @@ class MultipartUploadLimitTest {
     MultipartAutoConfiguration.class,
     JacksonAutoConfiguration.class
   })
-  @Import({UploadController.class, GlobalExceptionHandler.class})
+  @Import({UploadController.class, GlobalExceptionHandler.class, FailureReporter.class})
   static class Config {}
 
   @RestController

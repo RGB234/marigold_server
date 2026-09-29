@@ -174,21 +174,13 @@ public class UserService {
             }
           });
 
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
       // 4. 실패 시 보상 트랜잭션: 새로 업로드한 파일 삭제
       if (uploadedImageDto != null) {
         log.debug("Update user failed. Deleting uploaded storage file.");
-        try {
-          storageService.deleteUploadedImages(List.of(uploadedImageDto));
-        } catch (Exception s3Ex) {
-          log.error("event=s3_rollback_delete_failed fileCount=1", s3Ex);
-        }
+        storageService.deleteUploadedImagesBestEffort(List.of(uploadedImageDto));
       }
-
-      if (e instanceof RuntimeException) {
-        throw (RuntimeException) e;
-      }
-      throw new RuntimeException(e);
+      throw e;
     }
   }
 

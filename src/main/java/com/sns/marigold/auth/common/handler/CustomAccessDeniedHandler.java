@@ -4,18 +4,15 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 
-import org.springframework.http.MediaType;
-import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.audit.AuditLogger;
-import com.sns.marigold.global.error.ErrorCode;
-import com.sns.marigold.global.error.ProblemDetailFactory;
+import com.sns.marigold.auth.exception.AuthError;
+import com.sns.marigold.global.error.http.ProblemDetailWriter;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class CustomAccessDeniedHandler implements AccessDeniedHandler {
 
-  private final ObjectMapper objectMapper;
+  private final ProblemDetailWriter problemDetailWriter;
   private final AuditLogger auditLogger;
 
   @Override
@@ -55,13 +52,6 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
         authorities,
         accessDeniedException.getMessage());
 
-    ErrorCode errorCode = ErrorCode.AUTH_ACCESS_DENIED;
-
-    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-    response.setCharacterEncoding("UTF-8");
-    response.setStatus(errorCode.getStatus().value()); // HTTP 상태 코드 설정
-
-    ProblemDetail responseBody = ProblemDetailFactory.create(errorCode);
-    response.getWriter().write(objectMapper.writeValueAsString(responseBody));
+    problemDetailWriter.write(request, response, AuthError.ACCESS_DENIED);
   }
 }

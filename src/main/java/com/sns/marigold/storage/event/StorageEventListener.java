@@ -23,7 +23,7 @@ public class StorageEventListener {
     if (event.fileNames() == null || event.fileNames().isEmpty()) return;
 
     log.debug("Deleting old files from storage. count={}", event.fileNames().size());
-    storageService.deleteUploadedImagesByStoredFileNames(event.fileNames());
+    storageService.deleteFilesBestEffort(event.fileNames());
   }
 
   // 트랜잭션 롤백 시 방금 올린 파일들 삭제
@@ -33,8 +33,8 @@ public class StorageEventListener {
     if (event.fileNames() == null || event.fileNames().isEmpty()) return;
 
     log.warn(
-        "Transaction rolled back. Reverting new files from storage. count={}",
+        "Transaction rolled back. Cleaning up newly created files from storage. count={}",
         event.fileNames().size());
-    storageService.deleteUploadedImagesByStoredFileNames(event.fileNames());
+    storageService.deleteFilesBestEffort(event.fileNames());
   }
 }
