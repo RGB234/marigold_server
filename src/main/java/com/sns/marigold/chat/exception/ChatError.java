@@ -4,6 +4,8 @@ import com.sns.marigold.global.error.ErrorSpec;
 import com.sns.marigold.global.error.FailureKind;
 
 public enum ChatError implements ErrorSpec {
+  PARTICIPANT_ALREADY_EXISTS(
+      "CHAT_PARTICIPANT_ALREADY_EXISTS", "이미 참여 중인 채팅방입니다.", FailureKind.CONFLICT),
   MESSAGE_EMPTY("CHAT_MESSAGE_EMPTY", "메시지 또는 첨부파일을 입력해주세요.", FailureKind.INVALID_INPUT),
   ROOM_NOT_FOUND("CHAT_ROOM_NOT_FOUND", "존재하지 않는 채팅방입니다.", FailureKind.NOT_FOUND),
   ROOM_CLOSED("CHAT_ROOM_CLOSED", "종료된 채팅방에는 메시지를 보낼 수 없습니다.", FailureKind.CONFLICT),

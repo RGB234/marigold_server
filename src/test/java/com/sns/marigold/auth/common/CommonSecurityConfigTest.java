@@ -40,9 +40,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.csrf.CsrfTokenValidationFilter;
-import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutSuccessHandler;
+import com.sns.marigold.auth.common.handler.SecurityFailureHandler;
 import com.sns.marigold.auth.common.jwt.JwtAuthenticationFilter;
 import com.sns.marigold.auth.common.jwt.JwtProperties;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
@@ -62,8 +62,7 @@ class CommonSecurityConfigTest {
 
   @Autowired private WebApplicationContext context;
   @MockitoBean private CustomCorsConfigurationSource corsConfigurationSource;
-  @MockitoBean private CustomAccessDeniedHandler accessDeniedHandler;
-  @MockitoBean private CustomAuthenticationEntryPoint authenticationEntryPoint;
+  @MockitoBean private SecurityFailureHandler securityFailureHandler;
   @MockitoBean private RecentAuthService recentAuthService;
   @MockitoBean private JwtAuthenticationService jwtAuthenticationService;
   @MockitoBean private AuditLogger auditLogger;
@@ -75,7 +74,7 @@ class CommonSecurityConfigTest {
   @ValueSource(strings = {"/ws", "/ws/info", "/ws/000/session/websocket"})
   void sockJsHandshake_DoesNotRequireHttpBearerToken(String path) throws Exception {
     mockMvc.perform(get(path)).andExpect(status().isNotFound());
-    verifyNoInteractions(authenticationEntryPoint);
+    verifyNoInteractions(securityFailureHandler);
   }
 
   @Test
@@ -88,7 +87,7 @@ class CommonSecurityConfigTest {
                     refreshCookie(), new Cookie(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, "token"))
                 .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, "token"))
         .andExpect(status().isNotFound());
-    verifyNoInteractions(authenticationEntryPoint);
+    verifyNoInteractions(securityFailureHandler);
   }
 
   @BeforeEach

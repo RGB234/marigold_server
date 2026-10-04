@@ -16,7 +16,13 @@ class HttpErrorPolicyTest {
   void mapsSemanticFailureKindsWithoutDomainHttpDependencies() {
     assertThat(HttpErrorPolicy.statusOf(AuthError.UNAUTHORIZED)).isEqualTo(HttpStatus.UNAUTHORIZED);
     assertThat(HttpErrorPolicy.statusOf(AuthError.INVALID_CREDENTIALS))
-        .isEqualTo(HttpStatus.BAD_REQUEST);
+        .isEqualTo(HttpStatus.UNAUTHORIZED);
+    assertThat(HttpErrorPolicy.statusOf(AdoptionError.POST_ALREADY_COMPLETED))
+        .isEqualTo(HttpStatus.CONFLICT);
+    assertThat(HttpErrorPolicy.statusOf(AdoptionError.POST_NOT_COMPLETED))
+        .isEqualTo(HttpStatus.CONFLICT);
+    assertThat(HttpErrorPolicy.statusOf(AdoptionError.COMMENT_DELETED))
+        .isEqualTo(HttpStatus.CONFLICT);
     assertThat(HttpErrorPolicy.statusOf(AdoptionError.POST_DELETED)).isEqualTo(HttpStatus.GONE);
     assertThat(HttpErrorPolicy.statusOf(ChatError.ROOM_CLOSED)).isEqualTo(HttpStatus.CONFLICT);
     assertThat(HttpErrorPolicy.statusOf(StorageError.FILE_TOO_LARGE))

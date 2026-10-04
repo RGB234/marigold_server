@@ -2,6 +2,7 @@ package com.sns.marigold.global.error;
 
 import java.util.List;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -43,6 +44,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
   private final AuditLogger auditLogger;
   private final FailureReporter failureReporter;
+
+  @ExceptionHandler(DataIntegrityViolationException.class)
+  public ResponseEntity<ProblemDetail> handleDataIntegrityViolation(
+      DataIntegrityViolationException exception, HttpServletRequest request) {
+    ErrorSpec error = UniqueConflictPolicy.resolve(exception);
+    if (error == null) {
+      return handleUnhandledException(exception, request);
+    }
+    log.debug("Database unique conflict: errorCode={}", error.code());
+    return problem(error, request, null);
+  }
 
   @ExceptionHandler(ApplicationException.class)
   public ResponseEntity<ProblemDetail> handleApplicationException(

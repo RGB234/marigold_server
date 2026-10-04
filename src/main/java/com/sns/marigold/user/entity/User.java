@@ -30,8 +30,15 @@ import lombok.NoArgsConstructor;
 @Table(
     name = "users",
     uniqueConstraints = {
-      @UniqueConstraint(columnNames = {"providerInfo", "providerId"}),
-      @UniqueConstraint(columnNames = {"nickname"})
+      @UniqueConstraint(
+          name = "uk_users_provider",
+          columnNames = {"provider_info", "provider_id"}),
+      @UniqueConstraint(
+          name = "uk_users_nickname",
+          columnNames = {"nickname"}),
+      @UniqueConstraint(
+          name = "uk_users_email",
+          columnNames = {"email"})
     })
 @Builder
 @AllArgsConstructor
@@ -47,7 +54,7 @@ public class User {
   @Column(nullable = true)
   private String providerId;
 
-  @Column(nullable = true, unique = true)
+  @Column(nullable = true)
   private String email;
 
   @Column(nullable = true)
@@ -58,7 +65,7 @@ public class User {
   @Builder.Default
   private Role role = Role.ROLE_PERSON;
 
-  @Column(length = 50, nullable = false, unique = true)
+  @Column(length = 50, nullable = false)
   private String nickname;
 
   @OneToOne(

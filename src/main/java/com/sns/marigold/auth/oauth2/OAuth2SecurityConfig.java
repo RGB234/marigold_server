@@ -9,9 +9,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsUtils;
 
-import com.sns.marigold.auth.common.CustomAuthenticationEntryPoint;
 import com.sns.marigold.auth.common.CustomCorsConfigurationSource;
-import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
+import com.sns.marigold.auth.common.handler.SecurityFailureHandler;
 import com.sns.marigold.auth.oauth2.handler.OAuth2FailureHandler;
 import com.sns.marigold.auth.oauth2.handler.OAuth2SuccessHandler;
 import com.sns.marigold.auth.oauth2.service.CustomOAuth2UserService;
@@ -30,8 +29,7 @@ public class OAuth2SecurityConfig {
   private final CustomOAuth2UserService customOAuth2UserService;
   private final OAuth2SuccessHandler oAuth2SuccessHandler;
   private final OAuth2FailureHandler oAuth2FailureHandler;
-  private final CustomAccessDeniedHandler customAccessDeniedHandler;
-  private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+  private final SecurityFailureHandler securityFailureHandler;
   private final HttpCookieOAuth2AuthorizationRequestRepository
       httpCookieOAuth2AuthorizationRequestRepository;
 
@@ -80,8 +78,8 @@ public class OAuth2SecurityConfig {
         //    OAuth2 필터 체인 내에서 인증/인가 예외가 발생할 경우의 fallback 응답 정책을 명시한다
         .exceptionHandling(
             ex ->
-                ex.accessDeniedHandler(customAccessDeniedHandler) // 403
-                    .authenticationEntryPoint(customAuthenticationEntryPoint)); // 401
+                ex.accessDeniedHandler(securityFailureHandler) // 403
+                    .authenticationEntryPoint(securityFailureHandler)); // 401
 
     return http.build();
   }

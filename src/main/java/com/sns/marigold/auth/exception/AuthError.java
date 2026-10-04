@@ -10,7 +10,7 @@ public enum AuthError implements ErrorSpec {
   TOKEN_EXPIRED("AUTH_TOKEN_EXPIRED", "토큰이 만료되었습니다.", FailureKind.UNAUTHENTICATED),
   RECENT_AUTH_REQUIRED("AUTH_RECENT_AUTH_REQUIRED", "최근 인증이 필요합니다.", FailureKind.FORBIDDEN),
   INVALID_CREDENTIALS(
-      "AUTH_INVALID_CREDENTIALS", "이메일이나 비밀번호가 올바르지 않습니다.", FailureKind.INVALID_INPUT),
+      "AUTH_INVALID_CREDENTIALS", "이메일이나 비밀번호가 올바르지 않습니다.", FailureKind.UNAUTHENTICATED),
   INVALID_PROVIDER(
       "AUTH_INVALID_PROVIDER", "지원하지 않는 OAuth2 Provider입니다.", FailureKind.INVALID_INPUT),
   INTERNAL_SERVER_ERROR(

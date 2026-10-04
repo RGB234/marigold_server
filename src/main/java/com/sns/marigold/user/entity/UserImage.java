@@ -15,6 +15,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,7 +28,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@Table(name = "user_image")
+@Table(
+    name = "user_image",
+    uniqueConstraints = @UniqueConstraint(name = "uk_user_image_user", columnNames = "user_id"))
 public class UserImage {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,7 +50,7 @@ public class UserImage {
   private String originalFileName;
 
   @OneToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "user_id", nullable = false, unique = true)
+  @JoinColumn(name = "user_id", nullable = false)
   private User user;
 
   void assignUser(User user) {

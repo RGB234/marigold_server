@@ -17,9 +17,9 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 import org.springframework.web.cors.CorsUtils;
 
 import com.sns.marigold.auth.common.csrf.CsrfTokenValidationFilter;
-import com.sns.marigold.auth.common.handler.CustomAccessDeniedHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutSuccessHandler;
+import com.sns.marigold.auth.common.handler.SecurityFailureHandler;
 import com.sns.marigold.auth.common.jwt.JwtAuthenticationFilter;
 import com.sns.marigold.global.config.UrlProperties;
 import com.sns.marigold.global.web.UrlConstants;
@@ -35,14 +35,13 @@ import lombok.RequiredArgsConstructor;
 public class CommonSecurityConfig {
 
   private final CustomCorsConfigurationSource customCorsConfigurationSource;
-  private final CustomAccessDeniedHandler customAccessDeniedHandler;
+  private final SecurityFailureHandler securityFailureHandler;
   private final CustomLogoutHandler customLogoutHandler;
   private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
   private final CsrfTokenValidationFilter csrfTokenValidationFilter;
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
   private final SecurityBoundaryExceptionFilter securityBoundaryExceptionFilter;
 
-  private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
   private final UrlProperties urlProperties;
 
   @Bean
@@ -88,8 +87,8 @@ public class CommonSecurityConfig {
                     .logoutSuccessHandler(customLogoutSuccessHandler))
         .exceptionHandling(
             ex ->
-                ex.accessDeniedHandler(customAccessDeniedHandler) // 403 권한없음
-                    .authenticationEntryPoint(customAuthenticationEntryPoint)); // 401 인증실패
+                ex.accessDeniedHandler(securityFailureHandler) // 403 권한없음
+                    .authenticationEntryPoint(securityFailureHandler)); // 401 인증실패
 
     return http.build();
   }

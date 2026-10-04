@@ -4,6 +4,7 @@ import com.sns.marigold.global.error.ErrorSpec;
 import com.sns.marigold.global.error.FailureKind;
 
 public enum UserError implements ErrorSpec {
+  IMAGE_CONFLICT("USER_IMAGE_CONFLICT", "프로필 이미지가 변경되었습니다. 다시 시도해주세요.", FailureKind.CONFLICT),
   NOT_FOUND("USER_NOT_FOUND", "존재하지 않는 사용자입니다.", FailureKind.NOT_FOUND),
   ALREADY_EXISTS("USER_ALREADY_EXISTS", "이미 존재하는 사용자입니다.", FailureKind.CONFLICT),
   NICKNAME_ALREADY_EXISTS("USER_NICKNAME_ALREADY_EXISTS", "이미 존재하는 닉네임입니다.", FailureKind.CONFLICT),

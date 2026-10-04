@@ -11,7 +11,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.sns.marigold.audit.AuditLogger;
-import com.sns.marigold.auth.common.CustomAuthenticationEntryPoint;
+import com.sns.marigold.auth.common.handler.SecurityFailureHandler;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
 import com.sns.marigold.auth.exception.AuthError;
 import com.sns.marigold.global.error.ErrorSpec;
@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /*
  * 동작: 요청에 포함된 JWT 토큰을 꺼내서 유효한지 검사하고, 유효하다면 SecurityContextHolder에 인증 객체(Authentication)를 저장.
- * 특징: 여기서 토큰이 없거나 만료되어도 필터 체인을 중단하지 않고 예외를 기록한 다음 다음 필터로 넘기고, CustomAuthenticationEntryPoint에서 예외처리.
+ * 특징: 여기서 토큰이 없거나 만료되어도 필터 체인을 중단하지 않고 예외를 기록한 다음 다음 필터로 넘기고, SecurityFailureHandler에서 예외처리.
  */
 
 @Component
@@ -68,12 +68,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return;
       } catch (ExpiredJwtException e) {
         log.debug("Access token expired");
-        request.setAttribute(
-            CustomAuthenticationEntryPoint.AUTH_ERROR_ATTRIBUTE, AuthError.TOKEN_EXPIRED);
+        request.setAttribute(SecurityFailureHandler.AUTH_ERROR_ATTRIBUTE, AuthError.TOKEN_EXPIRED);
       } catch (JwtException | IllegalArgumentException e) {
         auditLogger.warn("event=invalid_access_token");
-        request.setAttribute(
-            CustomAuthenticationEntryPoint.AUTH_ERROR_ATTRIBUTE, AuthError.TOKEN_INVALID);
+        request.setAttribute(SecurityFailureHandler.AUTH_ERROR_ATTRIBUTE, AuthError.TOKEN_INVALID);
       }
     }
 
