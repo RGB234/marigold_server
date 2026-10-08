@@ -315,27 +315,8 @@ class AdoptionCommentServiceTest {
   }
 
   @Test
-  @DisplayName("댓글 삭제 시 댓글을 소프트 삭제하고 이미지 삭제 이벤트를 발행한다.")
+  @DisplayName("댓글 삭제 시 트랜잭션 안에서 소프트 삭제하고 이미지 삭제 이벤트를 발행한다.")
   void deleteComment_Success() {
-    // given
-    given(adoptionCommentRepository.findById(10L)).willReturn(Optional.of(comment));
-
-    // when
-    adoptionCommentService.deleteComment(10L, 1L);
-
-    // then
-    ArgumentCaptor<DeleteOldStorageFilesEvent> eventCaptor =
-        ArgumentCaptor.forClass(DeleteOldStorageFilesEvent.class);
-    assertThat(comment.getDeletedAt()).isNotNull();
-    assertThat(comment.getImages()).isEmpty();
-    verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
-    assertThat(eventCaptor.getValue().fileNames())
-        .containsExactly("adoption/comment/11111111-1111-1111-1111-111111111111.jpg");
-  }
-
-  @Test
-  @DisplayName("댓글 이미지 삭제 이벤트는 트랜잭션 안에서 발행한다.")
-  void deleteComment_PublishesDeleteEventInsideTransaction() {
     // given
     AtomicBoolean inTransaction = new AtomicBoolean(false);
     given(adoptionCommentRepository.findById(10L)).willReturn(Optional.of(comment));
@@ -366,7 +347,13 @@ class AdoptionCommentServiceTest {
     adoptionCommentService.deleteComment(10L, 1L);
 
     // then
-    verify(eventPublisher, times(1)).publishEvent(any(DeleteOldStorageFilesEvent.class));
+    ArgumentCaptor<DeleteOldStorageFilesEvent> eventCaptor =
+        ArgumentCaptor.forClass(DeleteOldStorageFilesEvent.class);
+    assertThat(comment.getDeletedAt()).isNotNull();
+    assertThat(comment.getImages()).isEmpty();
+    verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().fileNames())
+        .containsExactly("adoption/comment/11111111-1111-1111-1111-111111111111.jpg");
   }
 
   @Test

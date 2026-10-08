@@ -11,11 +11,15 @@ import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -295,13 +299,11 @@ class AuthServiceTest {
     assertThat(statusDto.isRefreshTokenPresent()).isFalse();
   }
 
-  @Test
-  @DisplayName("인증 정보가 익명 사용자일 경우 빈 상태 정보를 반환한다.")
-  void getAuthStatus_AnonymousUser() {
-    // given
-    Authentication authentication =
-        new AnonymousAuthenticationToken(
-            "key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")));
+  @ParameterizedTest
+  @NullSource
+  @MethodSource("unauthenticatedUsers")
+  @DisplayName("인증 정보가 없거나 익명 사용자이면 빈 상태 정보를 반환한다.")
+  void getAuthStatus_Unauthenticated(Authentication authentication) {
     HttpServletRequest request = mock(HttpServletRequest.class);
 
     // when
@@ -313,18 +315,10 @@ class AuthServiceTest {
     assertThat(statusDto.isRefreshTokenPresent()).isFalse();
   }
 
-  @Test
-  @DisplayName("인증 정보 자체가 null일 경우 빈 상태 정보를 반환한다.")
-  void getAuthStatus_NullAuthentication() {
-    HttpServletRequest request = mock(HttpServletRequest.class);
-
-    // when
-    UserAuthStatusDto statusDto = authService.getAuthStatus(null, request);
-
-    // then
-    assertThat(statusDto.getUserId()).isNull();
-    assertThat(statusDto.getAuthorities()).isEmpty();
-    assertThat(statusDto.isRefreshTokenPresent()).isFalse();
+  private static Stream<Authentication> unauthenticatedUsers() {
+    return Stream.of(
+        new AnonymousAuthenticationToken(
+            "key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))));
   }
 
   @Test

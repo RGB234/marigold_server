@@ -22,6 +22,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -265,70 +267,34 @@ class ChatServiceTest {
     verify(p2, times(1)).reJoin();
   }
 
-  @Test
-  @DisplayName("유저의 채팅방 목록을 조회한다. (모든 방)")
-  void getUserRooms_All() {
+  @ParameterizedTest
+  @EnumSource(ChatRoomType.class)
+  @DisplayName("유저의 채팅방 목록을 조회 타입에 맞게 조회한다.")
+  void getUserRooms_ByType(ChatRoomType type) {
     // given
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
     Pageable pageable = PageRequest.of(0, 10);
+    PageImpl<ChatRoom> rooms = new PageImpl<>(Objects.requireNonNull(List.of(chatRoom)));
 
-    given(chatRoomRepository.findAllActiveByUser(user1, pageable))
-        .willReturn(new PageImpl<>(Objects.requireNonNull(List.of(chatRoom))));
+    switch (type) {
+      case ALL -> given(chatRoomRepository.findAllActiveByUser(user1, pageable)).willReturn(rooms);
+      case WRITER ->
+          given(chatRoomRepository.findAllActiveByUserAsWriter(user1, pageable)).willReturn(rooms);
+      case INQUIRER ->
+          given(chatRoomRepository.findAllActiveByUserAsInquirer(user1, pageable))
+              .willReturn(rooms);
+    }
 
     RoomParticipant p1 = createParticipant(chatRoom, user1);
     RoomParticipant p2 = createParticipant(chatRoom, user2);
     given(participantRepository.findAllByChatRoom(chatRoom)).willReturn(List.of(p1, p2));
 
     // when
-    Page<ChatRoomDto> result = chatService.getUserRooms(1L, ChatRoomType.ALL, pageable);
+    Page<ChatRoomDto> result = chatService.getUserRooms(1L, type, pageable);
 
     // then
     assertThat(result.getContent()).hasSize(1);
     assertThat(result.getContent().get(0).getId()).isEqualTo(100L);
-  }
-
-  @Test
-  @DisplayName("유저의 채팅방 목록을 작성자(writer)로서 조회한다.")
-  void getUserRooms_Writer() {
-    // given
-    given(userRepository.findById(1L)).willReturn(Optional.of(user1));
-    Pageable pageable = PageRequest.of(0, 10);
-
-    given(chatRoomRepository.findAllActiveByUserAsWriter(user1, pageable))
-        .willReturn(new PageImpl<>(Objects.requireNonNull(List.of(chatRoom))));
-
-    RoomParticipant p1 = createParticipant(chatRoom, user1);
-    RoomParticipant p2 = createParticipant(chatRoom, user2);
-    given(participantRepository.findAllByChatRoom(chatRoom)).willReturn(List.of(p1, p2));
-
-    // when
-    Page<ChatRoomDto> result = chatService.getUserRooms(1L, ChatRoomType.WRITER, pageable);
-
-    // then
-    assertThat(result.getContent()).hasSize(1);
-    verify(chatRoomRepository, times(1)).findAllActiveByUserAsWriter(user1, pageable);
-  }
-
-  @Test
-  @DisplayName("유저의 채팅방 목록을 문의자(inquirer)로서 조회한다.")
-  void getUserRooms_Inquirer() {
-    // given
-    given(userRepository.findById(1L)).willReturn(Optional.of(user1));
-    Pageable pageable = PageRequest.of(0, 10);
-
-    given(chatRoomRepository.findAllActiveByUserAsInquirer(user1, pageable))
-        .willReturn(new PageImpl<>(Objects.requireNonNull(List.of(chatRoom))));
-
-    RoomParticipant p1 = createParticipant(chatRoom, user1);
-    RoomParticipant p2 = createParticipant(chatRoom, user2);
-    given(participantRepository.findAllByChatRoom(chatRoom)).willReturn(List.of(p1, p2));
-
-    // when
-    Page<ChatRoomDto> result = chatService.getUserRooms(1L, ChatRoomType.INQUIRER, pageable);
-
-    // then
-    assertThat(result.getContent()).hasSize(1);
-    verify(chatRoomRepository, times(1)).findAllActiveByUserAsInquirer(user1, pageable);
   }
 
   @Test

@@ -16,11 +16,15 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.Base64;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -83,59 +87,27 @@ class S3StorageServiceTest {
     assertThat(metadataCaptor.getValue()).extracting("contentType").isEqualTo("image/png");
   }
 
-  @Test
-  @DisplayName("빈 파일 업로드 시 StorageException이 발생한다")
-  void uploadImage_EmptyFile() {
-    MockMultipartFile emptyFile = new MockMultipartFile("file", new byte[0]);
-
-    assertThatThrownBy(() -> storageService.uploadImage(emptyFile, StorageDirectory.ADOPTION_POST))
-        .isInstanceOf(StorageException.class);
-  }
-
-  @Test
-  @DisplayName("확장자가 없는 파일 업로드 시 StorageException이 발생한다")
-  void uploadImage_NoExtension() {
-    MockMultipartFile noExtensionFile =
-        new MockMultipartFile("file", "test-image", "image/png", PNG_BYTES);
-
-    assertThatThrownBy(
-            () -> storageService.uploadImage(noExtensionFile, StorageDirectory.ADOPTION_POST))
-        .isInstanceOf(StorageException.class);
-  }
-
-  @Test
-  @DisplayName("실제 이미지가 아닌 파일은 업로드하지 않는다")
-  void uploadImage_InvalidMimeType() {
-    MockMultipartFile invalidFile =
-        new MockMultipartFile("file", "not-image.png", "image/png", "plain text".getBytes());
-
-    assertThatThrownBy(
-            () -> storageService.uploadImage(invalidFile, StorageDirectory.ADOPTION_POST))
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("invalidImageFiles")
+  void uploadImage_InvalidFile(String caseName, MultipartFile file) {
+    assertThatThrownBy(() -> storageService.uploadImage(file, StorageDirectory.ADOPTION_POST))
+        .as(caseName)
         .isInstanceOf(StorageException.class);
     verify(s3Template, never()).upload(any(), any(), any(), any());
   }
 
-  @Test
-  @DisplayName("지원하지 않는 이미지 확장자는 업로드하지 않는다")
-  void uploadImage_UnsupportedExtension() {
-    MockMultipartFile gifFile =
-        new MockMultipartFile("file", "test-image.gif", "image/gif", PNG_BYTES);
-
-    assertThatThrownBy(() -> storageService.uploadImage(gifFile, StorageDirectory.ADOPTION_POST))
-        .isInstanceOf(StorageException.class);
-    verify(s3Template, never()).upload(any(), any(), any(), any());
-  }
-
-  @Test
-  @DisplayName("확장자와 실제 MIME이 일치하지 않으면 업로드하지 않는다")
-  void uploadImage_MismatchedExtensionAndMimeType() {
-    MockMultipartFile mismatchedFile =
-        new MockMultipartFile("file", "test-image.jpg", "image/jpeg", PNG_BYTES);
-
-    assertThatThrownBy(
-            () -> storageService.uploadImage(mismatchedFile, StorageDirectory.ADOPTION_POST))
-        .isInstanceOf(StorageException.class);
-    verify(s3Template, never()).upload(any(), any(), any(), any());
+  private static Stream<Arguments> invalidImageFiles() {
+    return Stream.of(
+        Arguments.of("빈 파일", new MockMultipartFile("file", new byte[0])),
+        Arguments.of("확장자 없음", new MockMultipartFile("file", "test-image", "image/png", PNG_BYTES)),
+        Arguments.of(
+            "실제 이미지가 아님",
+            new MockMultipartFile("file", "not-image.png", "image/png", "plain text".getBytes())),
+        Arguments.of(
+            "지원하지 않는 확장자", new MockMultipartFile("file", "test-image.gif", "image/gif", PNG_BYTES)),
+        Arguments.of(
+            "확장자와 실제 MIME 불일치",
+            new MockMultipartFile("file", "test-image.jpg", "image/jpeg", PNG_BYTES)));
   }
 
   @Test

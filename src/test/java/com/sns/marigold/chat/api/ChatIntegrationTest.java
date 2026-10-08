@@ -12,6 +12,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -70,6 +71,7 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
   @Autowired private ObjectMapper objectMapper;
 
   private WebSocketStompClient stompClient;
+  private StompSession stompSession;
   private String accessToken;
   private User user1;
   private User user2;
@@ -120,6 +122,16 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
             Map.of(),
             AuthStatus.LOGIN_SUCCESS);
     accessToken = jwtManager.createAccessToken(principal);
+  }
+
+  @AfterEach
+  void closeStompConnection() {
+    if (stompSession != null && stompSession.isConnected()) {
+      stompSession.disconnect();
+    }
+    if (stompClient != null) {
+      stompClient.stop();
+    }
   }
 
   @Test
@@ -248,28 +260,30 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
 
     // WebSocket Config에서 SockJS를 사용 중이므로 순수 WebSocket 경로에는 /websocket을 붙인다.
     String url = Objects.requireNonNull(String.format("ws://localhost:%d/ws/websocket", port));
-    return client
-        .connectAsync(
-            url,
-            webSocketHeaders,
-            connectHeaders,
-            new StompSessionHandlerAdapter() {
-              @Override
-              public void handleException(
-                  @NonNull StompSession session,
-                  @Nullable StompCommand command,
-                  @NonNull StompHeaders headers,
-                  @NonNull byte[] payload,
-                  @NonNull Throwable exception) {
-                log.error("STOMP Exception: {}", exception.getMessage(), exception);
-              }
+    stompSession =
+        client
+            .connectAsync(
+                url,
+                webSocketHeaders,
+                connectHeaders,
+                new StompSessionHandlerAdapter() {
+                  @Override
+                  public void handleException(
+                      @NonNull StompSession session,
+                      @Nullable StompCommand command,
+                      @NonNull StompHeaders headers,
+                      @NonNull byte[] payload,
+                      @NonNull Throwable exception) {
+                    log.error("STOMP Exception: {}", exception.getMessage(), exception);
+                  }
 
-              @Override
-              public void handleTransportError(
-                  @NonNull StompSession session, @NonNull Throwable exception) {
-                log.error("STOMP Transport Error: {}", exception.getMessage(), exception);
-              }
-            })
-        .get(5, TimeUnit.SECONDS);
+                  @Override
+                  public void handleTransportError(
+                      @NonNull StompSession session, @NonNull Throwable exception) {
+                    log.error("STOMP Transport Error: {}", exception.getMessage(), exception);
+                  }
+                })
+            .get(5, TimeUnit.SECONDS);
+    return stompSession;
   }
 }
