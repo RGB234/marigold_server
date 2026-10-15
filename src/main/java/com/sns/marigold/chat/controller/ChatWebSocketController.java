@@ -12,6 +12,7 @@ import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.ChatDestinations;
 import com.sns.marigold.chat.dto.ChatMessageDto;
+import com.sns.marigold.chat.dto.ChatMessageRequestDto;
 import com.sns.marigold.chat.service.ChatService;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,7 +29,7 @@ public class ChatWebSocketController {
 
   @PreAuthorize("isAuthenticated()")
   @MessageMapping(ChatDestinations.MESSAGE_MAPPING)
-  public void message(@Valid ChatMessageDto messageDto, Principal principal) {
+  public void message(@Valid ChatMessageRequestDto messageDto, Principal principal) {
     ChatMessageDto savedMessage =
         chatService.saveMessage(messageDto, getAuthenticatedUserId(principal));
     messagingTemplate.convertAndSend(ChatDestinations.room(savedMessage.getRoomId()), savedMessage);

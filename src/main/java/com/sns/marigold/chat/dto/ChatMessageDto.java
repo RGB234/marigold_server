@@ -7,8 +7,6 @@ import java.util.List;
 import com.sns.marigold.global.tsid.TsidId;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,7 +14,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
-@Schema(description = "채팅 메시지")
+@Schema(description = "채팅 메시지 응답")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -27,7 +25,6 @@ public class ChatMessageDto {
 
   @Schema(description = "TSID 형식 채팅방 ID", type = "string", example = "01JABCDEF1234")
   @TsidId
-  @NotNull(message = "채팅방 ID는 필수입니다.")
   private Long roomId;
 
   @Schema(description = "TSID 형식 발신자 ID", type = "string", example = "01JABCDEG5678")
@@ -44,7 +41,6 @@ public class ChatMessageDto {
   private String senderImageUrl;
 
   @Schema(description = "메시지 본문", example = "안녕하세요.")
-  @NotBlank(message = "메시지를 입력해주세요.")
   private String message;
 
   @Schema(description = "메시지 타입", example = "TEXT")

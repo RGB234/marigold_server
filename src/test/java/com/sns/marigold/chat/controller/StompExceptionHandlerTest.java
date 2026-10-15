@@ -17,7 +17,7 @@ import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 
 import com.sns.marigold.audit.AuditLogger;
-import com.sns.marigold.chat.dto.ChatMessageDto;
+import com.sns.marigold.chat.dto.ChatMessageRequestDto;
 import com.sns.marigold.chat.dto.StompErrorResponse;
 import com.sns.marigold.chat.exception.ChatException;
 import com.sns.marigold.global.error.FailureReporter;
@@ -50,11 +50,12 @@ class StompExceptionHandlerTest {
   @Test
   void includesFieldErrorsForInvalidPayload() throws Exception {
     Message<byte[]> message = message();
-    ChatMessageDto target = new ChatMessageDto();
+    ChatMessageRequestDto target = new ChatMessageRequestDto();
     BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(target, "messageDto");
     bindingResult.addError(new FieldError("messageDto", "message", "메시지를 입력해주세요."));
     Method method =
-        ChatWebSocketController.class.getMethod("message", ChatMessageDto.class, Principal.class);
+        ChatWebSocketController.class.getMethod(
+            "message", ChatMessageRequestDto.class, Principal.class);
     MethodArgumentNotValidException exception =
         new MethodArgumentNotValidException(message, new MethodParameter(method, 0), bindingResult);
 

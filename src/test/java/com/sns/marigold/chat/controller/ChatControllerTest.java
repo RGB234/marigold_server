@@ -22,6 +22,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.chat.dto.ChatMessageDto;
+import com.sns.marigold.chat.dto.ChatMessageRequestDto;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.global.tsid.TsidCodec;
 
@@ -35,11 +36,11 @@ class ChatControllerTest {
   @InjectMocks private ChatWebSocketController chatController;
 
   @Test
-  @DisplayName("WebSocket 메시지 발신자는 클라이언트 senderId가 아니라 인증 사용자다.")
+  @DisplayName("WebSocket 메시지 발신자는 Principal의 인증 사용자다.")
   void message_UsesAuthenticatedUserAsSender() {
     // given
-    ChatMessageDto request =
-        ChatMessageDto.builder().roomId(100L).senderId(2L).message("hello").build();
+    ChatMessageRequestDto request =
+        ChatMessageRequestDto.builder().roomId(100L).message("hello").build();
     ChatMessageDto savedMessage =
         ChatMessageDto.builder().roomId(100L).senderId(1L).message("hello").build();
 

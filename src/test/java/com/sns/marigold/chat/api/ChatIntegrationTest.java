@@ -1,6 +1,7 @@
 package com.sns.marigold.chat.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import java.lang.reflect.Type;
@@ -50,10 +51,14 @@ import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.dto.ChatMessageDto;
+import com.sns.marigold.chat.dto.ChatMessageRequestDto;
+import com.sns.marigold.chat.entity.ChatMessage;
 import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.chat.entity.RoomParticipant;
+import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
+import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.global.tsid.TsidCodec;
 import com.sns.marigold.support.BaseIntegrationTest;
 import com.sns.marigold.user.entity.User;
@@ -72,7 +77,9 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private AdoptionPostRepository adoptionPostRepository;
   @Autowired private ChatRoomRepository chatRoomRepository;
+  @Autowired private ChatMessageRepository chatMessageRepository;
   @Autowired private RoomParticipantRepository participantRepository;
+  @Autowired private ChatService chatService;
   @Autowired private ObjectMapper objectMapper;
 
   private WebSocketStompClient stompClient;
@@ -140,6 +147,48 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
   }
 
   @Test
+  @DisplayName("나간 사용자는 이전 대화를 조회할 수 없고 재참여하면 전체 이력을 조회할 수 있다.")
+  void leavingBlocksHistoryUntilRejoining() {
+    chatMessageRepository.saveAndFlush(
+        Objects.requireNonNull(
+            ChatMessage.builder()
+                .chatRoom(chatRoom)
+                .sender(user2)
+                .message("before rejoin")
+                .build()));
+    RoomParticipant participant =
+        participantRepository.findByChatRoomAndUser(chatRoom, user1).orElseThrow();
+    participant.leave();
+    participantRepository.saveAndFlush(participant);
+
+    assertThat(
+            participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(
+                chatRoom.getId(), user1.getId()))
+        .isFalse();
+    assertThatThrownBy(() -> chatService.getRoomMessages(chatRoom.getId(), user1.getId()))
+        .isInstanceOf(AuthException.class);
+    assertThatThrownBy(
+            () ->
+                chatService.saveMessage(
+                    ChatMessageRequestDto.builder()
+                        .roomId(chatRoom.getId())
+                        .message("blocked")
+                        .build(),
+                    user1.getId()))
+        .isInstanceOf(AuthException.class);
+
+    chatService.getOrCreateChatRoom(user1.getId(), user2.getId(), post.getId());
+
+    assertThat(
+            participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(
+                chatRoom.getId(), user1.getId()))
+        .isTrue();
+    assertThat(chatService.getRoomMessages(chatRoom.getId(), user1.getId()))
+        .extracting(ChatMessageDto::getMessage)
+        .containsExactly("before rejoin");
+  }
+
+  @Test
   @DisplayName("WebSocket 메시지는 인증된 사용자를 발신자로 저장한다")
   void sendAndReceiveMessage() throws InterruptedException, ExecutionException, TimeoutException {
     ChatRoom room = Objects.requireNonNull(chatRoom);
@@ -172,13 +221,14 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
         });
 
     // Send Message
-    ChatMessageDto messageDto =
-        Objects.requireNonNull(
-            ChatMessageDto.builder()
-                .roomId(room.getId())
-                .senderId(user2.getId())
-                .message("Hello WebSocket")
-                .build());
+    Map<String, String> messageDto =
+        Map.of(
+            "roomId",
+            roomIdStr,
+            "senderId",
+            TsidCodec.encode(user2.getId()),
+            "message",
+            "Hello WebSocket");
 
     StompHeaders sendHeaders = new StompHeaders();
     sendHeaders.setDestination("/pub/chat/message");
@@ -236,7 +286,8 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
         });
 
     session.send(
-        "/pub/chat/message", ChatMessageDto.builder().roomId(room.getId()).message(" ").build());
+        "/pub/chat/message",
+        ChatMessageRequestDto.builder().roomId(room.getId()).message(" ").build());
 
     JsonNode error = errorKeeper.get(5, TimeUnit.SECONDS);
     assertThat(error.get("errorCode").asText()).isEqualTo("INVALID_INPUT_VALUE");
@@ -246,7 +297,7 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
 
     session.send(
         "/pub/chat/message",
-        ChatMessageDto.builder().roomId(room.getId()).message("valid after error").build());
+        ChatMessageRequestDto.builder().roomId(room.getId()).message("valid after error").build());
 
     assertThat(messageKeeper.get(5, TimeUnit.SECONDS).getMessage()).isEqualTo("valid after error");
   }

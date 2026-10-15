@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -38,14 +39,17 @@ import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.dto.ChatMessageDto;
+import com.sns.marigold.chat.dto.ChatMessageRequestDto;
 import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.entity.ChatMessage;
+import com.sns.marigold.chat.entity.ChatMessageAttachment;
 import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.chat.entity.RoomParticipant;
 import com.sns.marigold.chat.enums.ChatRoomStatus;
 import com.sns.marigold.chat.enums.ChatRoomType;
 import com.sns.marigold.chat.exception.ChatError;
 import com.sns.marigold.chat.exception.ChatException;
+import com.sns.marigold.chat.repository.ChatMessageAttachmentRepository;
 import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
@@ -63,6 +67,8 @@ class ChatServiceTest {
   @Mock private ChatRoomRepository chatRoomRepository;
 
   @Mock private ChatMessageRepository chatMessageRepository;
+
+  @Mock private ChatMessageAttachmentRepository chatMessageAttachmentRepository;
 
   @Mock private UserRepository userRepository;
 
@@ -121,7 +127,8 @@ class ChatServiceTest {
   void getChatRoom_Success() {
     // given
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
-    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 1L)).willReturn(true);
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(true);
 
     RoomParticipant p1 = createParticipant(chatRoom, user1);
     RoomParticipant p2 = createParticipant(chatRoom, user2);
@@ -158,7 +165,8 @@ class ChatServiceTest {
   void getChatRoom_NotParticipant() {
     // given
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
-    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 3L)).willReturn(false);
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 3L))
+        .willReturn(false);
 
     // when & then
     assertThatThrownBy(() -> chatService.getChatRoom(100L, 3L))
@@ -173,7 +181,8 @@ class ChatServiceTest {
     // given
     given(post.getDeletedAt()).willReturn(LocalDateTime.now());
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
-    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 1L)).willReturn(true);
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(true);
 
     RoomParticipant p1 = createParticipant(chatRoom, user1);
     RoomParticipant p2 = createParticipant(chatRoom, user2);
@@ -191,7 +200,8 @@ class ChatServiceTest {
   void getChatRoom_InvalidParticipantCount() {
     // given
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
-    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 1L)).willReturn(true);
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(true);
 
     RoomParticipant p1 = createParticipant(chatRoom, user1);
     given(participantRepository.findAllByChatRoom(chatRoom)).willReturn(List.of(p1)); // 1명만 참가
@@ -302,7 +312,8 @@ class ChatServiceTest {
   void getRoomMessages_Success() {
     // given
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
-    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 1L)).willReturn(true);
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(true);
 
     ChatMessage msg = mock(ChatMessage.class);
     given(msg.getChatRoom()).willReturn(chatRoom);
@@ -327,7 +338,8 @@ class ChatServiceTest {
   void getRoomMessages_NotParticipant() {
     // given
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
-    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 3L)).willReturn(false);
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 3L))
+        .willReturn(false);
 
     // when & then
     assertThatThrownBy(() -> chatService.getRoomMessages(100L, 3L))
@@ -337,24 +349,48 @@ class ChatServiceTest {
   }
 
   @Test
+  @DisplayName("나간 사용자는 첨부파일 다운로드 URL을 조회할 수 없다.")
+  void getAttachmentDownloadUrl_LeftParticipant() {
+    given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(false);
+
+    assertThatThrownBy(() -> chatService.getAttachmentDownloadUrl(100L, 200L, 1L))
+        .isInstanceOf(AuthException.class)
+        .hasMessageContaining(AuthException.forAccessDenied().getMessage());
+
+    verifyNoInteractions(chatMessageAttachmentRepository, storageService);
+  }
+
+  @Test
+  @DisplayName("활성 참가자는 첨부파일 다운로드 URL을 조회할 수 있다.")
+  void getAttachmentDownloadUrl_ActiveParticipant() {
+    ChatMessageAttachment attachment = mock(ChatMessageAttachment.class);
+    given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(true);
+    given(chatMessageAttachmentRepository.findByIdAndChatMessage_ChatRoom(200L, chatRoom))
+        .willReturn(Optional.of(attachment));
+    given(attachment.getStoredFileName()).willReturn("chat/attachment/stored.txt");
+    given(attachment.getOriginalFileName()).willReturn("original.txt");
+    given(storageService.getDownloadUrl("chat/attachment/stored.txt", "original.txt"))
+        .willReturn("https://files/download");
+
+    assertThat(chatService.getAttachmentDownloadUrl(100L, 200L, 1L))
+        .isEqualTo("https://files/download");
+  }
+
+  @Test
   @DisplayName("메시지는 인증된 사용자를 발신자로 저장한다.")
   void saveMessage_Success() {
     // given
-    ChatMessageDto reqDto =
-        ChatMessageDto.builder().roomId(100L).senderId(2L).message("Test Msg").build();
+    ChatMessageRequestDto reqDto =
+        ChatMessageRequestDto.builder().roomId(100L).message("Test Msg").build();
 
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
-
-    RoomParticipant p1 = mock(RoomParticipant.class);
-    RoomParticipant p2 = mock(RoomParticipant.class);
-
-    given(p1.getUser()).willReturn(user1);
-    given(p2.getUser()).willReturn(user2);
-
-    given(participantRepository.findAllByChatRoom(chatRoom)).willReturn(List.of(p1, p2));
-    given(participantRepository.findByChatRoomAndUser(chatRoom, user1)).willReturn(Optional.of(p1));
-    given(participantRepository.findByChatRoomAndUser(chatRoom, user2)).willReturn(Optional.of(p2));
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(true);
 
     // when
     ChatMessageDto result = chatService.saveMessage(reqDto, 1L);
@@ -363,8 +399,7 @@ class ChatServiceTest {
     assertThat(result.getMessage()).isEqualTo("Test Msg");
     assertThat(result.getSenderId()).isEqualTo(1L);
     verify(chatMessageRepository, times(1)).save(any(ChatMessage.class));
-    verify(p1, times(1)).reJoin(); // 방 활성화 검증
-    verify(p2, times(1)).reJoin();
+    verify(participantRepository, never()).findAllByChatRoom(chatRoom);
   }
 
   @Test
@@ -380,12 +415,8 @@ class ChatServiceTest {
 
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
-
-    RoomParticipant p1 = createParticipant(chatRoom, user1);
-    RoomParticipant p2 = createParticipant(chatRoom, user2);
-    given(participantRepository.findByChatRoomAndUser(chatRoom, user1)).willReturn(Optional.of(p1));
-    given(participantRepository.findByChatRoomAndUser(chatRoom, user2)).willReturn(Optional.of(p2));
-    given(participantRepository.findAllByChatRoom(chatRoom)).willReturn(List.of(p1, p2));
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(true);
 
     given(storageService.uploadFiles(any(), eq(StorageDirectory.CHAT_ATTACHMENT)))
         .willReturn(
@@ -435,8 +466,7 @@ class ChatServiceTest {
     verify(storageService, never()).deleteUploadedFilesBestEffort(any());
     verify(storageService, times(1)).uploadFiles(any(), eq(StorageDirectory.CHAT_ATTACHMENT));
     verify(chatMessageRepository, times(1)).saveAndFlush(any(ChatMessage.class));
-    verify(p1, times(1)).reJoin();
-    verify(p2, times(1)).reJoin();
+    verify(participantRepository, never()).findAllByChatRoom(chatRoom);
   }
 
   @Test
@@ -455,9 +485,8 @@ class ChatServiceTest {
                 .build());
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
-    RoomParticipant senderParticipant = createParticipant(chatRoom, user1);
-    given(participantRepository.findByChatRoomAndUser(chatRoom, user1))
-        .willReturn(Optional.of(senderParticipant));
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(true);
     given(storageService.uploadFiles(any(), eq(StorageDirectory.CHAT_ATTACHMENT)))
         .willReturn(uploadedFiles);
     given(chatMessageRepository.saveAndFlush(any(ChatMessage.class)))
@@ -486,8 +515,8 @@ class ChatServiceTest {
 
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
-    RoomParticipant p1 = createParticipant(chatRoom, user1);
-    given(participantRepository.findByChatRoomAndUser(chatRoom, user1)).willReturn(Optional.of(p1));
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(true);
 
     // when & then
     assertThatThrownBy(() -> chatService.saveFileMessage(100L, "", List.of(invalidFile), 1L))
@@ -500,13 +529,13 @@ class ChatServiceTest {
   @DisplayName("참여자가 아니라면 메시지를 보낼 수 없다.")
   void saveMessage_NotParticipant() {
     // given
-    ChatMessageDto reqDto =
-        ChatMessageDto.builder().roomId(100L).senderId(1L).message("Test Msg").build();
+    ChatMessageRequestDto reqDto =
+        ChatMessageRequestDto.builder().roomId(100L).message("Test Msg").build();
 
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(3L)).willReturn(Optional.of(user3));
-    given(participantRepository.findByChatRoomAndUser(chatRoom, user3))
-        .willReturn(Optional.empty());
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 3L))
+        .willReturn(false);
 
     // when & then
     assertThatThrownBy(() -> chatService.saveMessage(reqDto, 3L))
@@ -519,13 +548,13 @@ class ChatServiceTest {
   @DisplayName("종료된 채팅방에 메시지 전송 시도 시 예외가 발생한다.")
   void saveMessage_ClosedRoom() {
     // given
-    ChatMessageDto reqDto =
-        ChatMessageDto.builder().roomId(100L).senderId(1L).message("Test Msg").build();
+    ChatMessageRequestDto reqDto =
+        ChatMessageRequestDto.builder().roomId(100L).message("Test Msg").build();
 
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
-    RoomParticipant p1 = mock(RoomParticipant.class);
-    given(participantRepository.findByChatRoomAndUser(chatRoom, user1)).willReturn(Optional.of(p1));
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(true);
     given(chatRoom.getStatus()).willReturn(ChatRoomStatus.CLOSED);
 
     // when & then

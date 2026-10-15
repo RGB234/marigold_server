@@ -255,7 +255,8 @@ class WebSocketConfigTest {
   void authorizeSubscription_AllowsParticipant() {
     // given
     StompHeaderAccessor accessor = chatRoomSubscribeAccessor(100L, 1L);
-    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 1L)).willReturn(true);
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(true);
 
     // when & then
     assertThatCode(() -> webSocketConfig.authorizeSubscription(accessor))
@@ -267,9 +268,21 @@ class WebSocketConfigTest {
   void authorizeSubscription_DeniesNonParticipant() {
     // given
     StompHeaderAccessor accessor = chatRoomSubscribeAccessor(100L, 3L);
-    given(participantRepository.existsByChatRoom_IdAndUser_Id(100L, 3L)).willReturn(false);
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 3L))
+        .willReturn(false);
 
     // when & then
+    assertThatThrownBy(() -> webSocketConfig.authorizeSubscription(accessor))
+        .isInstanceOf(AccessDeniedException.class);
+  }
+
+  @Test
+  @DisplayName("채팅방을 나간 사용자는 해당 방을 구독할 수 없다.")
+  void authorizeSubscription_DeniesLeftParticipant() {
+    StompHeaderAccessor accessor = chatRoomSubscribeAccessor(100L, 1L);
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(false);
+
     assertThatThrownBy(() -> webSocketConfig.authorizeSubscription(accessor))
         .isInstanceOf(AccessDeniedException.class);
   }

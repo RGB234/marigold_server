@@ -26,6 +26,7 @@ import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.dto.ChatAttachmentDto;
 import com.sns.marigold.chat.dto.ChatMessageDto;
+import com.sns.marigold.chat.dto.ChatMessageRequestDto;
 import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.entity.ChatMessage;
 import com.sns.marigold.chat.entity.ChatMessageAttachment;
@@ -74,7 +75,7 @@ public class ChatService {
 
   public ChatRoomDto getChatRoom(@NonNull Long roomId, @NonNull Long currentUserId) {
     ChatRoom chatRoom = findChatRoom(roomId);
-    validateParticipant(chatRoom, currentUserId);
+    validateActiveParticipant(chatRoom, currentUserId);
     return convertToRoomDto(Objects.requireNonNull(chatRoom));
   }
 
@@ -163,14 +164,14 @@ public class ChatService {
 
   public List<ChatMessageDto> getRoomMessages(@NonNull Long roomId, @NonNull Long currentUserId) {
     ChatRoom chatRoom = findChatRoom(roomId);
-    validateParticipant(chatRoom, currentUserId);
+    validateActiveParticipant(chatRoom, currentUserId);
     return chatMessageRepository.findAllByChatRoomOrderByCreatedAtAsc(chatRoom).stream()
         .map(this::convertToMessageDto)
         .collect(Collectors.toList());
   }
 
   @Transactional
-  public ChatMessageDto saveMessage(ChatMessageDto messageDto, @NonNull Long currentUserId) {
+  public ChatMessageDto saveMessage(ChatMessageRequestDto messageDto, @NonNull Long currentUserId) {
     ChatRoom chatRoom = findChatRoom(Objects.requireNonNull(messageDto.getRoomId()));
     User sender = findSender(currentUserId);
     validateCanSendMessage(chatRoom, sender);
@@ -183,7 +184,6 @@ public class ChatService {
             .build();
 
     chatMessageRepository.save(Objects.requireNonNull(chatMessage));
-    reactivateParticipants(chatRoom);
 
     return convertToMessageDto(chatMessage);
   }
@@ -232,7 +232,6 @@ public class ChatService {
       }
 
       ChatMessage savedMessage = chatMessageRepository.saveAndFlush(chatMessage);
-      reactivateParticipants(chatRoom);
       return convertToMessageDto(savedMessage);
     } catch (RuntimeException e) {
       storageService.deleteUploadedFilesBestEffort(uploadedFiles);
@@ -243,7 +242,7 @@ public class ChatService {
   public String getAttachmentDownloadUrl(
       @NonNull Long roomId, @NonNull Long attachmentId, @NonNull Long currentUserId) {
     ChatRoom chatRoom = findChatRoom(roomId);
-    validateParticipant(chatRoom, currentUserId);
+    validateActiveParticipant(chatRoom, currentUserId);
 
     ChatMessageAttachment attachment =
         chatMessageAttachmentRepository
@@ -297,8 +296,9 @@ public class ChatService {
     return chatRoomRepository.findById(roomId).orElseThrow(ChatException::forRoomNotFound);
   }
 
-  private void validateParticipant(@NonNull ChatRoom chatRoom, @NonNull Long userId) {
-    if (!participantRepository.existsByChatRoom_IdAndUser_Id(chatRoom.getId(), userId)) {
+  private void validateActiveParticipant(@NonNull ChatRoom chatRoom, @NonNull Long userId) {
+    if (!participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(
+        chatRoom.getId(), userId)) {
       throw AuthException.forAccessDenied();
     }
   }
@@ -308,19 +308,10 @@ public class ChatService {
   }
 
   private void validateCanSendMessage(@NonNull ChatRoom chatRoom, @NonNull User sender) {
-    participantRepository
-        .findByChatRoomAndUser(chatRoom, sender)
-        .orElseThrow(AuthException::forAccessDenied);
+    validateActiveParticipant(chatRoom, Objects.requireNonNull(sender.getId()));
 
     if (chatRoom.getStatus() == ChatRoomStatus.CLOSED) {
       throw ChatException.forClosedRoom();
-    }
-  }
-
-  private void reactivateParticipants(ChatRoom chatRoom) {
-    List<RoomParticipant> participants = participantRepository.findAllByChatRoom(chatRoom);
-    for (RoomParticipant participant : participants) {
-      ensureParticipant(chatRoom, participant.getUser());
     }
   }
 
