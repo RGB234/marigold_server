@@ -87,14 +87,14 @@ public class UserController {
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
       })
   @ApiResponses({
-    @ApiResponse(responseCode = "204", description = "수정 성공"),
+    @ApiResponse(responseCode = "200", description = "수정 성공"),
     @ApiResponse(responseCode = "400", description = "입력값 또는 이미지 파일 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "409", description = "중복 닉네임")
   })
   @PreAuthorize("isAuthenticated()")
-  @PatchMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public ResponseEntity<Void> update(
+  @PatchMapping(value = "/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public UserInfoDto update(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Parameter(description = "수정할 프로필 정보") @ModelAttribute @Valid UserUpdateDto dto) {
     Long userId = principal.getUserId();
@@ -102,10 +102,29 @@ public class UserController {
       throw com.sns.marigold.auth.exception.AuthException.forUnauthorized();
     }
     userService.updateUser(userId, dto);
-    return ResponseEntity.noContent().build();
+    return userService.getUserById(userId);
   }
 
   // ** get **
+
+  @Operation(
+      summary = "내 프로필 조회",
+      description = "인증된 사용자의 현재 프로필을 조회합니다.",
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "조회 성공"),
+    @ApiResponse(responseCode = "401", description = "인증 필요")
+  })
+  @PreAuthorize("isAuthenticated()")
+  @GetMapping("/me")
+  public UserInfoDto getCurrentUserProfile(
+      @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal) {
+    Long userId = principal.getUserId();
+    if (userId == null) {
+      throw com.sns.marigold.auth.exception.AuthException.forUnauthorized();
+    }
+    return userService.getUserById(userId);
+  }
 
   @Operation(
       summary = "내 보안 정보 조회",

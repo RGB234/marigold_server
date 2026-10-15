@@ -3,6 +3,7 @@ package com.sns.marigold.user.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -31,6 +32,39 @@ public class UserApiTest extends ApiIntegrationTest {
         .perform(get(UrlConstants.USER_BASE + "/profile/{userId}", tsid))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.nickname").value(user.getNickname()));
+  }
+
+  @Test
+  @DisplayName("인증된 사용자는 자신의 프로필을 조회할 수 있다")
+  void getCurrentUserProfile_Success() throws Exception {
+    User user = java.util.Objects.requireNonNull(tester1);
+
+    mockMvc
+        .perform(
+            get(UrlConstants.USER_BASE + "/me")
+                .header("Authorization", "Bearer " + getAccessToken(user)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.nickname").value(user.getNickname()));
+  }
+
+  @Test
+  @DisplayName("프로필 수정 응답은 갱신된 현재 사용자 정보를 반환한다")
+  void updateCurrentUserProfile_Success() throws Exception {
+    User user = java.util.Objects.requireNonNull(tester1);
+
+    mockMvc
+        .perform(
+            multipart(UrlConstants.USER_BASE + "/me")
+                .param("nickname", "updatedUser")
+                .param("removeImage", "false")
+                .with(
+                    request -> {
+                      request.setMethod("PATCH");
+                      return request;
+                    })
+                .header("Authorization", "Bearer " + getAccessToken(user)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.nickname").value("updatedUser"));
   }
 
   @Test
