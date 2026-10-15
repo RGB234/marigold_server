@@ -26,7 +26,7 @@
 
 필수 환경변수는 역할별로 관리합니다.
 
-- 인증: `JWT_SECRET_KEY`, `BASE_URL`
+- 인증: `JWT_SECRET_KEY`, `CSRF_SECRET_KEY`, `BASE_URL`
 - OAuth2: Kakao/Naver client ID와 client secret
 - 데이터베이스: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`
 - 프론트엔드: `FRONTEND_ORIGIN`

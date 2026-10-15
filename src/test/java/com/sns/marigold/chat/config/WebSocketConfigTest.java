@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -52,6 +53,8 @@ class WebSocketConfigTest {
   @Mock private RoomParticipantRepository participantRepository;
 
   @Mock private CookieManager cookieManager;
+
+  @Mock private CsrfTokenService csrfTokenService;
 
   @Mock private AuditLogger auditLogger;
   @Mock private WebSocketTokenSessions tokenSessions;
@@ -198,11 +201,15 @@ class WebSocketConfigTest {
 
   @BeforeEach
   void setUp() {
+    lenient()
+        .when(csrfTokenService.isValid("csrf-token", "csrf-token", "refresh-token"))
+        .thenReturn(true);
     webSocketConfig =
         new WebSocketConfig(
             jwtAuthenticationService,
             participantRepository,
             cookieManager,
+            csrfTokenService,
             auditLogger,
             urlProperties(),
             tokenSessions,
@@ -287,6 +294,7 @@ class WebSocketConfigTest {
     StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
     Map<String, Object> sessionAttributes = new HashMap<>();
     sessionAttributes.put(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, "csrf-token");
+    sessionAttributes.put("csrfSessionBinding", "refresh-token");
     accessor.setSessionAttributes(sessionAttributes);
     accessor.addNativeHeader(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfHeader);
     return accessor;

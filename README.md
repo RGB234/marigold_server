@@ -24,7 +24,7 @@ New-Item -ItemType Directory -Force ..\secrets\back | Out-Null
 Copy-Item .env.example ..\secrets\back\.env.local
 ```
 
-`../secrets/back/.env.local`에 JWT 비밀키, OAuth 클라이언트 정보와 로컬 DB 접속 정보를 입력합니다. `DB_URL`이 가리키는 데이터베이스는 미리 생성되어 있어야 합니다.
+`../secrets/back/.env.local`에 JWT·CSRF 비밀키, OAuth 클라이언트 정보와 로컬 DB 접속 정보를 입력합니다. 두 비밀키는 각각 32바이트 이상의 서로 다른 값이어야 하며, `DB_URL`이 가리키는 데이터베이스는 미리 생성되어 있어야 합니다.
 
 ```powershell
 .\gradlew.bat bootRun --args='--spring.profiles.active=local'

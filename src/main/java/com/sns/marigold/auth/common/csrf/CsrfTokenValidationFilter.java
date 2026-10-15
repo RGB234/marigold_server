@@ -1,8 +1,6 @@
 package com.sns.marigold.auth.common.csrf;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.Set;
 
 import org.springframework.lang.NonNull;
@@ -28,6 +26,7 @@ public class CsrfTokenValidationFilter extends OncePerRequestFilter {
   private static final String WEBSOCKET_ENDPOINT = "/ws";
 
   private final CookieManager cookieManager;
+  private final CsrfTokenService csrfTokenService;
   private final ProblemDetailWriter problemDetailWriter;
 
   @Override
@@ -57,7 +56,7 @@ public class CsrfTokenValidationFilter extends OncePerRequestFilter {
 
     if (csrfCookie == null
         || csrfHeader == null
-        || !constantTimeEquals(csrfCookie.getValue(), csrfHeader)) {
+        || !csrfTokenService.isValid(request, csrfCookie.getValue(), csrfHeader)) {
       problemDetailWriter.write(request, response, AuthError.ACCESS_DENIED);
       return;
     }
@@ -68,13 +67,5 @@ public class CsrfTokenValidationFilter extends OncePerRequestFilter {
   private boolean hasCookieAuth(HttpServletRequest request) {
     return cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME) != null
         || cookieManager.getCookie(request, CookieManager.RECENT_AUTH_TOKEN_NAME) != null;
-  }
-
-  private boolean constantTimeEquals(String left, String right) {
-    if (left == null || right == null) {
-      return false;
-    }
-    return MessageDigest.isEqual(
-        left.getBytes(StandardCharsets.UTF_8), right.getBytes(StandardCharsets.UTF_8));
   }
 }

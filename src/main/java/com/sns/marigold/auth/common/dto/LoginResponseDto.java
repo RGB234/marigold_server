@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Schema(description = "로그인 또는 토큰 재발급 응답")
+@Schema(description = "인증 세션 응답")
 @Data
 @Builder
 @NoArgsConstructor
@@ -14,4 +14,7 @@ import lombok.NoArgsConstructor;
 public class LoginResponseDto {
   @Schema(description = "API 인증에 사용할 JWT access token", example = "eyJhbGciOiJIUzI1NiJ9...")
   private String accessToken;
+
+  @Schema(description = "인증된 사용자 식별 정보")
+  private AuthPrincipalDto principal;
 }

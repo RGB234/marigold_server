@@ -18,11 +18,13 @@ REST API의 공통 prefix는 `/api/v1`입니다. 상세 경로, 요청 필드와
 
 - Access token은 응답 본문으로 발급하고 이후 `Authorization: Bearer {token}`으로 전달합니다.
 - Refresh token은 HttpOnly `refresh_token` 쿠키로 발급합니다.
-- CSRF token은 읽을 수 있는 `XSRF-TOKEN` 쿠키와 `X-CSRF-TOKEN` 응답 헤더로 발급합니다.
-- `POST`, `PUT`, `PATCH`, `DELETE` 요청에 refresh 또는 recent-auth 쿠키가 포함되면 `X-CSRF-TOKEN` 요청 헤더가 쿠키 값과 일치해야 합니다.
+- Access token의 기본 유효시간은 10분입니다. REST와 WebSocket 인증은 서명, 만료, token 용도 (access or refresh) 와 claim을 검증합니다.
+- 사용자 상태나 권한 변경은 기존 access token 만료까지 최대 10분 지연될 수 있습니다. (Bounded staleness)
+- CSRF token은 인증 세션에 HMAC-SHA256으로 결속한 signed double-submit token이며, 읽을 수 있는 `XSRF-TOKEN` 쿠키와 `X-CSRF-TOKEN` 응답 헤더로 발급합니다.
+- `POST`, `PUT`, `PATCH`, `DELETE` 요청에 refresh 또는 recent-auth 쿠키가 포함되면 쿠키와 `X-CSRF-TOKEN` 요청 헤더가 일치하고 서명이 현재 인증 세션에 유효해야 합니다.
 - 자격 증명 변경이나 회원 탈퇴 같은 민감 작업은 access token과 최근 인증을 함께 요구합니다. Recent-auth의 기본 유효시간은 5분입니다.
 
-로컬 로그인은 access token을 응답 본문에 담고 refresh, CSRF, recent-auth 쿠키를 함께 발급합니다. Refresh 요청은 refresh 쿠키를 검증해 access와 refresh token을 재발급합니다.
+로컬 로그인은 access token을 응답 본문에 담고 refresh, CSRF, recent-auth 쿠키를 함께 발급합니다. Refresh 요청은 refresh token을 검증한 뒤 DB에서 사용자 존재 여부, 상태와 최신 권한을 확인하고, 정상 사용자에게만 access와 refresh token을 재발급합니다.
 
 Kakao/Naver OAuth2는 `/oauth2/authorization/{provider}`에서 시작하고 `/oauth2/code/{provider}`로 돌아옵니다. 성공 시 access token을 URL에 싣지 않고 쿠키를 발급한 뒤 프론트엔드 callback으로 redirect합니다. 프론트엔드는 이후 refresh 흐름으로 access token을 얻습니다.
 
@@ -37,7 +39,7 @@ Kakao/Naver OAuth2는 `/oauth2/authorization/{provider}`에서 시작하고 `/oa
 - SUBSCRIBE: `/sub/chat/room/{roomId}`
 - 사용자 오류 queue: `/user/queue/errors`
 
-CONNECT의 CSRF header는 handshake 때 전달된 `XSRF-TOKEN` 쿠키와 일치해야 합니다. 방 구독은 해당 방 참여자에게만 허용됩니다. REST multipart로 첨부 메시지를 저장하면 같은 방 구독 경로로 메시지를 발행합니다.
+CONNECT의 CSRF header는 handshake 때 전달된 `XSRF-TOKEN` 쿠키와 일치하고 현재 인증 세션에 유효한 서명을 가져야 합니다. 방 구독은 해당 방 참여자에게만 허용됩니다. REST multipart로 첨부 메시지를 저장하면 같은 방 구독 경로로 메시지를 발행합니다.
 
 메시지 처리 중 복구 가능한 오류는 사용자 오류 queue로 전달합니다. CONNECT나 SUBSCRIBE 단계의 치명적 오류는 STOMP `ERROR` frame으로 응답하며, access token 만료 시 연결을 닫습니다.
 

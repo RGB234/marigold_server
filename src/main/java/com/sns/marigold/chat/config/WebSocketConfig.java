@@ -1,8 +1,6 @@
 package com.sns.marigold.chat.config;
 
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.security.Principal;
 import java.time.Instant;
 import java.util.Map;
@@ -52,6 +50,7 @@ import com.sns.marigold.global.tsid.TsidCodec;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -62,11 +61,13 @@ import lombok.extern.slf4j.Slf4j;
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
   private static final String CSRF_VALIDATED_SESSION_ATTRIBUTE = "csrfValidated";
+  private static final String CSRF_SESSION_BINDING_ATTRIBUTE = "csrfSessionBinding";
   private static final String JWT_EXPIRES_AT = "jwtExpiresAt";
 
   private final JwtAuthenticationService jwtAuthenticationService;
   private final RoomParticipantRepository participantRepository;
   private final CookieManager cookieManager;
+  private final CsrfTokenService csrfTokenService;
   private final AuditLogger auditLogger;
   private final UrlProperties urlProperties;
   private final WebSocketTokenSessions tokenSessions;
@@ -202,11 +203,15 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
           @NonNull WebSocketHandler wsHandler,
           @NonNull Map<String, Object> attributes) {
         if (request instanceof ServletServerHttpRequest servletRequest) {
+          HttpServletRequest httpRequest = servletRequest.getServletRequest();
           Cookie csrfCookie =
-              cookieManager.getCookie(
-                  servletRequest.getServletRequest(), CsrfTokenService.CSRF_TOKEN_COOKIE_NAME);
+              cookieManager.getCookie(httpRequest, CsrfTokenService.CSRF_TOKEN_COOKIE_NAME);
           if (csrfCookie != null) {
             attributes.put(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, csrfCookie.getValue());
+          }
+          String sessionBinding = csrfTokenService.resolveSessionBinding(httpRequest);
+          if (sessionBinding != null) {
+            attributes.put(CSRF_SESSION_BINDING_ATTRIBUTE, sessionBinding);
           }
         }
         return true;
@@ -225,8 +230,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
     String csrfCookie = getCsrfCookieValue(sessionAttributes);
     String csrfHeader = accessor.getFirstNativeHeader(CsrfTokenService.CSRF_TOKEN_HEADER_NAME);
+    String sessionBinding = getSessionBinding(sessionAttributes);
 
-    if (!constantTimeEquals(csrfCookie, csrfHeader)) {
+    if (!csrfTokenService.isValid(csrfCookie, csrfHeader, sessionBinding)) {
       throw new AccessDeniedException("CSRF token is missing or invalid");
     }
 
@@ -250,12 +256,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     return csrfCookie instanceof String value ? value : null;
   }
 
-  private boolean constantTimeEquals(@Nullable String left, @Nullable String right) {
-    if (!StringUtils.hasText(left) || !StringUtils.hasText(right)) {
-      return false;
+  @Nullable
+  private String getSessionBinding(@Nullable Map<String, Object> sessionAttributes) {
+    if (sessionAttributes == null) {
+      return null;
     }
-    return MessageDigest.isEqual(
-        left.getBytes(StandardCharsets.UTF_8), right.getBytes(StandardCharsets.UTF_8));
+    Object sessionBinding = sessionAttributes.get(CSRF_SESSION_BINDING_ATTRIBUTE);
+    return sessionBinding instanceof String value ? value : null;
   }
 
   void authenticate(@NonNull StompHeaderAccessor accessor) {

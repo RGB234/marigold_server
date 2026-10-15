@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.lang.NonNull;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -36,6 +37,8 @@ public abstract class ApiIntegrationTest extends BaseIntegrationTest {
   @Autowired protected JwtManager jwtManager;
 
   @Autowired protected RecentAuthStore recentAuthStore;
+
+  @Autowired protected CsrfTokenService csrfTokenService;
 
   @Autowired protected UserRepository userRepository;
 
@@ -72,5 +75,11 @@ public abstract class ApiIntegrationTest extends BaseIntegrationTest {
 
   protected Cookie getCsrfCookie(@NonNull String token) {
     return new Cookie(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, token);
+  }
+
+  protected String getCsrfToken(@NonNull String sessionBinding) {
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    csrfTokenService.issue(response, sessionBinding);
+    return Objects.requireNonNull(response.getHeader(CsrfTokenService.CSRF_TOKEN_HEADER_NAME));
   }
 }

@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.CustomPrincipal;
+import com.sns.marigold.auth.common.csrf.CsrfTokenService;
+import com.sns.marigold.auth.common.dto.AuthPrincipalDto;
 import com.sns.marigold.auth.common.dto.LocalLoginDto;
 import com.sns.marigold.auth.common.dto.LoginResponseDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
@@ -53,6 +55,7 @@ public class AuthService {
   private final CookieManager cookieManager;
   private final RandomUsernameGenerator randomUsernameGenerator;
   private final RecentAuthService recentAuthService;
+  private final CsrfTokenService csrfTokenService;
   private final AuditLogger auditLogger;
   private final MeterRegistry meterRegistry;
 
@@ -191,8 +194,9 @@ public class AuthService {
         loginTokens.refreshToken(),
         jwtManager.getRefreshTokenValidityInSeconds());
     recentAuthService.issue(response, user.getId());
+    csrfTokenService.issue(response, loginTokens.refreshToken());
 
-    return new LoginResponseDto(loginTokens.accessToken());
+    return createLoginResponse(loginTokens.accessToken(), principal);
   }
 
   @Transactional(readOnly = true)
@@ -209,6 +213,10 @@ public class AuthService {
     } catch (ExpiredJwtException e) {
       throw AuthException.forExpiredToken();
     } catch (JwtException | IllegalArgumentException e) {
+      throw AuthException.forInvalidToken();
+    }
+
+    if (!jwtManager.isRefreshToken(claims)) {
       throw AuthException.forInvalidToken();
     }
 
@@ -235,8 +243,17 @@ public class AuthService {
         CookieManager.REFRESH_TOKEN_NAME,
         newRefreshToken,
         jwtManager.getRefreshTokenValidityInSeconds());
+    csrfTokenService.issue(response, newRefreshToken);
 
-    return new LoginResponseDto(newAccessToken);
+    return createLoginResponse(newAccessToken, principal);
+  }
+
+  private LoginResponseDto createLoginResponse(String accessToken, CustomPrincipal principal) {
+    AuthPrincipalDto principalDto =
+        new AuthPrincipalDto(
+            principal.getUserId(),
+            principal.getAuthorities().stream().map(SimpleGrantedAuthority::getAuthority).toList());
+    return new LoginResponseDto(accessToken, principalDto);
   }
 
   public void checkUserStatus(User user) {

@@ -30,7 +30,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.sns.marigold.audit.AuditLogger;
+import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.dto.LocalLoginDto;
+import com.sns.marigold.auth.common.dto.LoginResponseDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.enums.Role;
@@ -48,6 +50,7 @@ import com.sns.marigold.user.enums.UserStatus;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
 
+import io.jsonwebtoken.Claims;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -68,6 +71,8 @@ class AuthServiceTest {
 
   @Mock private RecentAuthService recentAuthService;
 
+  @Mock private CsrfTokenService csrfTokenService;
+
   @Mock private AuditLogger auditLogger;
 
   private AuthService authService;
@@ -86,6 +91,7 @@ class AuthServiceTest {
             cookieManager,
             randomUsernameGenerator,
             recentAuthService,
+            csrfTokenService,
             auditLogger,
             meterRegistry);
 
@@ -220,7 +226,7 @@ class AuthServiceTest {
     given(jwtManager.getRefreshTokenValidityInSeconds()).willReturn(86400L);
 
     // when
-    authService.emailLogin(dto, response);
+    LoginResponseDto result = authService.emailLogin(dto, response);
 
     // then
     verify(cookieManager, times(1))
@@ -230,9 +236,93 @@ class AuthServiceTest {
             eq("refresh_token_value"),
             eq(86400L));
     verify(recentAuthService, times(1)).issue(response, testUser.getId());
+    verify(csrfTokenService).issue(response, "refresh_token_value");
+    assertThat(result.getAccessToken()).isEqualTo("access_token_value");
+    assertThat(result.getPrincipal().getUserId()).isEqualTo(testUser.getId());
+    assertThat(result.getPrincipal().getAuthorities()).containsExactly(Role.ROLE_PERSON.name());
     assertThat(meterRegistry.get("auth.login.find_by_email").timer().count()).isEqualTo(1);
     assertThat(meterRegistry.get("auth.login.password_matches").timer().count()).isEqualTo(1);
     assertThat(meterRegistry.get("auth.login.jwt_create").timer().count()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("토큰 재발급 시 완전한 인증 세션 정보를 반환한다.")
+  void reissue_ReturnsCompleteSession() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    Claims claims = mock(Claims.class);
+    User latestUser =
+        User.builder()
+            .id(testUser.getId())
+            .email(testUser.getEmail())
+            .password(testUser.getPassword())
+            .nickname(testUser.getNickname())
+            .role(Role.ROLE_ADMIN)
+            .status(UserStatus.ACTIVE)
+            .build();
+
+    given(cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME))
+        .willReturn(new Cookie(CookieManager.REFRESH_TOKEN_NAME, "refresh_token_value"));
+    given(jwtManager.getClaims("refresh_token_value")).willReturn(claims);
+    given(jwtManager.isRefreshToken(claims)).willReturn(true);
+    given(jwtManager.getUserId(claims)).willReturn(testUser.getId());
+    given(userRepository.findById(testUser.getId())).willReturn(Optional.of(latestUser));
+    given(jwtManager.createAccessToken(any(CustomPrincipal.class))).willReturn("new_access_token");
+    given(jwtManager.createRefreshToken(any(CustomPrincipal.class)))
+        .willReturn("new_refresh_token");
+    given(jwtManager.getRefreshTokenValidityInSeconds()).willReturn(86400L);
+
+    LoginResponseDto result = authService.reissue(request, response);
+
+    assertThat(result.getAccessToken()).isEqualTo("new_access_token");
+    assertThat(result.getPrincipal().getUserId()).isEqualTo(testUser.getId());
+    assertThat(result.getPrincipal().getAuthorities()).containsExactly(Role.ROLE_ADMIN.name());
+    verify(cookieManager)
+        .addCookie(response, CookieManager.REFRESH_TOKEN_NAME, "new_refresh_token", 86400L);
+    verify(csrfTokenService).issue(response, "new_refresh_token");
+  }
+
+  @Test
+  @DisplayName("Access token으로 토큰을 재발급할 수 없다.")
+  void reissue_RejectsAccessToken() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    Claims claims = mock(Claims.class);
+
+    given(cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME))
+        .willReturn(new Cookie(CookieManager.REFRESH_TOKEN_NAME, "access_token_value"));
+    given(jwtManager.getClaims("access_token_value")).willReturn(claims);
+
+    assertThatThrownBy(() -> authService.reissue(request, response))
+        .isInstanceOf(AuthException.class);
+  }
+
+  @Test
+  @DisplayName("삭제된 사용자는 토큰을 재발급할 수 없다.")
+  void reissue_RejectsDeletedUser() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    Claims claims = mock(Claims.class);
+    User deletedUser =
+        User.builder()
+            .id(testUser.getId())
+            .email(testUser.getEmail())
+            .password(testUser.getPassword())
+            .nickname(testUser.getNickname())
+            .role(Role.ROLE_PERSON)
+            .status(UserStatus.DELETED)
+            .build();
+
+    given(cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME))
+        .willReturn(new Cookie(CookieManager.REFRESH_TOKEN_NAME, "refresh_token_value"));
+    given(jwtManager.getClaims("refresh_token_value")).willReturn(claims);
+    given(jwtManager.isRefreshToken(claims)).willReturn(true);
+    given(jwtManager.getUserId(claims)).willReturn(testUser.getId());
+    given(userRepository.findById(testUser.getId())).willReturn(Optional.of(deletedUser));
+
+    assertThatThrownBy(() -> authService.reissue(request, response))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining(UserException.forUserDeleted().getMessage());
   }
 
   @Test

@@ -28,6 +28,10 @@ jwt:
   secret-key: "12345678901234567890123456789012"
 
 app:
+  auth:
+    csrf:
+      secret-key: "12345678901234567890123456789012"
+
   storage:
     type: s3
     s3:

@@ -56,7 +56,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
           CookieManager.REFRESH_TOKEN_NAME,
           refreshToken,
           jwtManager.getRefreshTokenValidityInSeconds());
-      csrfTokenService.issue(response);
+      csrfTokenService.issue(response, refreshToken);
       recentAuthService.issue(response, principal.getUserId());
     }
 

@@ -92,7 +92,7 @@ class OAuth2SuccessHandlerTest {
         .addCookie(
             eq(response), eq(CookieManager.REFRESH_TOKEN_NAME), eq("refresh-token"), eq(86400L));
     verify(recentAuthService).issue(response, 1L);
-    verify(csrfTokenService).issue(response);
+    verify(csrfTokenService).issue(response, "refresh-token");
     verify(jwtManager, never()).createAccessToken(any(CustomPrincipal.class));
 
     assertThat(response.getRedirectedUrl())

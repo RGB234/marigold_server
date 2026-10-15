@@ -21,8 +21,6 @@ import com.sns.marigold.user.entity.User;
 
 public class UserApiTest extends ApiIntegrationTest {
 
-  private static final String CSRF_TOKEN = "test-csrf-token";
-
   @Test
   @DisplayName("인증 없이 프로필을 조회할 수 있다")
   void getProfile_Success() throws Exception {
@@ -76,6 +74,8 @@ public class UserApiTest extends ApiIntegrationTest {
   @DisplayName("OAuth2 가입 사용자는 이메일/비밀번호 로그인 정보를 등록할 수 있다")
   void registerCredentials_Success() throws Exception {
     User user = java.util.Objects.requireNonNull(tester1);
+    var recentAuthCookie = getRecentAuthCookie(user);
+    String csrfToken = getCsrfToken(recentAuthCookie.getValue());
     String requestBody =
         """
         {
@@ -88,8 +88,8 @@ public class UserApiTest extends ApiIntegrationTest {
         .perform(
             post(UrlConstants.USER_BASE + "/credentials")
                 .header("Authorization", "Bearer " + getAccessToken(user))
-                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, CSRF_TOKEN)
-                .cookie(getRecentAuthCookie(user), getCsrfCookie(CSRF_TOKEN))
+                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfToken)
+                .cookie(recentAuthCookie, getCsrfCookie(csrfToken))
                 .contentType("application/json")
                 .content(requestBody))
         .andExpect(status().isNoContent());
@@ -129,6 +129,7 @@ public class UserApiTest extends ApiIntegrationTest {
     userRepository.save(otherUser);
 
     var recentAuthCookie = getRecentAuthCookie(user);
+    String csrfToken = getCsrfToken(recentAuthCookie.getValue());
     String duplicateRequestBody =
         """
         {
@@ -148,8 +149,8 @@ public class UserApiTest extends ApiIntegrationTest {
         .perform(
             post(UrlConstants.USER_BASE + "/credentials")
                 .header("Authorization", "Bearer " + getAccessToken(user))
-                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, CSRF_TOKEN)
-                .cookie(recentAuthCookie, getCsrfCookie(CSRF_TOKEN))
+                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfToken)
+                .cookie(recentAuthCookie, getCsrfCookie(csrfToken))
                 .contentType("application/json")
                 .content(duplicateRequestBody))
         .andExpect(status().isConflict())
@@ -159,8 +160,8 @@ public class UserApiTest extends ApiIntegrationTest {
         .perform(
             post(UrlConstants.USER_BASE + "/credentials")
                 .header("Authorization", "Bearer " + getAccessToken(user))
-                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, CSRF_TOKEN)
-                .cookie(recentAuthCookie, getCsrfCookie(CSRF_TOKEN))
+                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfToken)
+                .cookie(recentAuthCookie, getCsrfCookie(csrfToken))
                 .contentType("application/json")
                 .content(validRequestBody))
         .andExpect(status().isNoContent());
@@ -170,12 +171,14 @@ public class UserApiTest extends ApiIntegrationTest {
   @DisplayName("인증된 사용자는 본인 계정을 삭제할 수 있다")
   void deleteUser_Success() throws Exception {
     User user = java.util.Objects.requireNonNull(tester1);
+    var recentAuthCookie = getRecentAuthCookie(user);
+    String csrfToken = getCsrfToken(recentAuthCookie.getValue());
     mockMvc
         .perform(
             delete(UrlConstants.USER_BASE + "/delete")
                 .header("Authorization", "Bearer " + getAccessToken(user))
-                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, CSRF_TOKEN)
-                .cookie(getRecentAuthCookie(user), getCsrfCookie(CSRF_TOKEN)))
+                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfToken)
+                .cookie(recentAuthCookie, getCsrfCookie(csrfToken)))
         .andExpect(status().isNoContent());
   }
 

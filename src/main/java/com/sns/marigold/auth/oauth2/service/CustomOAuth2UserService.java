@@ -107,8 +107,11 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     Long userId;
     try {
       Claims claims = jwtManager.getClaims(refreshToken);
+      if (!jwtManager.isRefreshToken(claims)) {
+        throw AuthException.forInvalidToken();
+      }
       userId = jwtManager.getUserId(claims);
-    } catch (JwtException | IllegalArgumentException e) {
+    } catch (AuthException | JwtException | IllegalArgumentException e) {
       throw new OAuth2AuthenticationException(
           new OAuth2Error(
               AuthError.TOKEN_INVALID.code(), AuthError.TOKEN_INVALID.publicMessage(), null));

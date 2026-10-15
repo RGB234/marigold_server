@@ -72,7 +72,6 @@ public class AuthController {
       @Valid @RequestBody LocalLoginDto dto,
       @Parameter(hidden = true) HttpServletResponse response) {
     LoginResponseDto loginResponse = authService.emailLogin(dto, response);
-    csrfTokenService.issue(response);
     return loginResponse;
   }
 
@@ -96,7 +95,7 @@ public class AuthController {
       @Parameter(hidden = true) HttpServletResponse response) {
     UserAuthStatusDto authStatus = authService.getAuthStatus(authentication, request);
     if (authStatus.isRefreshTokenPresent()) {
-      csrfTokenService.issue(response);
+      csrfTokenService.issue(request, response);
     }
 
     return authStatus;
@@ -117,7 +116,6 @@ public class AuthController {
       @Parameter(hidden = true) HttpServletRequest request,
       @Parameter(hidden = true) HttpServletResponse response) {
     LoginResponseDto loginResponse = authService.reissue(request, response);
-    csrfTokenService.issue(response);
     return loginResponse;
   }
 }

@@ -3,6 +3,7 @@ package com.sns.marigold.auth.common.jwt;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.crypto.SecretKey;
@@ -22,7 +23,9 @@ import lombok.Getter;
 public class JwtManager {
 
   public static final String AUTHORITIES_KEY = "auth";
-  public static final String USER_ID_KEY = "sub"; // subject
+  public static final String TOKEN_USE_KEY = "token_use";
+  public static final String ACCESS_TOKEN_USE = "access";
+  public static final String REFRESH_TOKEN_USE = "refresh";
 
   private final SecretKey key;
   @Getter public final long accessTokenValidityInMilliseconds;
@@ -46,8 +49,8 @@ public class JwtManager {
 
     return Jwts.builder()
         .subject(principal.getUserId().toString())
-        .claim(USER_ID_KEY, principal.getUserId().toString()) // 사용자 ID
         .claim(AUTHORITIES_KEY, authorities) // 권한 정보
+        .claim(TOKEN_USE_KEY, ACCESS_TOKEN_USE)
         .issuedAt(now)
         .expiration(validity)
         .signWith(key)
@@ -61,7 +64,8 @@ public class JwtManager {
 
     return Jwts.builder()
         .subject(principal.getUserId().toString())
-        .claim(USER_ID_KEY, principal.getUserId().toString())
+        .id(UUID.randomUUID().toString())
+        .claim(TOKEN_USE_KEY, REFRESH_TOKEN_USE)
         .issuedAt(now)
         .expiration(validity)
         .signWith(key)
@@ -75,7 +79,15 @@ public class JwtManager {
 
   /** Token에서 User ID 추출 */
   public Long getUserId(Claims claims) {
-    return Long.parseLong(claims.get(USER_ID_KEY, String.class));
+    return Long.parseLong(claims.get("sub", String.class));
+  }
+
+  public boolean isAccessToken(Claims claims) {
+    return ACCESS_TOKEN_USE.equals(claims.get(TOKEN_USE_KEY, String.class));
+  }
+
+  public boolean isRefreshToken(Claims claims) {
+    return REFRESH_TOKEN_USE.equals(claims.get(TOKEN_USE_KEY, String.class));
   }
 
   /** Token에서 권한 정보 추출 */

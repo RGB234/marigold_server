@@ -62,7 +62,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
       } catch (ApplicationException e) {
         ErrorSpec error = e.getErrorSpec();
-        auditLogger.warn("event=jwt_user_status_rejected errorCode={}", error.code());
+        auditLogger.warn("event=jwt_authentication_rejected errorCode={}", error.code());
         SecurityContextHolder.clearContext();
         problemDetailWriter.write(request, response, error);
         return;

@@ -29,7 +29,7 @@ class JwtManagerTest {
   @BeforeEach
   void setUp() {
     // 256bit 이상의 비밀키 (32 bytes)
-    jwtManager = new JwtManager(new JwtProperties(TEST_SECRET, 3600, 86400));
+    jwtManager = new JwtManager(new JwtProperties(TEST_SECRET, 600, 86400));
 
     List<SimpleGrantedAuthority> authorities =
         Collections.singletonList(new SimpleGrantedAuthority("ROLE_PERSON"));
@@ -44,10 +44,13 @@ class JwtManagerTest {
 
     // then
     assertThat(token).isNotBlank();
+    assertThat(jwtManager.getAccessTokenValidityInMilliseconds()).isEqualTo(600_000L);
 
     Claims claims = jwtManager.getClaims(token);
     assertThat(claims.getSubject()).isEqualTo("1");
-    assertThat(claims.get(JwtManager.USER_ID_KEY)).isEqualTo("1");
+    assertThat(claims.get("sub")).isEqualTo("1");
+    assertThat(jwtManager.isAccessToken(claims)).isTrue();
+    assertThat(jwtManager.isRefreshToken(claims)).isFalse();
 
     List<SimpleGrantedAuthority> authorities = jwtManager.getAuthorities(claims);
     assertThat(authorities).hasSize(1);
@@ -65,8 +68,17 @@ class JwtManagerTest {
 
     Claims claims = jwtManager.getClaims(token);
     assertThat(claims.getSubject()).isEqualTo("1");
+    assertThat(claims.getId()).isNotBlank();
+    assertThat(jwtManager.isRefreshToken(claims)).isTrue();
+    assertThat(jwtManager.isAccessToken(claims)).isFalse();
     // Refresh token should not have authorities
     assertThat(claims.get(JwtManager.AUTHORITIES_KEY)).isNull();
+  }
+
+  @Test
+  void refreshTokens_AreUniquePerIssue() {
+    assertThat(jwtManager.createRefreshToken(testPrincipal))
+        .isNotEqualTo(jwtManager.createRefreshToken(testPrincipal));
   }
 
   @Test
