@@ -24,12 +24,12 @@ spring:
             client-secret: test
             redirect-uri: "http://localhost:8080/oauth2/code/naver"
 
-jwt:
-  secret-key: "12345678901234567890123456789012"
 
 app:
   auth:
     csrf:
+      secret-key: "12345678901234567890123456789012"
+    jwt:
       secret-key: "12345678901234567890123456789012"
 
   storage:
