@@ -81,13 +81,13 @@ public class AdoptionPostService {
     List<MultipartFile> images = ImageFiles.nonEmpty(dto.getImages());
     AdoptionPost.validateImageCount(images.size());
 
+    User writer = userService.findEntityById(writerId);
+    AdoptionPost adoptionPost = dto.toEntity(writer);
+
     List<ImageUploadDto> uploadedImages =
         storageService.uploadImages(images, StorageDirectory.ADOPTION_POST);
 
     try {
-      User writer = userService.findEntityById(writerId);
-      AdoptionPost adoptionPost = dto.toEntity(writer);
-
       return transactionTemplate.execute(
           status -> {
             if (!uploadedImages.isEmpty()) {
@@ -104,11 +104,10 @@ public class AdoptionPostService {
                                 .storedFileName(image.getStoredFileName())
                                 .originalFileName(image.getOriginalFileName())
                                 .build())
-                    .collect(Collectors.toList()));
+                    .toList());
 
             return adoptionPostRepository.save(adoptionPost).getId();
           });
-
     } catch (RuntimeException e) {
       log.debug("Create failed. Deleting uploaded storage files.");
       storageService.deleteUploadedImagesBestEffort(uploadedImages);

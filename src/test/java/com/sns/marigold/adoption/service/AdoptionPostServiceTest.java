@@ -238,8 +238,23 @@ class AdoptionPostServiceTest {
   }
 
   @Test
-  @DisplayName("업로드 후 트랜잭션 시작 전 실패하면 새 파일을 직접 삭제한다.")
-  void create_FailureBeforeTransactionDeletesUploadedImages() {
+  @DisplayName("사용자 조회에 실패하면 이미지를 업로드하지 않는다.")
+  void create_UserNotFoundDoesNotUploadImages() {
+    MockMultipartFile image =
+        new MockMultipartFile("images", "new.jpg", "image/jpeg", new byte[] {1});
+    AdoptionPostCreateDto dto = AdoptionPostCreateDto.builder().images(List.of(image)).build();
+    UserException failure = UserException.forUserNotFound();
+    given(userService.findEntityById(1L)).willThrow(failure);
+
+    assertThatThrownBy(() -> adoptionPostService.create(dto, 1L)).isSameAs(failure);
+
+    verify(storageService, never()).uploadImages(any(), any());
+    verifyNoInteractions(eventPublisher, transactionTemplate);
+  }
+
+  @Test
+  @DisplayName("업로드 후 트랜잭션 시작에 실패하면 새 파일을 직접 삭제한다.")
+  void create_TransactionStartFailureDeletesUploadedImages() {
     MockMultipartFile image =
         new MockMultipartFile("images", "new.jpg", "image/jpeg", new byte[] {1});
     AdoptionPostCreateDto dto = AdoptionPostCreateDto.builder().images(List.of(image)).build();
@@ -247,16 +262,16 @@ class AdoptionPostServiceTest {
         List.of(
             new ImageUploadDto(
                 "adoption/post/33333333-3333-3333-3333-333333333333.jpg", "new.jpg"));
+    given(userService.findEntityById(1L)).willReturn(testUser);
     given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_POST)))
         .willReturn(uploadedImages);
-    UserException failure = UserException.forUserNotFound();
-    given(userService.findEntityById(1L)).willThrow(failure);
+    IllegalStateException failure = new IllegalStateException("transaction start failed");
+    doThrow(failure).when(transactionTemplate).execute(any());
 
     assertThatThrownBy(() -> adoptionPostService.create(dto, 1L)).isSameAs(failure);
 
     verify(storageService).deleteUploadedImagesBestEffort(uploadedImages);
     verify(eventPublisher, never()).publishEvent(any());
-    verify(transactionTemplate, never()).execute(any());
   }
 
   @Test
