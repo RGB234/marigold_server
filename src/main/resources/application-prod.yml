@@ -5,7 +5,7 @@ server:
 spring:
   config:
     import:
-      - optional:file:/home/ec2-user/app.env[.properties]
+      - required:file:/home/ec2-user/.env.prod[.properties]
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
@@ -44,9 +44,6 @@ app:
     type: s3
     s3:
       bucket: ${AWS_S3_BUCKET}
-  auth:
-    recent-auth:
-      ttl-seconds: 300
 
 url:
   frontend:

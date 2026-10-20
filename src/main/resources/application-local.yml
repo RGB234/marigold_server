@@ -5,8 +5,7 @@ server:
 spring:
   config:
     import:
-      - optional:file:secrets/back/.env.local[.properties]
-      - optional:file:../secrets/back/.env.local[.properties]
+      - required:file:../secrets/back/.env.local[.properties]
 
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
@@ -48,9 +47,6 @@ app:
       signing-secret: ${LOCAL_STORAGE_SIGNING_SECRET:local-dev-signing-secret}
       view-url-ttl-minutes: ${LOCAL_STORAGE_VIEW_URL_TTL_MINUTES:60}
       download-url-ttl-minutes: ${LOCAL_STORAGE_DOWNLOAD_URL_TTL_MINUTES:10}
-  auth:
-    recent-auth:
-      ttl-seconds: 300
 
 url:
   frontend:
