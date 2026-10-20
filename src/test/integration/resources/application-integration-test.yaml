@@ -1,0 +1,43 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create
+
+  cloud:
+    aws:
+      s3:
+        enabled: false
+
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: test
+            client-secret: test
+            redirect-uri: "http://localhost:8080/oauth2/code/kakao"
+          naver:
+            client-id: test
+            client-secret: test
+            redirect-uri: "http://localhost:8080/oauth2/code/naver"
+
+app:
+  auth:
+    csrf:
+      secret-key: "12345678901234567890123456789012"
+    jwt:
+      secret-key: "12345678901234567890123456789012"
+
+url:
+  frontend:
+    origin: "http://localhost:3000"
+    auth:
+      callback: "http://localhost:3000/auth/callback"
+
+  backend:
+    auth:
+      oauth2:
+        base: /oauth2
+        endpoint:
+          base: /oauth2/authorization
+        redirection: "/oauth2/code/*"
