@@ -38,9 +38,10 @@ out/
 
 ### ###
 .env
+load-test/.env.local
 .env.*
 !.env.example
-!load-test/.env.staging.example
+!load-test/.env.example
 /src/main/resources/*.yml
 /src/main/resources/*.yaml
 !/src/main/resources/application.yml

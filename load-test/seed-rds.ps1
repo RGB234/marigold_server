@@ -1,5 +1,5 @@
 param(
-  [string]$EnvFile = ".env",
+  [string]$EnvFile,
   [string]$HostName,
   [int]$Port,
   [string]$Database,
@@ -28,14 +28,11 @@ $script:SeedParameters = @{} + $PSBoundParameters
 
 function Import-EnvFile([string]$Path) {
   if ([string]::IsNullOrWhiteSpace($Path)) {
-    return
+    throw "-EnvFile is required."
   }
 
-  if (-not (Test-Path -LiteralPath $Path)) {
-    if ($script:SeedParameters.ContainsKey("EnvFile")) {
-      throw "Env file not found: $Path"
-    }
-    return
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+    throw "Env file not found: $Path"
   }
 
   Get-Content -LiteralPath $Path -Encoding UTF8 | ForEach-Object {

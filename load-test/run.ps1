@@ -2,14 +2,18 @@ param(
   [ValidateSet("smoke", "load", "stress", "spike", "db-read", "db-write", "db-mixed", "storage-upload", "storage-mixed")]
   [string]$Profile = "smoke",
 
-  [string]$EnvFile = ".env",
+  [string]$EnvFile,
 
   [switch]$PrometheusRemoteWrite
 )
 
 $ErrorActionPreference = "Stop"
 
-if (-not (Test-Path -LiteralPath $EnvFile)) {
+if ([string]::IsNullOrWhiteSpace($EnvFile)) {
+  throw "-EnvFile is required."
+}
+
+if (-not (Test-Path -LiteralPath $EnvFile -PathType Leaf)) {
   throw "Env file not found: $EnvFile"
 }
 

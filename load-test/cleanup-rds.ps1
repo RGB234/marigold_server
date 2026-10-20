@@ -1,16 +1,60 @@
 param(
-  [string]$HostName = $env:LOAD_TEST_DB_HOST,
-  [int]$Port = $(if ($env:LOAD_TEST_DB_PORT) { [int]$env:LOAD_TEST_DB_PORT } else { 3306 }),
-  [string]$Database = $env:LOAD_TEST_DB_NAME,
-  [string]$Username = $env:LOAD_TEST_DB_USERNAME,
-  [string]$Password = $env:LOAD_TEST_DB_PASSWORD,
-  [string]$EmailPrefix = $(if ($env:LOAD_TEST_SEED_EMAIL_PREFIX) { $env:LOAD_TEST_SEED_EMAIL_PREFIX } else { "loadtest-user-" }),
-  [string]$EmailDomain = $(if ($env:LOAD_TEST_SEED_EMAIL_DOMAIN) { $env:LOAD_TEST_SEED_EMAIL_DOMAIN } else { "example.test" }),
-  [string]$MySqlPath = $(if ($env:MYSQL_PATH) { $env:MYSQL_PATH } else { "mysql" }),
+  [string]$EnvFile,
+  [string]$HostName,
+  [int]$Port,
+  [string]$Database,
+  [string]$Username,
+  [string]$Password,
+  [string]$EmailPrefix,
+  [string]$EmailDomain,
+  [string]$MySqlPath,
   [switch]$ConfirmTestDatabase
 )
 
 $ErrorActionPreference = "Stop"
+$script:CleanupParameters = @{} + $PSBoundParameters
+
+if ([string]::IsNullOrWhiteSpace($EnvFile)) {
+  throw "-EnvFile is required."
+}
+
+if (-not (Test-Path -LiteralPath $EnvFile -PathType Leaf)) {
+  throw "Env file not found: $EnvFile"
+}
+
+Get-Content -LiteralPath $EnvFile -Encoding UTF8 | ForEach-Object {
+  $line = $_.Trim()
+  if ($line -and -not $line.StartsWith("#") -and $line.Contains("=")) {
+    $parts = $line -split "=", 2
+    $name = $parts[0].Trim()
+    $value = $parts[1].Trim().Trim('"').Trim("'")
+    if ($name) {
+      [Environment]::SetEnvironmentVariable($name, $value, "Process")
+    }
+  }
+}
+
+function Resolve-Value([string]$ParameterName, [string]$EnvName, $DefaultValue) {
+  if ($script:CleanupParameters.ContainsKey($ParameterName)) {
+    return $script:CleanupParameters[$ParameterName]
+  }
+
+  $envValue = [Environment]::GetEnvironmentVariable($EnvName, "Process")
+  if (-not [string]::IsNullOrWhiteSpace($envValue)) {
+    return $envValue
+  }
+
+  return $DefaultValue
+}
+
+$HostName = Resolve-Value "HostName" "LOAD_TEST_DB_HOST" $null
+$Port = [int](Resolve-Value "Port" "LOAD_TEST_DB_PORT" 3306)
+$Database = Resolve-Value "Database" "LOAD_TEST_DB_NAME" $null
+$Username = Resolve-Value "Username" "LOAD_TEST_DB_USERNAME" $null
+$Password = Resolve-Value "Password" "LOAD_TEST_DB_PASSWORD" $null
+$EmailPrefix = Resolve-Value "EmailPrefix" "LOAD_TEST_SEED_EMAIL_PREFIX" "loadtest-user-"
+$EmailDomain = Resolve-Value "EmailDomain" "LOAD_TEST_SEED_EMAIL_DOMAIN" "example.test"
+$MySqlPath = Resolve-Value "MySqlPath" "MYSQL_PATH" "mysql"
 
 if (-not $ConfirmTestDatabase) {
   throw "This script deletes test data. Re-run with -ConfirmTestDatabase after confirming the target is not production."

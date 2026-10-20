@@ -7,6 +7,7 @@ build
 docs
 load-test
 .env
+load-test/.env.local
 .env.*
 !.env.example
 src/main/resources/*.yml
