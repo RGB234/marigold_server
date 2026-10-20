@@ -60,11 +60,3 @@ export function dbWriteScenario() {
   updateAdoptionPostStatus(context, post.id, 'RESERVED', 'db_write_status_reserved');
   updateAdoptionPostStatus(context, post.id, 'PROCEEDING', 'db_write_status_proceeding');
 }
-
-export function dbMixedReadScenario() {
-  dbReadScenario();
-}
-
-export function dbMixedWriteScenario() {
-  dbWriteScenario();
-}

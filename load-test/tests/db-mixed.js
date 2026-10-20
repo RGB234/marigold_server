@@ -1,4 +1,4 @@
-import { dbMixedReadScenario, dbMixedWriteScenario } from '../scenarios/db.js';
+import { dbReadScenario, dbWriteScenario } from '../scenarios/db.js';
 import {
   DB_MIXED_RATE,
   IO_MAX_VUS,
@@ -22,7 +22,7 @@ export const options = {
       duration: IO_TEST_DURATION,
       preAllocatedVUs: IO_PRE_ALLOCATED_VUS,
       maxVUs: IO_MAX_VUS,
-      exec: 'dbMixedReadScenario',
+      exec: 'dbReadScenario',
     },
     db_mixed_write: {
       executor: 'constant-arrival-rate',
@@ -31,10 +31,10 @@ export const options = {
       duration: IO_TEST_DURATION,
       preAllocatedVUs: IO_PRE_ALLOCATED_VUS,
       maxVUs: IO_MAX_VUS,
-      exec: 'dbMixedWriteScenario',
+      exec: 'dbWriteScenario',
     },
   },
 };
 
-export { dbMixedReadScenario, dbMixedWriteScenario };
+export { dbReadScenario, dbWriteScenario };
 export const handleSummary = createSummary('db-mixed');

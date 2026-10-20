@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("smoke", "load", "stress", "spike", "main", "db-read", "db-write", "db-mixed", "storage-upload", "storage-mixed")]
+  [ValidateSet("smoke", "load", "stress", "spike", "db-read", "db-write", "db-mixed", "storage-upload", "storage-mixed")]
   [string]$Profile = "smoke",
 
   [string]$EnvFile = ".env",
@@ -25,7 +25,7 @@ Get-Content -LiteralPath $EnvFile -Encoding UTF8 | ForEach-Object {
   }
 }
 
-$script = if ($Profile -eq "main") { "main.js" } else { "tests/$Profile.js" }
+$script = "tests/$Profile.js"
 [Environment]::SetEnvironmentVariable("LOAD_TEST_PROFILE", $Profile, "Process")
 
 $k6Args = @("run")

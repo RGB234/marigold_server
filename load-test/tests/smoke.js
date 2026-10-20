@@ -1,4 +1,4 @@
-import { adoptionScenario, authScenario, chatScenario } from '../main.js';
+import { adoptionScenario, authScenario, chatScenario } from '../scenarios/mixed.js';
 import { createSummary } from '../summary.js';
 import { smokeThresholds, summaryTrendStats } from '../thresholds.js';
 
