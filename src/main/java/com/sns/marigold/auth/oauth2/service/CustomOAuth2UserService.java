@@ -106,7 +106,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     String refreshToken = refreshCookie.getValue();
     Long userId;
     try {
-      Claims claims = jwtManager.getClaims(refreshToken);
+      Claims claims = jwtManager.getRefreshClaims(refreshToken);
       if (!jwtManager.isRefreshToken(claims)) {
         throw AuthException.forInvalidToken();
       }

@@ -192,7 +192,7 @@ public class AuthService {
         response,
         CookieManager.REFRESH_TOKEN_NAME,
         loginTokens.refreshToken(),
-        jwtManager.getRefreshTokenValidityInSeconds());
+        jwtManager.getRefreshTtlInSeconds());
     recentAuthService.issue(response, user.getId());
     csrfTokenService.issue(response, loginTokens.refreshToken());
 
@@ -209,7 +209,7 @@ public class AuthService {
 
     Claims claims;
     try {
-      claims = jwtManager.getClaims(refreshToken);
+      claims = jwtManager.getRefreshClaims(refreshToken);
     } catch (ExpiredJwtException e) {
       throw AuthException.forExpiredToken();
     } catch (JwtException | IllegalArgumentException e) {
@@ -242,7 +242,7 @@ public class AuthService {
         response,
         CookieManager.REFRESH_TOKEN_NAME,
         newRefreshToken,
-        jwtManager.getRefreshTokenValidityInSeconds());
+        jwtManager.getRefreshTtlInSeconds());
     csrfTokenService.issue(response, newRefreshToken);
 
     return createLoginResponse(newAccessToken, principal);

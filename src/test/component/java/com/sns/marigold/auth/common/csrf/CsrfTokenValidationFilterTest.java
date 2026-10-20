@@ -11,7 +11,6 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sns.marigold.auth.common.jwt.JwtProperties;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.global.error.http.ProblemDetailWriter;
 
@@ -28,10 +27,7 @@ class CsrfTokenValidationFilterTest {
   void setUp() {
     CookieManager cookieManager = new CookieManager();
     csrfTokenService =
-        new CsrfTokenService(
-            cookieManager,
-            new JwtProperties("j".repeat(32), 600, 86400),
-            new CsrfProperties("c".repeat(32)));
+        new CsrfTokenService(cookieManager, new CsrfProperties("c".repeat(32), 86400));
     filter =
         new CsrfTokenValidationFilter(
             cookieManager,

@@ -38,9 +38,15 @@ management:
 
 app:
   auth:
-    csrf:
-      secret-key: ${CSRF_SECRET_KEY}
     jwt:
-      secret-key: ${JWT_SECRET_KEY}
-      access-token-validity-in-seconds: ${JWT_ACCESS_TOKEN_VALIDITY_SECONDS:600}
-      refresh-token-validity-in-seconds: ${JWT_REFRESH_TOKEN_VALIDITY_SECONDS:86400}
+      access:
+        secret: ${ACCESS_SECRET}
+        ttl-seconds: 600
+      refresh:
+        secret: ${REFRESH_SECRET}
+        ttl-seconds: 86400
+    csrf:
+      secret: ${CSRF_SECRET}
+      ttl-seconds: ${app.auth.jwt.refresh.ttl-seconds}
+    recent-auth:
+      ttl-seconds: 300

@@ -6,7 +6,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-import com.sns.marigold.auth.common.jwt.JwtProperties;
 import com.sns.marigold.auth.common.util.CookieManager;
 
 class CsrfTokenServiceTest {
@@ -16,10 +15,7 @@ class CsrfTokenServiceTest {
   @BeforeEach
   void setUp() {
     csrfTokenService =
-        new CsrfTokenService(
-            new CookieManager(),
-            new JwtProperties("j".repeat(32), 600, 86400),
-            new CsrfProperties("c".repeat(32)));
+        new CsrfTokenService(new CookieManager(), new CsrfProperties("c".repeat(32), 86400));
   }
 
   @Test
@@ -43,6 +39,16 @@ class CsrfTokenServiceTest {
   @Test
   void consecutiveIssues_UseDifferentRandomValues() {
     assertThat(issue("refresh-token")).isNotEqualTo(issue("refresh-token"));
+  }
+
+  @Test
+  void issuedTokenCookie_UsesConfiguredValidity() {
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    csrfTokenService.issue(response, "refresh-token");
+
+    assertThat(response.getCookie(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME).getMaxAge())
+        .isEqualTo(86400);
   }
 
   private String issue(String sessionBinding) {

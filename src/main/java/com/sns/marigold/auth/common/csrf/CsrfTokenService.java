@@ -12,7 +12,6 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
-import com.sns.marigold.auth.common.jwt.JwtProperties;
 import com.sns.marigold.auth.common.util.CookieManager;
 
 import jakarta.servlet.http.Cookie;
@@ -31,14 +30,13 @@ public class CsrfTokenService {
   private static final int BASE64_URL_SHA256_LENGTH = 43;
 
   private final CookieManager cookieManager;
-  private final JwtProperties jwtProperties;
   private final CsrfProperties csrfProperties;
   private final SecureRandom secureRandom = new SecureRandom();
 
   public void issue(HttpServletResponse response, String sessionBinding) {
     String token = createToken(sessionBinding);
     cookieManager.addReadableCookie(
-        response, CSRF_TOKEN_COOKIE_NAME, token, jwtProperties.refreshTokenValidityInSeconds());
+        response, CSRF_TOKEN_COOKIE_NAME, token, csrfProperties.ttlSeconds());
     response.setHeader(CSRF_TOKEN_HEADER_NAME, token);
   }
 
@@ -128,7 +126,7 @@ public class CsrfTokenService {
       Mac mac = Mac.getInstance(HMAC_ALGORITHM);
       mac.init(
           new SecretKeySpec(
-              csrfProperties.secretKey().getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
+              csrfProperties.secret().getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
       return mac.doFinal(message.getBytes(StandardCharsets.UTF_8));
     } catch (GeneralSecurityException e) {
       throw new IllegalStateException("HMAC-SHA256 is unavailable", e);

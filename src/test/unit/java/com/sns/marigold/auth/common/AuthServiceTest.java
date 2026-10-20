@@ -223,7 +223,7 @@ class AuthServiceTest {
         .willReturn("access_token_value");
     given(jwtManager.createRefreshToken(any(CustomPrincipal.class)))
         .willReturn("refresh_token_value");
-    given(jwtManager.getRefreshTokenValidityInSeconds()).willReturn(86400L);
+    given(jwtManager.getRefreshTtlInSeconds()).willReturn(86400L);
 
     // when
     LoginResponseDto result = authService.emailLogin(dto, response);
@@ -263,14 +263,14 @@ class AuthServiceTest {
 
     given(cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME))
         .willReturn(new Cookie(CookieManager.REFRESH_TOKEN_NAME, "refresh_token_value"));
-    given(jwtManager.getClaims("refresh_token_value")).willReturn(claims);
+    given(jwtManager.getRefreshClaims("refresh_token_value")).willReturn(claims);
     given(jwtManager.isRefreshToken(claims)).willReturn(true);
     given(jwtManager.getUserId(claims)).willReturn(testUser.getId());
     given(userRepository.findById(testUser.getId())).willReturn(Optional.of(latestUser));
     given(jwtManager.createAccessToken(any(CustomPrincipal.class))).willReturn("new_access_token");
     given(jwtManager.createRefreshToken(any(CustomPrincipal.class)))
         .willReturn("new_refresh_token");
-    given(jwtManager.getRefreshTokenValidityInSeconds()).willReturn(86400L);
+    given(jwtManager.getRefreshTtlInSeconds()).willReturn(86400L);
 
     LoginResponseDto result = authService.reissue(request, response);
 
@@ -291,7 +291,7 @@ class AuthServiceTest {
 
     given(cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME))
         .willReturn(new Cookie(CookieManager.REFRESH_TOKEN_NAME, "access_token_value"));
-    given(jwtManager.getClaims("access_token_value")).willReturn(claims);
+    given(jwtManager.getRefreshClaims("access_token_value")).willReturn(claims);
 
     assertThatThrownBy(() -> authService.reissue(request, response))
         .isInstanceOf(AuthException.class);
@@ -315,7 +315,7 @@ class AuthServiceTest {
 
     given(cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME))
         .willReturn(new Cookie(CookieManager.REFRESH_TOKEN_NAME, "refresh_token_value"));
-    given(jwtManager.getClaims("refresh_token_value")).willReturn(claims);
+    given(jwtManager.getRefreshClaims("refresh_token_value")).willReturn(claims);
     given(jwtManager.isRefreshToken(claims)).willReturn(true);
     given(jwtManager.getUserId(claims)).willReturn(testUser.getId());
     given(userRepository.findById(testUser.getId())).willReturn(Optional.of(deletedUser));

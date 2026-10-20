@@ -61,7 +61,7 @@ import jakarta.servlet.http.Cookie;
 @TestPropertySource(
     properties = {
       "url.backend.auth.oauth2.base=/oauth2",
-      "app.auth.csrf.secret-key=12345678901234567890123456789012"
+      "app.auth.csrf.secret=12345678901234567890123456789012"
     })
 @WithMockUser
 class CommonSecurityConfigTest {

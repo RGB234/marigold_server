@@ -23,7 +23,7 @@ public class JwtAuthenticationService {
   private final JwtManager jwtManager;
 
   public Authentication getAuthentication(String accessToken) {
-    Claims claims = jwtManager.getClaims(accessToken);
+    Claims claims = jwtManager.getAccessClaims(accessToken);
 
     if (!jwtManager.isAccessToken(claims)) {
       throw AuthException.forInvalidToken();

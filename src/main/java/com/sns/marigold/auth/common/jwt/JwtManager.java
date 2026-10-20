@@ -27,20 +27,24 @@ public class JwtManager {
   public static final String ACCESS_TOKEN_USE = "access";
   public static final String REFRESH_TOKEN_USE = "refresh";
 
-  private final SecretKey key;
-  @Getter public final long accessTokenValidityInMilliseconds;
-  @Getter public final long refreshTokenValidityInMilliseconds;
+  private final SecretKey accessKey;
+  private final SecretKey refreshKey;
+  @Getter public final long accessTtlInMilliseconds;
+  @Getter public final long refreshTtlInMilliseconds;
 
   public JwtManager(JwtProperties jwtProperties) {
-    this.key = Keys.hmacShaKeyFor(jwtProperties.secretKey().getBytes(StandardCharsets.UTF_8));
-    this.accessTokenValidityInMilliseconds = jwtProperties.accessTokenValidityInSeconds() * 1000;
-    this.refreshTokenValidityInMilliseconds = jwtProperties.refreshTokenValidityInSeconds() * 1000;
+    this.accessKey =
+        Keys.hmacShaKeyFor(jwtProperties.access().secret().getBytes(StandardCharsets.UTF_8));
+    this.refreshKey =
+        Keys.hmacShaKeyFor(jwtProperties.refresh().secret().getBytes(StandardCharsets.UTF_8));
+    this.accessTtlInMilliseconds = jwtProperties.access().ttlSeconds() * 1000;
+    this.refreshTtlInMilliseconds = jwtProperties.refresh().ttlSeconds() * 1000;
   }
 
   /** Access Token 생성 */
   public String createAccessToken(CustomPrincipal principal) {
     Date now = new Date();
-    Date validity = new Date(now.getTime() + accessTokenValidityInMilliseconds);
+    Date validity = new Date(now.getTime() + accessTtlInMilliseconds);
 
     List<String> authorities =
         principal.getAuthorities().stream()
@@ -53,14 +57,14 @@ public class JwtManager {
         .claim(TOKEN_USE_KEY, ACCESS_TOKEN_USE)
         .issuedAt(now)
         .expiration(validity)
-        .signWith(key)
+        .signWith(accessKey)
         .compact();
   }
 
   /** Refresh Token 생성 */
   public String createRefreshToken(CustomPrincipal principal) {
     Date now = new Date();
-    Date validity = new Date(now.getTime() + refreshTokenValidityInMilliseconds);
+    Date validity = new Date(now.getTime() + refreshTtlInMilliseconds);
 
     return Jwts.builder()
         .subject(principal.getUserId().toString())
@@ -68,13 +72,16 @@ public class JwtManager {
         .claim(TOKEN_USE_KEY, REFRESH_TOKEN_USE)
         .issuedAt(now)
         .expiration(validity)
-        .signWith(key)
+        .signWith(refreshKey)
         .compact();
   }
 
-  /** Token에서 Claims 추출 */
-  public Claims getClaims(String token) {
-    return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+  public Claims getAccessClaims(String token) {
+    return parseClaims(token, accessKey);
+  }
+
+  public Claims getRefreshClaims(String token) {
+    return parseClaims(token, refreshKey);
   }
 
   /** Token에서 User ID 추출 */
@@ -100,7 +107,11 @@ public class JwtManager {
     return authorities.stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList());
   }
 
-  public Long getRefreshTokenValidityInSeconds() {
-    return this.refreshTokenValidityInMilliseconds / 1000;
+  public Long getRefreshTtlInSeconds() {
+    return this.refreshTtlInMilliseconds / 1000;
+  }
+
+  private Claims parseClaims(String token, SecretKey key) {
+    return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
   }
 }

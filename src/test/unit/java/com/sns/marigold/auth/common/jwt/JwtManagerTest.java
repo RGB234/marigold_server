@@ -21,7 +21,8 @@ import io.jsonwebtoken.MalformedJwtException;
 
 class JwtManagerTest {
 
-  private static final String TEST_SECRET = "a".repeat(64);
+  private static final String TEST_ACCESS_SECRET = "a".repeat(64);
+  private static final String TEST_REFRESH_SECRET = "b".repeat(64);
 
   private JwtManager jwtManager;
   private CustomPrincipal testPrincipal;
@@ -29,7 +30,11 @@ class JwtManagerTest {
   @BeforeEach
   void setUp() {
     // 256bit 이상의 비밀키 (32 bytes)
-    jwtManager = new JwtManager(new JwtProperties(TEST_SECRET, 600, 86400));
+    jwtManager =
+        new JwtManager(
+            new JwtProperties(
+                new JwtProperties.Token(TEST_ACCESS_SECRET, 600),
+                new JwtProperties.Token(TEST_REFRESH_SECRET, 86400)));
 
     List<SimpleGrantedAuthority> authorities =
         Collections.singletonList(new SimpleGrantedAuthority("ROLE_PERSON"));
@@ -44,9 +49,9 @@ class JwtManagerTest {
 
     // then
     assertThat(token).isNotBlank();
-    assertThat(jwtManager.getAccessTokenValidityInMilliseconds()).isEqualTo(600_000L);
+    assertThat(jwtManager.getAccessTtlInMilliseconds()).isEqualTo(600_000L);
 
-    Claims claims = jwtManager.getClaims(token);
+    Claims claims = jwtManager.getAccessClaims(token);
     assertThat(claims.getSubject()).isEqualTo("1");
     assertThat(claims.get("sub")).isEqualTo("1");
     assertThat(jwtManager.isAccessToken(claims)).isTrue();
@@ -66,7 +71,7 @@ class JwtManagerTest {
     // then
     assertThat(token).isNotBlank();
 
-    Claims claims = jwtManager.getClaims(token);
+    Claims claims = jwtManager.getRefreshClaims(token);
     assertThat(claims.getSubject()).isEqualTo("1");
     assertThat(claims.getId()).isNotBlank();
     assertThat(jwtManager.isRefreshToken(claims)).isTrue();
@@ -88,7 +93,7 @@ class JwtManagerTest {
     String invalidToken = "invalid.token.string";
 
     // when & then
-    assertThatThrownBy(() -> jwtManager.getClaims(invalidToken))
+    assertThatThrownBy(() -> jwtManager.getAccessClaims(invalidToken))
         .isInstanceOf(MalformedJwtException.class);
   }
 
@@ -97,12 +102,16 @@ class JwtManagerTest {
   void parseExpiredToken() throws InterruptedException {
     // given
     // 유효시간이 0인 JwtManager 생성 (테스트용)
-    JwtManager expiredJwtManager = new JwtManager(new JwtProperties(TEST_SECRET, 0, 0));
+    JwtManager expiredJwtManager =
+        new JwtManager(
+            new JwtProperties(
+                new JwtProperties.Token(TEST_ACCESS_SECRET, 0),
+                new JwtProperties.Token(TEST_REFRESH_SECRET, 0)));
     String token = expiredJwtManager.createAccessToken(testPrincipal);
 
     // when & then
     Thread.sleep(10); // 확실하게 만료시키기 위해 약간의 대기
-    assertThatThrownBy(() -> expiredJwtManager.getClaims(token))
+    assertThatThrownBy(() -> expiredJwtManager.getAccessClaims(token))
         .isInstanceOf(ExpiredJwtException.class);
   }
 }

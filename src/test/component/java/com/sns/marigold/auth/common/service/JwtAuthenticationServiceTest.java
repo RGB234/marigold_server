@@ -16,11 +16,13 @@ import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.jwt.JwtProperties;
-import com.sns.marigold.auth.exception.AuthException;
+
+import io.jsonwebtoken.JwtException;
 
 class JwtAuthenticationServiceTest {
 
-  private static final String TEST_SECRET = "a".repeat(64);
+  private static final String TEST_ACCESS_SECRET = "a".repeat(64);
+  private static final String TEST_REFRESH_SECRET = "b".repeat(64);
 
   private JwtManager jwtManager;
   private JwtAuthenticationService jwtAuthenticationService;
@@ -28,7 +30,11 @@ class JwtAuthenticationServiceTest {
 
   @BeforeEach
   void setUp() {
-    jwtManager = new JwtManager(new JwtProperties(TEST_SECRET, 600, 86400));
+    jwtManager =
+        new JwtManager(
+            new JwtProperties(
+                new JwtProperties.Token(TEST_ACCESS_SECRET, 600),
+                new JwtProperties.Token(TEST_REFRESH_SECRET, 86400)));
     jwtAuthenticationService = new JwtAuthenticationService(jwtManager);
     principal =
         new CustomPrincipal(
@@ -59,6 +65,6 @@ class JwtAuthenticationServiceTest {
     String refreshToken = jwtManager.createRefreshToken(principal);
 
     assertThatThrownBy(() -> jwtAuthenticationService.getAuthentication(refreshToken))
-        .isInstanceOf(AuthException.class);
+        .isInstanceOf(JwtException.class);
   }
 }

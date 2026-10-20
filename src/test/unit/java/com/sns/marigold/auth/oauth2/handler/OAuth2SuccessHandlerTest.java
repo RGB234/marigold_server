@@ -82,7 +82,7 @@ class OAuth2SuccessHandlerTest {
         new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
 
     given(jwtManager.createRefreshToken(any(CustomPrincipal.class))).willReturn("refresh-token");
-    given(jwtManager.getRefreshTokenValidityInSeconds()).willReturn(86400L);
+    given(jwtManager.getRefreshTtlInSeconds()).willReturn(86400L);
 
     // when
     successHandler.onAuthenticationSuccess(request, response, authentication);
