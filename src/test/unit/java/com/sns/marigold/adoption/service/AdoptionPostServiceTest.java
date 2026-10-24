@@ -48,6 +48,7 @@ import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.adoption.repository.AdoptionAdopterRepository;
 import com.sns.marigold.adoption.repository.AdoptionCommentImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
+import com.sns.marigold.adoption.repository.AdoptionPostImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.enums.Role;
@@ -84,6 +85,8 @@ class AdoptionPostServiceTest {
   @Mock private AdoptionCommentRepository adoptionCommentRepository;
 
   @Mock private AdoptionCommentImageRepository adoptionCommentImageRepository;
+
+  @Mock private AdoptionPostImageRepository adoptionPostImageRepository;
 
   @Mock private ChatRoomRepository chatRoomRepository;
 
@@ -459,6 +462,20 @@ class AdoptionPostServiceTest {
                 adoptionPostService.updateRecruitmentStatus(100L, AdoptionPostStatus.COMPLETED, 2L))
         .isInstanceOf(AuthException.class)
         .hasMessageContaining(AuthException.forAccessDenied().getMessage());
+  }
+
+  @Test
+  @DisplayName("탈퇴한 작성자의 게시글을 논리 삭제하고 게시글 이미지 삭제 이벤트를 발행한다.")
+  void deleteAllByWriter_Success() {
+    String imageFile = "adoption/post/44444444-4444-4444-4444-444444444444.jpg";
+    given(adoptionPostImageRepository.findStoredFileNamesByWriter(1L))
+        .willReturn(List.of(imageFile));
+
+    adoptionPostService.deleteAllByWriter(1L);
+
+    verify(adoptionPostRepository).setDeletedTimeByWriter(1L);
+    verify(adoptionPostImageRepository).deleteImagesByWriter(1L);
+    verify(eventPublisher).publishEvent(new DeleteOldStorageFilesEvent(List.of(imageFile)));
   }
 
   @Test

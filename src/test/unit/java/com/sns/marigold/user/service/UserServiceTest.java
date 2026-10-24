@@ -28,12 +28,9 @@ import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.sns.marigold.adoption.repository.AdoptionPostImageRepository;
-import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.global.tsid.TsidCodec;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
@@ -44,6 +41,7 @@ import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.entity.UserImage;
+import com.sns.marigold.user.event.UserDeletedEvent;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
 
@@ -51,12 +49,6 @@ import com.sns.marigold.user.repository.UserRepository;
 class UserServiceTest {
 
   @Mock private UserRepository userRepository;
-
-  @Mock private AdoptionPostRepository adoptionPostRepository;
-
-  @Mock private AdoptionPostImageRepository adoptionPostImageRepository;
-
-  @Mock private ChatService chatService;
 
   @Mock private StorageService storageService;
 
@@ -375,7 +367,7 @@ class UserServiceTest {
   }
 
   @Test
-  @DisplayName("회원 탈퇴(소프트 딜리트) 시 작성한 게시글을 논리 삭제하고 참여 중인 채팅방을 닫는다.")
+  @DisplayName("회원 탈퇴(소프트 딜리트) 시 개인정보를 지우고 다른 도메인 정리를 위한 탈퇴 이벤트를 발행한다.")
   @SuppressWarnings("null")
   void deleteUser_Success() {
     // given
@@ -388,16 +380,12 @@ class UserServiceTest {
             .build());
 
     given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
-    given(adoptionPostImageRepository.findStoredFileNamesByWriter(1L))
-        .willReturn(List.of("adoption/post/44444444-4444-4444-4444-444444444444.jpg"));
 
     // when
     userService.deleteUser(1L);
 
     // then
-    verify(adoptionPostRepository, times(1)).setDeletedTimeByWriter(1L);
-    verify(adoptionPostImageRepository, times(1)).deleteImagesByWriter(1L);
-    verify(chatService, times(1)).closeAllChatRoomsByUserId(1L);
+    verify(eventPublisher).publishEvent(new UserDeletedEvent(1L));
     assertThat(testUser.getStatus().name()).isEqualTo("DELETED");
     assertThat(testUser.getEmail()).isNull();
     assertThat(testUser.getPassword()).isNull();
@@ -406,13 +394,9 @@ class UserServiceTest {
     assertThat(testUser.getImage()).isNull();
     assertThat(testUser.getDeletedAt()).isNotNull();
     assertThat(testUser.getNickname()).isEqualTo("deleted-user-" + TsidCodec.encode(1L));
-    verify(userRepository, times(1)).save(testUser);
-    ArgumentCaptor<DeleteOldStorageFilesEvent> eventCaptor =
-        ArgumentCaptor.forClass(DeleteOldStorageFilesEvent.class);
-    verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
-    assertThat(eventCaptor.getValue().fileNames())
-        .contains(
-            "user/profile/22222222-2222-2222-2222-222222222222.jpg",
-            "adoption/post/44444444-4444-4444-4444-444444444444.jpg");
+    verify(eventPublisher)
+        .publishEvent(
+            new DeleteOldStorageFilesEvent(
+                List.of("user/profile/22222222-2222-2222-2222-222222222222.jpg")));
   }
 }

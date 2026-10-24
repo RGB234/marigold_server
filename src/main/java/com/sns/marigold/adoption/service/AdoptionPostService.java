@@ -28,6 +28,7 @@ import com.sns.marigold.adoption.entity.AdoptionPostImage;
 import com.sns.marigold.adoption.enums.AdoptionPostStatus;
 import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.adoption.repository.AdoptionAdopterRepository;
+import com.sns.marigold.adoption.repository.AdoptionPostImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.adoption.specification.AdoptionPostSpecification;
 import com.sns.marigold.audit.AuditLogger;
@@ -62,6 +63,7 @@ public class AdoptionPostService {
   private final ChatService chatService;
 
   private final AdoptionPostRepository adoptionPostRepository;
+  private final AdoptionPostImageRepository adoptionPostImageRepository;
   private final AdoptionAdopterRepository adoptionAdopterRepository;
   private final ChatRoomRepository chatRoomRepository;
   private final RoomParticipantRepository participantRepository;
@@ -380,6 +382,22 @@ public class AdoptionPostService {
       eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
     }
     auditLogger.info("event=adoption_post_deleted userId={} postId={}", userId, id);
+  }
+
+  // 탈퇴한 작성자의 게시글을 논리 삭제하고, 게시글 이미지는 커밋 후 스토리지에서 삭제
+  @Transactional
+  public void deleteAllByWriter(Long writerId) {
+    List<String> imagesToDelete =
+        adoptionPostImageRepository.findStoredFileNamesByWriter(writerId).stream()
+            .filter(Objects::nonNull)
+            .toList();
+
+    adoptionPostRepository.setDeletedTimeByWriter(writerId);
+    adoptionPostImageRepository.deleteImagesByWriter(writerId);
+
+    if (!imagesToDelete.isEmpty()) {
+      eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
+    }
   }
 
   public void validateWriter(AdoptionPost info, Long userId) {

@@ -1,6 +1,5 @@
 package com.sns.marigold.user.service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -13,11 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.sns.marigold.adoption.repository.AdoptionPostImageRepository;
-import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
@@ -29,6 +25,7 @@ import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.entity.UserImage;
+import com.sns.marigold.user.event.UserDeletedEvent;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
 
@@ -41,13 +38,10 @@ import lombok.extern.slf4j.Slf4j;
 public class UserService {
 
   private final UserRepository userRepository;
-  private final AdoptionPostRepository adoptionPostRepository;
-  private final AdoptionPostImageRepository adoptionPostImageRepository;
   private final StorageService storageService;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
   private final PasswordEncoder passwordEncoder;
-  private final ChatService chatService;
   private final AuditLogger auditLogger;
 
   @Transactional(readOnly = true)
@@ -188,29 +182,17 @@ public class UserService {
   @Transactional
   public void deleteUser(@NonNull Long id) {
     User user = findEntityById(id);
-    List<String> imageUrls = new ArrayList<>();
-
-    if (user.getImage() != null) {
-      imageUrls.add(user.getImage().getStoredFileName());
-    }
-
-    List<String> postImageFileNames = adoptionPostImageRepository.findStoredFileNamesByWriter(id);
-    if (postImageFileNames != null) {
-      postImageFileNames.stream().filter(Objects::nonNull).forEach(imageUrls::add);
-    }
-
-    adoptionPostRepository.setDeletedTimeByWriter(id);
-    adoptionPostImageRepository.deleteImagesByWriter(id);
-
-    // 참가 중인 채팅방 CLOSE (read-only)
-    chatService.closeAllChatRoomsByUserId(id);
+    String profileImage = user.getImage() != null ? user.getImage().getStoredFileName() : null;
 
     user.softDelete();
-    userRepository.save(user);
-    auditLogger.info("event=user_deleted userId={}", user.getId());
+
+    // 게시글·채팅방 정리는 각 도메인 리스너가 같은 트랜잭션 안에서 동기로 수행
+    eventPublisher.publishEvent(new UserDeletedEvent(id));
+
+    auditLogger.info("event=user_deleted userId={}", id);
     // 트랜잭션 종료 시 스토리지에서 이미지 삭제
-    if (!imageUrls.isEmpty()) {
-      eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imageUrls));
+    if (profileImage != null) {
+      eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(List.of(profileImage)));
     }
   }
 }
