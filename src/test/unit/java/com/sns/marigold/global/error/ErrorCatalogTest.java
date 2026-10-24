@@ -25,7 +25,7 @@ class ErrorCatalogTest {
             error -> {
               assertThat(error.code()).matches("[A-Z][A-Z0-9_]*");
               assertThat(error.publicMessage()).isNotBlank();
-              assertThat(error.kind()).isNotNull();
+              assertThat(error.failureKind()).isNotNull();
             });
   }
 

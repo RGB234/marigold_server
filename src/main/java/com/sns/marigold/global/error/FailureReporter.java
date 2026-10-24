@@ -34,6 +34,7 @@ public class FailureReporter {
   }
 
   private boolean isSystemFailure(ErrorSpec error) {
-    return error.kind() == FailureKind.INTERNAL || error.kind() == FailureKind.DEPENDENCY_FAILURE;
+    return error.failureKind() == FailureKind.INTERNAL
+        || error.failureKind() == FailureKind.DEPENDENCY_FAILURE;
   }
 }

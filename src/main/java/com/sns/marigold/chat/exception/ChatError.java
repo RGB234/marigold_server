@@ -13,12 +13,12 @@ public enum ChatError implements ErrorSpec {
 
   private final String code;
   private final String publicMessage;
-  private final FailureKind kind;
+  private final FailureKind failureKind;
 
-  ChatError(String code, String publicMessage, FailureKind kind) {
+  ChatError(String code, String publicMessage, FailureKind failureKind) {
     this.code = code;
     this.publicMessage = publicMessage;
-    this.kind = kind;
+    this.failureKind = failureKind;
   }
 
   @Override
@@ -32,7 +32,7 @@ public enum ChatError implements ErrorSpec {
   }
 
   @Override
-  public FailureKind kind() {
-    return kind;
+  public FailureKind failureKind() {
+    return failureKind;
   }
 }

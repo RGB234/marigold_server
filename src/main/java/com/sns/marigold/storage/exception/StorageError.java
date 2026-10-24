@@ -12,12 +12,12 @@ public enum StorageError implements ErrorSpec {
 
   private final String code;
   private final String publicMessage;
-  private final FailureKind kind;
+  private final FailureKind failureKind;
 
-  StorageError(String code, String publicMessage, FailureKind kind) {
+  StorageError(String code, String publicMessage, FailureKind failureKind) {
     this.code = code;
     this.publicMessage = publicMessage;
-    this.kind = kind;
+    this.failureKind = failureKind;
   }
 
   @Override
@@ -31,7 +31,7 @@ public enum StorageError implements ErrorSpec {
   }
 
   @Override
-  public FailureKind kind() {
-    return kind;
+  public FailureKind failureKind() {
+    return failureKind;
   }
 }

@@ -41,7 +41,7 @@ public enum UserError implements ErrorSpec {
   }
 
   @Override
-  public FailureKind kind() {
+  public FailureKind failureKind() {
     return kind;
   }
 }

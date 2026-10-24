@@ -11,5 +11,5 @@ public interface ErrorSpec {
 
   String publicMessage();
 
-  FailureKind kind();
+  FailureKind failureKind();
 }

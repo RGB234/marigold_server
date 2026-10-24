@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 public final class HttpErrorPolicy {
 
   public static HttpStatus statusOf(ErrorSpec error) {
-    return switch (error.kind()) {
+    return switch (error.failureKind()) {
       case INVALID_INPUT -> HttpStatus.BAD_REQUEST;
       case UNAUTHENTICATED -> HttpStatus.UNAUTHORIZED;
       case FORBIDDEN -> HttpStatus.FORBIDDEN;

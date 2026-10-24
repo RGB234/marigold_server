@@ -39,7 +39,7 @@ public enum AdoptionError implements ErrorSpec {
   }
 
   @Override
-  public FailureKind kind() {
+  public FailureKind failureKind() {
     return kind;
   }
 }

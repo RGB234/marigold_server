@@ -41,7 +41,7 @@ public enum AuthError implements ErrorSpec {
   }
 
   @Override
-  public FailureKind kind() {
+  public FailureKind failureKind() {
     return kind;
   }
 }

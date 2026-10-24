@@ -10,12 +10,12 @@ public enum CommonError implements ErrorSpec {
 
   private final String code;
   private final String publicMessage;
-  private final FailureKind kind;
+  private final FailureKind failureKind;
 
-  CommonError(String code, String publicMessage, FailureKind kind) {
+  CommonError(String code, String publicMessage, FailureKind failureKind) {
     this.code = code;
     this.publicMessage = publicMessage;
-    this.kind = kind;
+    this.failureKind = failureKind;
   }
 
   @Override
@@ -29,7 +29,7 @@ public enum CommonError implements ErrorSpec {
   }
 
   @Override
-  public FailureKind kind() {
-    return kind;
+  public FailureKind failureKind() {
+    return failureKind;
   }
 }
