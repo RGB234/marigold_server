@@ -55,6 +55,7 @@ import com.sns.marigold.chat.dto.ChatMessageRequestDto;
 import com.sns.marigold.chat.entity.ChatMessage;
 import com.sns.marigold.chat.entity.ChatRoom;
 import com.sns.marigold.chat.entity.RoomParticipant;
+import com.sns.marigold.chat.enums.ChatRoomStatus;
 import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
@@ -144,6 +145,15 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
     if (stompClient != null) {
       stompClient.stop();
     }
+  }
+
+  @Test
+  @DisplayName("채팅방 종료 후 별도 트랜잭션에서 CLOSED 상태가 조회된다.")
+  void closeChatRoom_PersistsClosedStatus() {
+    chatService.closeChatRoom(chatRoom.getId(), user1.getId());
+
+    ChatRoom reloaded = chatRoomRepository.findById(chatRoom.getId()).orElseThrow();
+    assertThat(reloaded.getStatus()).isEqualTo(ChatRoomStatus.CLOSED);
   }
 
   @Test

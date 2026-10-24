@@ -588,7 +588,6 @@ class ChatServiceTest {
 
     // then
     verify(chatRoom, times(1)).close();
-    verify(chatRoomRepository, times(1)).save(chatRoom);
   }
 
   @Test

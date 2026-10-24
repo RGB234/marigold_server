@@ -109,6 +109,7 @@ public class ChatService {
    * 채팅방을 종료한다.
    * 이전의 대화내용은 볼 수 있지만 새로 메시지를 보낼 수 없는 상태가 된다.
    */
+  @Transactional
   public void closeChatRoom(@NonNull Long roomId, @NonNull Long currentUserId) {
     ChatRoom chatRoom = findChatRoom(roomId);
 
@@ -120,7 +121,6 @@ public class ChatService {
         .orElseThrow(AuthException::forAccessDenied);
 
     chatRoom.close();
-    chatRoomRepository.save(chatRoom);
   }
 
   @Transactional
