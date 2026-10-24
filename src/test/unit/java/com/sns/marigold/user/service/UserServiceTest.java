@@ -360,6 +360,28 @@ class UserServiceTest {
   }
 
   @Test
+  @DisplayName("프로필 삭제와 이미지가 함께 입력되면 업로드 없이 기존 이미지를 삭제한다.")
+  void updateUser_RemoveImageWithUpload_SkipsUpload() {
+    String oldFile = "user/profile/22222222-2222-2222-2222-222222222222.jpg";
+    testUser.update(
+        "tester", UserImage.builder().storedFileName(oldFile).originalFileName("old.jpg").build());
+    UserUpdateDto dto = new UserUpdateDto();
+    dto.setNickname("newNickname");
+    dto.setRemoveImage(true);
+    dto.setImage(
+        new MockMultipartFile(
+            "image", "new.jpg", MediaType.IMAGE_JPEG_VALUE, "new image".getBytes()));
+    given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+
+    userService.updateUser(1L, dto);
+
+    assertThat(testUser.getImage()).isNull();
+    assertThat(testUser.getNickname()).isEqualTo("newNickname");
+    verifyNoInteractions(storageService);
+    verify(eventPublisher).publishEvent(new DeleteOldStorageFilesEvent(List.of(oldFile)));
+  }
+
+  @Test
   @DisplayName("회원 탈퇴(소프트 딜리트) 시 개인정보를 지우고 다른 도메인 정리를 위한 탈퇴 이벤트를 발행한다.")
   @SuppressWarnings("null")
   void deleteUser_Success() {

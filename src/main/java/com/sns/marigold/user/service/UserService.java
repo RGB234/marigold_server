@@ -121,7 +121,7 @@ public class UserService {
   public void updateUser(Long uid, UserUpdateDto dto) {
     // 1. 이미지 업로드
     ImageUploadDto uploadedImageDto = null;
-    if (dto.getImage() != null && !dto.getImage().isEmpty()) {
+    if (!dto.isRemoveImage() && dto.getImage() != null && !dto.getImage().isEmpty()) {
       uploadedImageDto = storageService.uploadImage(dto.getImage(), StorageDirectory.USER_PROFILE);
     }
 
@@ -131,7 +131,6 @@ public class UserService {
       // 2. DB 트랜잭션 (데이터 변경)
       transactionTemplate.executeWithoutResult(
           status -> {
-            // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
             User user = findEntityById(uid);
             UserImage previousImage = user.getImage();
             String fileToDelete = null;
@@ -139,7 +138,7 @@ public class UserService {
             // 사용자가 기본 프로필 사진 사용을 선택
             if (dto.isRemoveImage()) {
               fileToDelete = previousImage != null ? previousImage.getStoredFileName() : null;
-              user.update(dto.getNickname(), null); // DB에서 이미지 삭제
+              user.update(dto.getNickname(), null); // DB에서 이미지 삭제 (CASCADE)
             } else if (newImageUploadDto != null) {
               // 새 이미지로 교체
               fileToDelete = previousImage != null ? previousImage.getStoredFileName() : null;
