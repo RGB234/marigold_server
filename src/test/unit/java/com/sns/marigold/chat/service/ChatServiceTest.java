@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,12 +28,14 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
@@ -76,7 +79,7 @@ class ChatServiceTest {
 
   @Mock private StorageService storageService;
 
-  @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private TransactionTemplate transactionTemplate;
 
   @InjectMocks private ChatService chatService;
 
@@ -88,6 +91,24 @@ class ChatServiceTest {
 
   @BeforeEach
   void setUp() {
+    lenient()
+        .doAnswer(
+            invocation -> {
+              TransactionCallback<?> action = invocation.getArgument(0);
+              return action.doInTransaction(mock(TransactionStatus.class));
+            })
+        .when(transactionTemplate)
+        .execute(any());
+    lenient()
+        .doAnswer(
+            invocation -> {
+              Consumer<TransactionStatus> action = invocation.getArgument(0);
+              action.accept(mock(TransactionStatus.class));
+              return null;
+            })
+        .when(transactionTemplate)
+        .executeWithoutResult(any());
+
     user1 = mock(User.class);
     lenient().when(user1.getId()).thenReturn(1L);
     lenient().when(user1.getDisplayNickname()).thenReturn("User1");

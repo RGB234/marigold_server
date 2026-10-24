@@ -15,7 +15,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -69,6 +71,7 @@ public class ChatService {
   private final AdoptionPostRepository adoptionPostRepository;
   private final RoomParticipantRepository participantRepository;
   private final StorageService storageService;
+  private final TransactionTemplate transactionTemplate;
 
   public ChatRoomDto getChatRoom(@NonNull Long roomId, @NonNull Long currentUserId) {
     ChatRoom chatRoom = findChatRoom(roomId);
@@ -185,15 +188,16 @@ public class ChatService {
     return convertToMessageDto(chatMessage);
   }
 
-  @Transactional
+  // 업로드 동안 DB 커넥션을 점유하지 않도록 클래스 기본 트랜잭션을 끄고 TransactionTemplate 구간으로 한정
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public ChatMessageDto saveFileMessage(
       @NonNull Long roomId,
       String message,
       List<MultipartFile> files,
       @NonNull Long currentUserId) {
-    ChatRoom chatRoom = findChatRoom(roomId);
-    User sender = findSender(currentUserId);
-    validateCanSendMessage(chatRoom, sender);
+    // 권한 없는 요청이 파일을 올리지 못하도록 업로드 전에 먼저 검사
+    transactionTemplate.executeWithoutResult(
+        status -> validateCanSendMessage(findChatRoom(roomId), findSender(currentUserId)));
 
     List<MultipartFile> validFiles = validateChatAttachmentFiles(files);
     String normalizedMessage = Objects.requireNonNullElse(message, "");
@@ -205,25 +209,33 @@ public class ChatService {
     List<FileUploadDto> uploadedFiles =
         storageService.uploadFiles(validFiles, StorageDirectory.CHAT_ATTACHMENT);
     try {
-      ChatMessage chatMessage =
-          ChatMessage.builder()
-              .chatRoom(chatRoom)
-              .sender(sender)
-              .message(normalizedMessage)
-              .build();
+      return transactionTemplate.execute(
+          status -> {
+            // 업로드 중 채팅방이 종료되었을 수 있으므로 트랜잭션 안에서 다시 검사
+            ChatRoom chatRoom = findChatRoom(roomId);
+            User sender = findSender(currentUserId);
+            validateCanSendMessage(chatRoom, sender);
 
-      for (FileUploadDto uploadedFile : uploadedFiles) {
-        chatMessage.addAttachment(
-            ChatMessageAttachment.builder()
-                .storedFileName(uploadedFile.getStoredFileName())
-                .originalFileName(uploadedFile.getOriginalFileName())
-                .contentType(uploadedFile.getContentType())
-                .fileSize(uploadedFile.getFileSize())
-                .build());
-      }
+            ChatMessage chatMessage =
+                ChatMessage.builder()
+                    .chatRoom(chatRoom)
+                    .sender(sender)
+                    .message(normalizedMessage)
+                    .build();
 
-      ChatMessage savedMessage = chatMessageRepository.saveAndFlush(chatMessage);
-      return convertToMessageDto(savedMessage);
+            for (FileUploadDto uploadedFile : uploadedFiles) {
+              chatMessage.addAttachment(
+                  ChatMessageAttachment.builder()
+                      .storedFileName(uploadedFile.getStoredFileName())
+                      .originalFileName(uploadedFile.getOriginalFileName())
+                      .contentType(uploadedFile.getContentType())
+                      .fileSize(uploadedFile.getFileSize())
+                      .build());
+            }
+
+            ChatMessage savedMessage = chatMessageRepository.saveAndFlush(chatMessage);
+            return convertToMessageDto(savedMessage);
+          });
     } catch (RuntimeException e) {
       storageService.deleteUploadedFilesBestEffort(uploadedFiles);
       throw e;

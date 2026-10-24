@@ -117,7 +117,7 @@ public class UserService {
     auditLogger.info("event=local_credentials_registered userId={}", user.getId());
   }
 
-  @Transactional
+  // 업로드 동안 DB 커넥션을 점유하지 않도록 트랜잭션은 TransactionTemplate 구간으로 한정
   public void updateUser(Long uid, UserUpdateDto dto) {
     // 1. 이미지 업로드
     ImageUploadDto uploadedImageDto = null;
