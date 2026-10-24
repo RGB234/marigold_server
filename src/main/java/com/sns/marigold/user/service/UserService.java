@@ -16,7 +16,6 @@ import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.dto.response.UserInfoDto;
@@ -132,12 +131,6 @@ public class UserService {
       // 2. DB 트랜잭션 (데이터 변경)
       transactionTemplate.executeWithoutResult(
           status -> {
-            if (newImageUploadDto != null) {
-              eventPublisher.publishEvent(
-                  new DeleteUploadedStorageFilesEvent(
-                      List.of(newImageUploadDto.getStoredFileName())));
-            }
-
             // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
             User user = findEntityById(uid);
             UserImage previousImage = user.getImage();

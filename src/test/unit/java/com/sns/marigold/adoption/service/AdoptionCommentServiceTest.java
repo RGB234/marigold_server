@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -44,7 +43,6 @@ import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.user.entity.User;
@@ -119,8 +117,8 @@ class AdoptionCommentServiceTest {
   }
 
   @Test
-  @DisplayName("댓글 생성 시 DB 저장 전에 새 이미지의 롤백 삭제 이벤트를 발행한다.")
-  void createComment_PublishesRollbackEventBeforeSave() {
+  @DisplayName("댓글 생성 성공 시 업로드한 이미지를 삭제하지 않는다.")
+  void createComment_WithImage_KeepsUploadedImage() {
     MockMultipartFile image =
         new MockMultipartFile("images", "new.jpg", "image/jpeg", new byte[] {1});
     AdoptionCommentCreateDto dto =
@@ -140,11 +138,8 @@ class AdoptionCommentServiceTest {
 
     assertThat(adoptionCommentService.createComment(100L, 1L, dto)).isEqualTo(10L);
 
-    var order = inOrder(eventPublisher, adoptionCommentRepository);
-    order
-        .verify(eventPublisher)
-        .publishEvent(new DeleteUploadedStorageFilesEvent(List.of(storedFileName)));
-    order.verify(adoptionCommentRepository).save(any(AdoptionComment.class));
+    verify(adoptionCommentRepository).save(any(AdoptionComment.class));
+    verifyNoInteractions(eventPublisher);
     verify(storageService, never()).deleteUploadedImagesBestEffort(any());
   }
 
@@ -240,10 +235,6 @@ class AdoptionCommentServiceTest {
     verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
     assertThat(eventCaptor.getValue().fileNames())
         .containsExactly("adoption/comment/11111111-1111-1111-1111-111111111111.jpg");
-    verify(eventPublisher)
-        .publishEvent(
-            new DeleteUploadedStorageFilesEvent(
-                List.of("adoption/comment/33333333-3333-3333-3333-333333333333.jpg")));
   }
 
   @Test

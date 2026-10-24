@@ -25,16 +25,4 @@ public class StorageEventListener {
     log.debug("Deleting old files from storage. count={}", event.fileNames().size());
     storageService.deleteFilesBestEffort(event.fileNames());
   }
-
-  // 트랜잭션 롤백 시 방금 올린 파일들 삭제
-  @Async("storageTaskExecutor")
-  @TransactionalEventListener(phase = TransactionPhase.AFTER_ROLLBACK)
-  public void handleDeleteUploadedStorageFilesEvent(DeleteUploadedStorageFilesEvent event) {
-    if (event.fileNames() == null || event.fileNames().isEmpty()) return;
-
-    log.warn(
-        "Transaction rolled back. Cleaning up newly created files from storage. count={}",
-        event.fileNames().size());
-    storageService.deleteFilesBestEffort(event.fileNames());
-  }
 }

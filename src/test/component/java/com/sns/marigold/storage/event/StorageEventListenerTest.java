@@ -33,7 +33,6 @@ import com.sns.marigold.storage.service.StorageService;
 
 class StorageEventListenerTest {
 
-  private final List<String> newFiles = List.of("user/progile/new.jpg");
   private final List<String> oldFiles = List.of("user/profile/old.jpg");
   private AnnotationConfigApplicationContext context;
   private StorageService storageService;
@@ -61,11 +60,10 @@ class StorageEventListenerTest {
   }
 
   @Test
-  @DisplayName("커밋되면 기존 파일만 삭제하고 새 업로드 파일은 유지한다")
-  void commitDeletesOnlyOldFiles() {
+  @DisplayName("커밋되면 기존 파일을 삭제한다")
+  void commitDeletesOldFiles() {
     transactionTemplate.executeWithoutResult(
         status -> {
-          context.publishEvent(new DeleteUploadedStorageFilesEvent(newFiles));
           context.publishEvent(new DeleteOldStorageFilesEvent(oldFiles));
           verifyNoInteractions(storageService);
         });
@@ -75,46 +73,28 @@ class StorageEventListenerTest {
   }
 
   @Test
-  @DisplayName("롤백되면 새 업로드 파일만 삭제하고 기존 파일은 유지한다")
-  void rollbackDeletesOnlyNewFiles() {
+  @DisplayName("롤백되면 기존 파일을 유지한다")
+  void rollbackKeepsOldFiles() {
     assertThatThrownBy(
             () ->
                 transactionTemplate.executeWithoutResult(
                     status -> {
-                      context.publishEvent(new DeleteUploadedStorageFilesEvent(newFiles));
                       context.publishEvent(new DeleteOldStorageFilesEvent(oldFiles));
-                      verifyNoInteractions(storageService);
                       throw new IllegalStateException("DB operation failed");
                     }))
         .isInstanceOf(IllegalStateException.class);
 
-    verify(storageService).deleteFilesBestEffort(newFiles);
-    verifyNoMoreInteractions(storageService);
+    verifyNoInteractions(storageService);
   }
 
   @Test
-  @DisplayName("내부 작업이 반환된 뒤 외부 트랜잭션이 롤백되어도 새 파일을 삭제한다")
-  void outerRollbackDeletesNewFiles() {
-    transactionTemplate.executeWithoutResult(
-        outer -> {
-          transactionTemplate.executeWithoutResult(
-              inner -> context.publishEvent(new DeleteUploadedStorageFilesEvent(newFiles)));
-          verifyNoInteractions(storageService);
-          outer.setRollbackOnly();
-        });
-
-    verify(storageService).deleteFilesBestEffort(newFiles);
-    verifyNoMoreInteractions(storageService);
-  }
-
-  @Test
-  @DisplayName("트랜잭션 본문 완료 후 커밋 직전 실패로 롤백되어도 새 파일을 삭제한다")
-  void beforeCommitFailureDeletesNewFiles() {
+  @DisplayName("커밋 직전 실패로 롤백되어도 기존 파일을 유지한다")
+  void beforeCommitFailureKeepsOldFiles() {
     assertThatThrownBy(
             () ->
                 transactionTemplate.executeWithoutResult(
                     status -> {
-                      context.publishEvent(new DeleteUploadedStorageFilesEvent(newFiles));
+                      context.publishEvent(new DeleteOldStorageFilesEvent(oldFiles));
                       TransactionSynchronizationManager.registerSynchronization(
                           new TransactionSynchronization() {
                             @Override
@@ -126,8 +106,7 @@ class StorageEventListenerTest {
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("flush failed");
 
-    verify(storageService).deleteFilesBestEffort(newFiles);
-    verifyNoMoreInteractions(storageService);
+    verifyNoInteractions(storageService);
   }
 
   @Configuration(proxyBeanMethods = false)

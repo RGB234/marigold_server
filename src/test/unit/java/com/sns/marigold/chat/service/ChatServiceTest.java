@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -54,7 +53,6 @@ import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.storage.dto.FileUploadDto;
-import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
@@ -454,15 +452,6 @@ class ChatServiceTest {
     assertThat(result.getAttachments()).hasSize(2);
     assertThat(result.getAttachments().get(0).getOriginalFileName()).isEqualTo("note.txt");
     assertThat(result.getAttachments().get(1).getViewUrl()).isEqualTo("https://file/2");
-    var order = inOrder(eventPublisher, chatMessageRepository);
-    order
-        .verify(eventPublisher)
-        .publishEvent(
-            new DeleteUploadedStorageFilesEvent(
-                List.of(
-                    "chat/attachment/11111111-1111-1111-1111-111111111111.txt",
-                    "chat/attachment/22222222-2222-2222-2222-222222222222.csv")));
-    order.verify(chatMessageRepository).saveAndFlush(any(ChatMessage.class));
     verify(storageService, never()).deleteUploadedFilesBestEffort(any());
     verify(storageService, times(1)).uploadFiles(any(), eq(StorageDirectory.CHAT_ATTACHMENT));
     verify(chatMessageRepository, times(1)).saveAndFlush(any(ChatMessage.class));
@@ -470,7 +459,7 @@ class ChatServiceTest {
   }
 
   @Test
-  @DisplayName("파일 메시지 저장 실패 시 롤백 이벤트를 발행하고 즉시 삭제도 시도한다.")
+  @DisplayName("파일 메시지 저장 실패 시 업로드한 파일을 즉시 삭제한다.")
   void saveFileMessage_SaveFailure() {
     MockMultipartFile file =
         new MockMultipartFile(
@@ -496,9 +485,6 @@ class ChatServiceTest {
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("save failed");
 
-    verify(eventPublisher)
-        .publishEvent(
-            new DeleteUploadedStorageFilesEvent(List.of(uploadedFiles.get(0).getStoredFileName())));
     verify(storageService).deleteUploadedFilesBestEffort(uploadedFiles);
   }
 

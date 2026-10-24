@@ -11,7 +11,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.apache.tika.Tika;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
@@ -41,7 +40,6 @@ import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.storage.dto.FileUploadDto;
-import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
@@ -71,7 +69,6 @@ public class ChatService {
   private final AdoptionPostRepository adoptionPostRepository;
   private final RoomParticipantRepository participantRepository;
   private final StorageService storageService;
-  private final ApplicationEventPublisher eventPublisher;
 
   public ChatRoomDto getChatRoom(@NonNull Long roomId, @NonNull Long currentUserId) {
     ChatRoom chatRoom = findChatRoom(roomId);
@@ -208,12 +205,6 @@ public class ChatService {
     List<FileUploadDto> uploadedFiles =
         storageService.uploadFiles(validFiles, StorageDirectory.CHAT_ATTACHMENT);
     try {
-      if (!uploadedFiles.isEmpty()) {
-        eventPublisher.publishEvent(
-            new DeleteUploadedStorageFilesEvent(
-                uploadedFiles.stream().map(FileUploadDto::getStoredFileName).toList()));
-      }
-
       ChatMessage chatMessage =
           ChatMessage.builder()
               .chatRoom(chatRoom)

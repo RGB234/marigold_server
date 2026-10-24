@@ -59,7 +59,6 @@ import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
@@ -217,13 +216,7 @@ class AdoptionPostServiceTest {
     assertThat(capturedPost.getImages().get(0).getOriginalFileName()).isEqualTo("original.jpg");
     assertThat(capturedPost.getImages().get(0).getStoredFileName())
         .isEqualTo("adoption/post/33333333-3333-3333-3333-333333333333.jpg");
-    var order = inOrder(eventPublisher, adoptionPostRepository);
-    order
-        .verify(eventPublisher)
-        .publishEvent(
-            new DeleteUploadedStorageFilesEvent(
-                List.of("adoption/post/33333333-3333-3333-3333-333333333333.jpg")));
-    order.verify(adoptionPostRepository).save(any(AdoptionPost.class));
+    verifyNoInteractions(eventPublisher);
     verify(storageService, never()).deleteUploadedImagesBestEffort(any());
   }
 
@@ -329,10 +322,6 @@ class AdoptionPostServiceTest {
 
     assertThat(eventCaptor.getValue().fileNames())
         .contains("adoption/post/22222222-2222-2222-2222-222222222222.jpg");
-    verify(eventPublisher)
-        .publishEvent(
-            new DeleteUploadedStorageFilesEvent(
-                List.of("adoption/post/44444444-4444-4444-4444-444444444444.jpg")));
   }
 
   @Test

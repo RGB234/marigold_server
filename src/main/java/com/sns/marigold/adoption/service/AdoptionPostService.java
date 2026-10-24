@@ -40,7 +40,6 @@ import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.global.validation.imagefile.ImageFiles;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.event.DeleteUploadedStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageError;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.service.StorageDirectory;
@@ -92,12 +91,6 @@ public class AdoptionPostService {
     try {
       return transactionTemplate.execute(
           status -> {
-            if (!uploadedImages.isEmpty()) {
-              eventPublisher.publishEvent(
-                  new DeleteUploadedStorageFilesEvent(
-                      uploadedImages.stream().map(ImageUploadDto::getStoredFileName).toList()));
-            }
-
             adoptionPost.changeImages(
                 uploadedImages.stream()
                     .map(
@@ -162,12 +155,6 @@ public class AdoptionPostService {
       // 3. DB 트랜잭션 (데이터 변경)
       transactionTemplate.executeWithoutResult(
           status -> {
-            if (!uploadedImages.isEmpty()) {
-              eventPublisher.publishEvent(
-                  new DeleteUploadedStorageFilesEvent(
-                      uploadedImages.stream().map(ImageUploadDto::getStoredFileName).toList()));
-            }
-
             // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
             AdoptionPost info = findEntityById(postId);
             info.updateInfo(editor);
