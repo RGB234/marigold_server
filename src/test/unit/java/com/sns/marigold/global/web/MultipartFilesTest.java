@@ -1,4 +1,4 @@
-package com.sns.marigold.global.validation.imagefile;
+package com.sns.marigold.global.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -7,7 +7,7 @@ import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 
-class ImageFilesTest {
+class MultipartFilesTest {
 
   @Test
   void nonEmptyFiltersNullAndEmptyFiles() {
@@ -16,11 +16,11 @@ class ImageFilesTest {
     MockMultipartFile image =
         new MockMultipartFile("images", "image.jpg", "image/jpeg", new byte[] {1});
 
-    assertThat(ImageFiles.nonEmpty(Arrays.asList(null, empty, image))).containsExactly(image);
+    assertThat(MultipartFiles.nonEmpty(Arrays.asList(null, empty, image))).containsExactly(image);
   }
 
   @Test
   void nonEmptyReturnsEmptyListForNull() {
-    assertThat(ImageFiles.nonEmpty(null)).isEmpty();
+    assertThat(MultipartFiles.nonEmpty(null)).isEmpty();
   }
 }

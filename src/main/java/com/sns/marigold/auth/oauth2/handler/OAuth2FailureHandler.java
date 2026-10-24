@@ -12,7 +12,7 @@ import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.sns.marigold.global.config.UrlProperties;
 import com.sns.marigold.global.error.ErrorSpec;
-import com.sns.marigold.global.error.http.RequestIdFilter;
+import com.sns.marigold.global.web.RequestIdFilter;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

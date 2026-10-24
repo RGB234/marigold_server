@@ -27,7 +27,7 @@ import com.sns.marigold.adoption.repository.AdoptionCommentImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
-import com.sns.marigold.global.validation.imagefile.ImageFiles;
+import com.sns.marigold.global.web.MultipartFiles;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.service.StorageDirectory;
@@ -60,7 +60,7 @@ public class AdoptionCommentService {
   }
 
   public Long createComment(Long postId, Long userId, AdoptionCommentCreateDto dto) {
-    List<MultipartFile> images = ImageFiles.nonEmpty(dto.getImages());
+    List<MultipartFile> images = MultipartFiles.nonEmpty(dto.getImages());
     AdoptionComment.validateImageCount(images.size());
 
     AdoptionPost adoptionPost =
@@ -132,7 +132,7 @@ public class AdoptionCommentService {
 
   public void updateComment(
       Long postId, Long commentId, Long userId, AdoptionCommentUpdateDto dto) {
-    List<MultipartFile> newImageFiles = ImageFiles.nonEmpty(dto.getImages());
+    List<MultipartFile> newImageFiles = MultipartFiles.nonEmpty(dto.getImages());
     if (dto.shouldRemoveImage() && !newImageFiles.isEmpty()) {
       throw AdoptionCommentException.forInvalidCommentImages();
     }

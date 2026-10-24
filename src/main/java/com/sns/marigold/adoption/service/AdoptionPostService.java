@@ -37,7 +37,7 @@ import com.sns.marigold.chat.entity.RoomParticipant;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.chat.service.ChatService;
-import com.sns.marigold.global.validation.imagefile.ImageFiles;
+import com.sns.marigold.global.web.MultipartFiles;
 import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageError;
@@ -79,7 +79,7 @@ public class AdoptionPostService {
   }
 
   public Long create(AdoptionPostCreateDto dto, Long writerId) {
-    List<MultipartFile> images = ImageFiles.nonEmpty(dto.getImages());
+    List<MultipartFile> images = MultipartFiles.nonEmpty(dto.getImages());
     AdoptionPost.validateImageCount(images.size());
 
     User writer = userService.findEntityById(writerId);
@@ -120,7 +120,7 @@ public class AdoptionPostService {
     validateWriter(adoptionPost, userId);
 
     List<String> imagesToKeep = normalizeImagesToKeep(dto.getImagesToKeep());
-    List<MultipartFile> images = ImageFiles.nonEmpty(dto.getImages());
+    List<MultipartFile> images = MultipartFiles.nonEmpty(dto.getImages());
     adoptionPost.validateImageReplacement(imagesToKeep, images.size());
 
     // 1. 새 이미지 업로드 (실패 시 예외 발생, 파일 자동 삭제됨)

@@ -1,4 +1,4 @@
-package com.sns.marigold.global.config;
+package com.sns.marigold.storage.config;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -10,7 +10,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 @Configuration
 @EnableAsync
-public class AsyncConfig {
+public class StorageTaskExecutorConfig {
 
   @Bean(name = "storageTaskExecutor")
   public Executor storageTaskExecutor() {

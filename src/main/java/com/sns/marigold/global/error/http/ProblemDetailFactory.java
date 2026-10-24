@@ -10,6 +10,7 @@ import org.springframework.lang.Nullable;
 
 import com.sns.marigold.global.error.ErrorSpec;
 import com.sns.marigold.global.error.dto.ValidationViolation;
+import com.sns.marigold.global.web.RequestIdFilter;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AccessLevel;

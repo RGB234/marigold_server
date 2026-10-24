@@ -1,13 +1,13 @@
-package com.sns.marigold.global.validation.imagefile;
+package com.sns.marigold.global.web;
 
 import java.util.List;
 import java.util.Objects;
 
 import org.springframework.web.multipart.MultipartFile;
 
-public final class ImageFiles {
+public final class MultipartFiles {
 
-  private ImageFiles() {}
+  private MultipartFiles() {}
 
   public static List<MultipartFile> nonEmpty(List<MultipartFile> files) {
     if (files == null || files.isEmpty()) {

@@ -1,4 +1,4 @@
-package com.sns.marigold.global.error.http;
+package com.sns.marigold.global.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
