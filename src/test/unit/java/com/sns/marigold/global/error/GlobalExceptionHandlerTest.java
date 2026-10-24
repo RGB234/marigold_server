@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -60,5 +61,19 @@ class GlobalExceptionHandlerTest {
     ProblemDetail body = (ProblemDetail) response.getBody();
     assertThat(body.getStatus()).isEqualTo(HttpStatus.METHOD_NOT_ALLOWED.value());
     assertThat(body.getProperties()).containsEntry("errorCode", "INVALID_INPUT_VALUE");
+  }
+
+  @Test
+  void optimisticLockFailureReturnsConflict() {
+    GlobalExceptionHandler handler = new GlobalExceptionHandler(auditLogger, failureReporter);
+
+    ResponseEntity<ProblemDetail> response =
+        handler.handleOptimisticLockingFailure(
+            new ObjectOptimisticLockingFailureException("AdoptionPost", 1L),
+            new MockHttpServletRequest("PATCH", "/api/v1/adoption/1"));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    assertThat(response.getBody().getProperties())
+        .containsEntry("errorCode", "CONCURRENT_MODIFICATION");
   }
 }

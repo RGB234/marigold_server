@@ -3,6 +3,7 @@ package com.sns.marigold.global.error;
 import java.util.List;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -54,6 +55,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
     log.debug("Database unique conflict: errorCode={}", error.code());
     return problem(error, request, null);
+  }
+
+  @ExceptionHandler(OptimisticLockingFailureException.class)
+  public ResponseEntity<ProblemDetail> handleOptimisticLockingFailure(
+      OptimisticLockingFailureException exception, HttpServletRequest request) {
+    log.debug("Concurrent modification detected: {}", exception.getMessage());
+    return problem(CommonError.CONCURRENT_MODIFICATION, request, null);
   }
 
   @ExceptionHandler(ApplicationException.class)

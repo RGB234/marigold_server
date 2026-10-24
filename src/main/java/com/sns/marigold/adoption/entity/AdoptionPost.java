@@ -9,6 +9,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import org.hibernate.annotations.Check;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.DynamicUpdate;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -35,6 +36,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -67,6 +69,12 @@ public class AdoptionPost {
   private LocalDateTime modifiedAt;
 
   private LocalDateTime deletedAt;
+
+  // 동시 수정 시 나중 커밋이 앞선 변경을 덮어쓰지 않도록 낙관적 락 사용
+  @Version
+  @ColumnDefault("0")
+  @Column(nullable = false)
+  private Long version;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "writer_id", nullable = false)
