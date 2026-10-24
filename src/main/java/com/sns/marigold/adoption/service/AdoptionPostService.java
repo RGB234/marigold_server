@@ -318,18 +318,32 @@ public class AdoptionPostService {
     return detailResponseDto;
   }
 
+  /**
+   * AdoptiopPostStatus를 모집중 <-> 예약중 으로 변경합니다
+   *
+   * @param id 변경할 AdoptionPost ID
+   * @param status 변경할 AdoptionPostStatus
+   * @param writerId 변경할 AdoptionPost의 작성자
+   */
   @Transactional
-  public void updateStatus(Long id, AdoptionPostStatus status, Long userId) {
+  public void updateRecruitmentStatus(Long id, AdoptionPostStatus status, Long writerId) {
     AdoptionPost info = findEntityById(id);
 
     if (info.getDeletedAt() != null) {
       throw AdoptionPostException.forAdoptionPostDeleted();
     }
 
-    validateWriter(info, userId);
+    // 작성자만 변경 가능
+    validateWriter(info, writerId);
 
+    // 완료 상태라면 변경 불가
     if (info.getStatus() == AdoptionPostStatus.COMPLETED) {
       throw AdoptionPostException.forAdoptionPostAlreadyCompleted();
+    }
+
+    // 완료 상태로 변경하는 책임은 가지지 않음
+    if (status == AdoptionPostStatus.COMPLETED) {
+      throw AdoptionPostException.forAdoptionCompletionRequired();
     }
 
     info.updateStatus(status);

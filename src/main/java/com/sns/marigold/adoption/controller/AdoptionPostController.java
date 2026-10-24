@@ -221,7 +221,7 @@ public class AdoptionPostController {
   })
   @PreAuthorize("isAuthenticated()")
   @PatchMapping("/{id}/status")
-  public ResponseEntity<Void> updateStatus(
+  public ResponseEntity<Void> updateRecruitmentStatus(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id,
       @Parameter(description = "변경할 게시글 상태", required = true) @RequestParam("status")
@@ -230,7 +230,7 @@ public class AdoptionPostController {
     if (userId == null) {
       throw AuthException.forUnauthorized();
     }
-    adoptionPostService.updateStatus(id, status, userId);
+    adoptionPostService.updateRecruitmentStatus(id, status, userId);
     return ResponseEntity.noContent().build();
   }
 

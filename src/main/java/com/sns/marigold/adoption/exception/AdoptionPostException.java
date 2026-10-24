@@ -21,6 +21,10 @@ public class AdoptionPostException extends ApplicationException {
     return new AdoptionPostException(AdoptionError.POST_NOT_COMPLETED);
   }
 
+  public static AdoptionPostException forAdoptionCompletionRequired() {
+    return new AdoptionPostException(AdoptionError.POST_COMPLETION_REQUIRED);
+  }
+
   public static AdoptionPostException forAdoptionPostDeleted() {
     return new AdoptionPostException(AdoptionError.POST_DELETED);
   }

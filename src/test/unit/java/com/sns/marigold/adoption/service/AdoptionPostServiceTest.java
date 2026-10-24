@@ -420,26 +420,43 @@ class AdoptionPostServiceTest {
 
   @Test
   @DisplayName("게시글 상태 업데이트 시 정상적으로 반영된다.")
-  void updateStatus_Success() {
+  void updateRecruitmentStatus_Success() {
     // given
     given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
 
     // when
-    adoptionPostService.updateStatus(100L, AdoptionPostStatus.COMPLETED, 1L);
+    adoptionPostService.updateRecruitmentStatus(100L, AdoptionPostStatus.RESERVED, 1L);
 
     // then
-    assertThat(testPost.getStatus()).isEqualTo(AdoptionPostStatus.COMPLETED);
+    assertThat(testPost.getStatus()).isEqualTo(AdoptionPostStatus.RESERVED);
+  }
+
+  @Test
+  @DisplayName("일반 상태 변경으로 입양 완료를 요청하면 기존 상태를 유지하고 거부한다.")
+  void updateRecruitmentStatus_CompletedRejected() {
+    given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
+    AdoptionPostStatus previousStatus = testPost.getStatus();
+
+    assertThatThrownBy(
+            () ->
+                adoptionPostService.updateRecruitmentStatus(100L, AdoptionPostStatus.COMPLETED, 1L))
+        .isInstanceOf(AdoptionPostException.class)
+        .hasMessage(AdoptionPostException.forAdoptionCompletionRequired().getMessage());
+
+    assertThat(testPost.getStatus()).isEqualTo(previousStatus);
+    verifyNoInteractions(adoptionAdopterRepository);
   }
 
   @Test
   @DisplayName("작성자가 아니라면 게시글 상태 업데이트가 불가능하다.")
-  void updateStatus_NotWriter() {
+  void updateRecruitmentStatus_NotWriter() {
     // given
     given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
 
     // when & then
     assertThatThrownBy(
-            () -> adoptionPostService.updateStatus(100L, AdoptionPostStatus.COMPLETED, 2L))
+            () ->
+                adoptionPostService.updateRecruitmentStatus(100L, AdoptionPostStatus.COMPLETED, 2L))
         .isInstanceOf(AuthException.class)
         .hasMessageContaining(AuthException.forAccessDenied().getMessage());
   }

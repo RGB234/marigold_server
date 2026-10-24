@@ -4,6 +4,10 @@ import com.sns.marigold.global.error.ErrorSpec;
 import com.sns.marigold.global.error.FailureKind;
 
 public enum AdoptionError implements ErrorSpec {
+  POST_COMPLETION_REQUIRED(
+      "ADOPTION_POST_COMPLETION_REQUIRED",
+      "입양자를 지정하는 입양 완료 기능을 사용해 주세요.",
+      FailureKind.INVALID_INPUT),
   POST_NOT_FOUND("ADOPTION_POST_NOT_FOUND", "존재하지 않는 입양 게시글입니다.", FailureKind.NOT_FOUND),
   POST_ALREADY_COMPLETED(
       "ADOPTION_POST_ALREADY_COMPLETED", "이미 입양 완료된 게시글입니다.", FailureKind.CONFLICT),
