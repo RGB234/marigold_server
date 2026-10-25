@@ -140,18 +140,38 @@ SELECT
 FROM load_test_numbers
 WHERE n <= @load_test_post_count;
 
+INSERT INTO storage_file (
+  id,
+  stored_file_name,
+  original_file_name,
+  content_type,
+  file_size,
+  status,
+  created_at,
+  status_changed_at
+)
+SELECT
+  @load_test_image_id_base + n,
+  CONCAT(@load_test_image_prefix, '/', LPAD(n, 6, '0'), '.jpg'),
+  CONCAT('loadtest-', LPAD(n, 6, '0'), '.jpg'),
+  'image/jpeg',
+  0,
+  'ATTACHED',
+  TIMESTAMPADD(SECOND, -n, NOW()),
+  TIMESTAMPADD(SECOND, -n, NOW())
+FROM load_test_numbers
+WHERE n <= @load_test_post_count;
+
 INSERT INTO adoption_post_image (
   id,
   created_at,
-  stored_file_name,
-  original_file_name,
+  storage_file_id,
   adoption_post_id
 )
 SELECT
   @load_test_image_id_base + n,
   TIMESTAMPADD(SECOND, -n, NOW()),
-  CONCAT(@load_test_image_prefix, '/', LPAD(n, 6, '0'), '.jpg'),
-  CONCAT('loadtest-', LPAD(n, 6, '0'), '.jpg'),
+  @load_test_image_id_base + n,
   @load_test_post_id_base + n
 FROM load_test_numbers
 WHERE n <= @load_test_post_count;

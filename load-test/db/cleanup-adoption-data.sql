@@ -39,6 +39,26 @@ FROM chat_messages
 WHERE chat_room_id IN (SELECT id FROM load_test_room_ids)
    OR sender_id IN (SELECT id FROM load_test_user_ids);
 
+-- 파일 행은 도메인 행을 지운 뒤 지운다. 행이 없어진 파일은 고아 정리가 저장소에서 지운다
+DROP TEMPORARY TABLE IF EXISTS load_test_storage_file_ids;
+CREATE TEMPORARY TABLE load_test_storage_file_ids (id BIGINT PRIMARY KEY);
+
+INSERT IGNORE INTO load_test_storage_file_ids (id)
+SELECT cma.storage_file_id
+FROM chat_message_attachments cma
+JOIN load_test_message_ids m ON cma.chat_message_id = m.id;
+
+INSERT IGNORE INTO load_test_storage_file_ids (id)
+SELECT aci.storage_file_id
+FROM adoption_comment_image aci
+JOIN adoption_comment ac ON aci.adoption_comment_id = ac.id
+JOIN load_test_post_ids p ON ac.adoption_post_id = p.id;
+
+INSERT IGNORE INTO load_test_storage_file_ids (id)
+SELECT api.storage_file_id
+FROM adoption_post_image api
+JOIN load_test_post_ids p ON api.adoption_post_id = p.id;
+
 DELETE cma
 FROM chat_message_attachments cma
 JOIN load_test_message_ids m ON cma.chat_message_id = m.id;
@@ -92,6 +112,12 @@ JOIN load_test_post_ids p ON ap.id = p.id;
 DELETE u
 FROM users u
 JOIN load_test_user_ids ids ON u.id = ids.id;
+
+DELETE sf
+FROM storage_file sf
+JOIN load_test_storage_file_ids f ON sf.id = f.id;
+
+DROP TEMPORARY TABLE IF EXISTS load_test_storage_file_ids;
 
 DROP TEMPORARY TABLE IF EXISTS load_test_message_ids;
 DROP TEMPORARY TABLE IF EXISTS load_test_room_ids;
