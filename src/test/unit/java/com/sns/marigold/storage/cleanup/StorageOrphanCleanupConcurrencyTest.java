@@ -16,6 +16,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
+import com.sns.marigold.storage.repository.StorageFileRepository;
+import com.sns.marigold.storage.service.StorageFileService;
 import com.sns.marigold.storage.service.StorageService;
 
 class StorageOrphanCleanupConcurrencyTest {
@@ -38,6 +40,8 @@ class StorageOrphanCleanupConcurrencyTest {
     StorageOrphanCleanupService cleanupService =
         new StorageOrphanCleanupService(
             storageService,
+            mock(StorageFileService.class),
+            mock(StorageFileRepository.class),
             inventory,
             referenceRepository,
             new StorageCleanupProperties(

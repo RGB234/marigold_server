@@ -1,5 +1,6 @@
 package com.sns.marigold.storage.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -14,13 +15,18 @@ import com.sns.marigold.storage.config.StorageUploadProperties;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.dto.UploadIssueRequestDto;
 import com.sns.marigold.storage.dto.UploadIssueResponseDto;
+import com.sns.marigold.storage.entity.StorageFile;
+import com.sns.marigold.storage.entity.StorageFileStatus;
 import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.repository.StorageFileRepository;
 import com.sns.marigold.storage.service.UploadTokenCodec.UploadClaims;
 
 /**
  * 클라이언트 직접 업로드의 발급과 확정.
  *
- * <p>확정은 도메인 트랜잭션보다 먼저 호출한다. 그래야 어느 단계에서 실패해도 결과가 "참조되지 않은 파일"에서 끝나고, 그 파일은 고아 정리가 지운다.
+ * <p>발급하면 파일 행이 PENDING으로 생기고 파일은 pending/ 아래에 올라간다. 확정은 도메인 트랜잭션보다 먼저 호출해 파일을 정식 키로 옮기고, 도메인 트랜잭션이
+ * {@link StorageFileService#attach}로 행을 ATTACHED로 바꾼다. 어느 단계에서 실패해도 행은 PENDING으로 남고 고아 정리가 만료된
+ * PENDING의 파일을 지운다.
  */
 @Service
 public class StorageUploadService {
@@ -31,14 +37,16 @@ public class StorageUploadService {
 
   private final StorageService storageService;
   private final UploadTokenCodec uploadTokenCodec;
+  private final StorageFileRepository storageFileRepository;
   private final StorageUploadProperties properties;
 
   public StorageUploadService(
       StorageService storageService,
       UploadTokenCodec uploadTokenCodec,
+      StorageFileRepository storageFileRepository,
       StorageUploadProperties properties,
       StorageCleanupProperties cleanupProperties) {
-    // 토큰이 살아 있는 동안 고아 정리가 확정 전 파일을 지우면, 커밋된 행이 없는 파일을 가리키게 된다
+    // 토큰이 살아 있는 동안 고아 정리가 PENDING을 만료시키면, 확정한 파일이 지워진 뒤 그 파일을 가리키는 행이 커밋될 수 있다
     if (properties.tokenTtl().compareTo(cleanupProperties.minimumAge()) >= 0) {
       throw new IllegalStateException(
           "upload token ttl must be shorter than storage cleanup minimum age: tokenTtl="
@@ -55,6 +63,7 @@ public class StorageUploadService {
     }
     this.storageService = storageService;
     this.uploadTokenCodec = uploadTokenCodec;
+    this.storageFileRepository = storageFileRepository;
     this.properties = properties;
   }
 
@@ -64,11 +73,15 @@ public class StorageUploadService {
     if (files.size() > purpose.maxCount()) {
       throw StorageException.forFileCountExceeded(files.size(), purpose.maxCount());
     }
-    return files.stream().map(file -> issueOne(userId, purpose, file)).toList();
+    // 정책 위반이 하나라도 있으면 행을 남기지 않도록 모두 검사한 뒤 저장한다
+    List<IssuedUpload> issued =
+        files.stream().map(file -> issueOne(userId, purpose, file)).toList();
+    storageFileRepository.saveAll(issued.stream().map(IssuedUpload::file).toList());
+    return issued.stream().map(IssuedUpload::response).toList();
   }
 
   /**
-   * 토큰을 검증하고 실제 업로드된 파일의 크기와 형식을 검사한다. 실패해도 올라간 파일은 지우지 않고 고아 정리에 맡긴다.
+   * 토큰을 검증하고 실제 업로드된 파일의 크기와 형식을 검사한 뒤 정식 키로 옮긴다. 실패해도 올라간 파일은 지우지 않고 고아 정리에 맡긴다.
    *
    * @return 요청한 토큰 순서와 같은 확정 결과
    */
@@ -87,10 +100,13 @@ public class StorageUploadService {
     if (distinctCount != claimsList.size()) {
       throw StorageException.forInvalidUploadToken("duplicated");
     }
-    return claimsList.stream().map(this::inspectUploadedFile).toList();
+    // 하나라도 검사에 실패하면 아무것도 옮기지 않는다
+    List<FileUploadDto> confirmed = claimsList.stream().map(this::inspectUploadedFile).toList();
+    confirmed.forEach(file -> storageService.promoteUpload(file.getStoredFileName()));
+    return confirmed;
   }
 
-  private UploadIssueResponseDto issueOne(
+  private IssuedUpload issueOne(
       long userId, UploadPurpose purpose, UploadIssueRequestDto.FileItem file) {
     String fileName = file.getFileName();
     if (file.getSize() > purpose.maxSizeBytes()) {
@@ -108,15 +124,26 @@ public class StorageUploadService {
             .map(MediaType::toString)
             .orElse(MediaType.APPLICATION_OCTET_STREAM_VALUE);
 
-    return UploadIssueResponseDto.builder()
-        .uploadUrl(
-            storageService.createUploadUrl(
-                storedFileName, contentType, file.getSize(), properties.urlTtl()))
-        .contentType(contentType)
-        .uploadToken(
-            uploadTokenCodec.issue(
-                storedFileName, userId, purpose, fileName, contentType, file.getSize()))
-        .build();
+    StorageFile storageFile =
+        StorageFile.builder()
+            .storedFileName(storedFileName)
+            .originalFileName(fileName)
+            .contentType(contentType)
+            .fileSize(file.getSize())
+            .status(StorageFileStatus.PENDING)
+            .statusChangedAt(LocalDateTime.now())
+            .build();
+    UploadIssueResponseDto response =
+        UploadIssueResponseDto.builder()
+            .uploadUrl(
+                storageService.createUploadUrl(
+                    storedFileName, contentType, file.getSize(), properties.urlTtl()))
+            .contentType(contentType)
+            .uploadToken(
+                uploadTokenCodec.issue(
+                    storedFileName, userId, purpose, fileName, contentType, file.getSize()))
+            .build();
+    return new IssuedUpload(storageFile, response);
   }
 
   private UploadClaims verifyToken(long userId, UploadPurpose purpose, String token) {
@@ -152,6 +179,8 @@ public class StorageUploadService {
         .fileSize(claims.size())
         .build();
   }
+
+  private record IssuedUpload(StorageFile file, UploadIssueResponseDto response) {}
 
   private String extensionOf(String fileName) {
     int extensionStart = fileName.lastIndexOf('.');

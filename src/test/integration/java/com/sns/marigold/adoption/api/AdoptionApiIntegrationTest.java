@@ -29,7 +29,10 @@ import com.sns.marigold.adoption.repository.AdoptionPostImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.global.web.UrlConstants;
+import com.sns.marigold.storage.entity.StorageFileStatus;
+import com.sns.marigold.storage.repository.StorageFileRepository;
 import com.sns.marigold.storage.service.UploadPurpose;
+import com.sns.marigold.storage.service.UploadTokenCodec;
 import com.sns.marigold.support.ApiIntegrationTest;
 import com.sns.marigold.user.entity.User;
 
@@ -38,6 +41,10 @@ public class AdoptionApiIntegrationTest extends ApiIntegrationTest {
   @Autowired private AdoptionPostRepository adoptionPostRepository;
 
   @Autowired private AdoptionPostImageRepository adoptionPostImageRepository;
+
+  @Autowired private StorageFileRepository storageFileRepository;
+
+  @Autowired private UploadTokenCodec uploadTokenCodec;
 
   @Nullable private AdoptionPost defaultPost;
 
@@ -247,6 +254,55 @@ public class AdoptionApiIntegrationTest extends ApiIntegrationTest {
                     "Authorization", "Bearer " + getAccessToken(Objects.requireNonNull(tester2))))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.status").value(403));
+  }
+
+  @Test
+  @DisplayName("파일 행은 발급 시 PENDING, 게시글에 쓰면 ATTACHED, 교체·삭제되면 DELETED가 된다")
+  void storageFileStatusFollowsPostLifecycle() throws Exception {
+    User writer = Objects.requireNonNull(tester1);
+    String firstToken = issueJpegUploadToken(writer, UploadPurpose.ADOPTION_POST_IMAGE);
+    String secondToken = issueJpegUploadToken(writer, UploadPurpose.ADOPTION_POST_IMAGE);
+    String firstFile = uploadTokenCodec.verify(firstToken).storedFileName();
+    String secondFile = uploadTokenCodec.verify(secondToken).storedFileName();
+    assertEquals(StorageFileStatus.PENDING, statusOf(firstFile));
+
+    String response =
+        mockMvc
+            .perform(
+                post(UrlConstants.ADOPTION_BASE)
+                    .header("Authorization", "Bearer " + getAccessToken(writer))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(json(postBody("Test Title", "12345678901234567890", firstToken))))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String postId = objectMapper.readTree(response).get("id").asText();
+    assertEquals(StorageFileStatus.ATTACHED, statusOf(firstFile));
+
+    mockMvc
+        .perform(
+            patch(UrlConstants.ADOPTION_BASE + "/{id}", postId)
+                .header("Authorization", "Bearer " + getAccessToken(writer))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(updateBody(secondToken))))
+        .andExpect(status().isNoContent());
+    assertEquals(StorageFileStatus.DELETED, statusOf(firstFile));
+    assertEquals(StorageFileStatus.ATTACHED, statusOf(secondFile));
+
+    mockMvc
+        .perform(
+            delete(UrlConstants.ADOPTION_BASE + "/{id}", postId)
+                .header("Authorization", "Bearer " + getAccessToken(writer)))
+        .andExpect(status().isNoContent());
+    assertEquals(StorageFileStatus.DELETED, statusOf(secondFile));
+  }
+
+  private StorageFileStatus statusOf(String storedFileName) {
+    return storageFileRepository
+        .findAllByStoredFileNameIn(List.of(storedFileName))
+        .get(0)
+        .getStatus();
   }
 
   @Test

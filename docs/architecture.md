@@ -31,8 +31,8 @@ flowchart LR
     Storage -->|s3| S3["Amazon S3"]
 ```
 
-REST는 데이터 조회·변경과 업로드 URL 발급을, STOMP는 실시간 텍스트 메시지 송수신을 담당합니다. 파일 본문은 클라이언트가 저장소에 직접 올리고 DB에는 저장
-파일명, 원본 파일명 등의 메타데이터를 보관합니다.
+REST는 데이터 조회·변경과 업로드 URL 발급을, STOMP는 실시간 텍스트 메시지 송수신을 담당합니다. 파일 본문은 클라이언트가 저장소에 직접 올리고, DB의
+`storage_file` 테이블이 저장 파일명, 원본 파일명 등의 메타데이터와 파일 상태를 보관합니다.
 
 저장소 구현은 `app.storage.type`으로 선택합니다. 저장소에 포함된 `local` 프로필은 로컬 파일시스템을, `prod` 프로필은 S3를 사용합니다. 위 그림은
 코드의 연결 구조이며 실제 서비스의 가동 상태를 의미하지 않습니다.
@@ -45,7 +45,7 @@ REST는 데이터 조회·변경과 업로드 URL 발급을, STOMP는 실시간 
 - `user`: 사용자, 프로필 이미지, 자격 증명 연결과 계정 관리
 - `adoption`: 입양 게시글, 이미지, 댓글과 답글, 입양자 확정
 - `chat`: 게시글 기반 채팅방, 참여자, 메시지와 첨부파일
-- `storage`: 공통 저장 계약, 로컬 파일시스템/S3 구현, 트랜잭션 이후 파일 삭제와 고아 파일 정리
+- `storage`: 공통 저장 계약, 로컬 파일시스템/S3 구현, 파일 행(`storage_file`)의 상태 관리, 트랜잭션 이후 파일 삭제와 고아 파일 정리
 - `global`: 공통 설정, 검증 정책, 오류 응답과 TSID 변환
 - `audit`: 인증, 권한, 삭제 등 주요 행위의 감사 로그
 
@@ -106,6 +106,10 @@ erDiagram
     CHAT_ROOM ||--o{ CHAT_MESSAGE : contains
     USER ||--o{ CHAT_MESSAGE : sends
     CHAT_MESSAGE ||--o{ CHAT_MESSAGE_ATTACHMENT : has
+    STORAGE_FILE ||--o| USER_IMAGE : stores
+    STORAGE_FILE ||--o| ADOPTION_POST_IMAGE : stores
+    STORAGE_FILE ||--o| ADOPTION_COMMENT_IMAGE : stores
+    STORAGE_FILE ||--o| CHAT_MESSAGE_ATTACHMENT : stores
 ```
 
 - 게시글은 작성자와 연결되고 이미지·댓글을 가집니다. 댓글은 선택적으로 부모 댓글을 참조하며, 댓글 생성 시 부모가 같은 게시글에 속하는지 검사합니다.
@@ -116,6 +120,9 @@ erDiagram
 - 참여자의 나가기는 행 삭제 대신 `leavedAt`을 기록하고, 재참여 시 이를 지웁니다. 방 종료 상태 `CLOSED`와 개별 사용자의 나가기 상태는 별개입니다.
 - 게시글 삭제는 `deletedAt`을 기록하는 논리 삭제입니다. 관련 댓글 정리, 채팅방 종료와 파일 삭제 이벤트가 함께 수행되며, 모든 연관 데이터의 물리 삭제를 뜻하지
   않습니다.
+
+- 파일 메타데이터는 `storage_file`에만 있습니다. 4개 파일 테이블(`user_image`, `adoption_post_image`, `adoption_comment_image`,
+  `chat_message_attachments`)은 `storage_file_id`로 참조하며, `uk_*_stored_file` 유일 제약이 한 파일을 두 행이 공유하지 못하게 합니다.
 
 - `AdoptionPost`와 `AdoptionComment`는 `version` 컬럼으로 낙관적 락을 사용합니다. 동시 수정으로 나중 커밋이 실패하면 `409 CONCURRENT_MODIFICATION`을
   반환합니다. JPQL bulk update는 `version`을 올리지 않습니다.
@@ -202,67 +209,93 @@ DB 커밋과 STOMP 발행은 원자적이지 않습니다. 현재 발행 경로�
 
 ## 파일 저장과 정합성
 
+### 파일 상태와 저장 위치
+
+파일 본문은 서버를 거치지 않습니다. 파일마다 `storage_file` 행이 하나 있고, 상태에 따라 저장 위치가 다릅니다.
+
+| 상태 | 언제 | 저장 위치 |
+|------|------|-----------|
+| `PENDING` | `POST /storage/uploads`로 URL을 발급할 때 | 클라이언트가 `pending/{저장 파일명}`에 직접 `PUT` |
+| `ATTACHED` | 도메인 저장 트랜잭션이 행을 참조할 때 | 확정 단계가 정식 키 `{저장 파일명}`으로 옮김 |
+| `DELETED` | 교체·삭제로 더 참조하지 않을 때 | 커밋 후 저장소에서 삭제. 행은 이력으로 남음 |
+
+`pending/`은 확정 전 파일만 두는 임시 영역입니다. 운영 S3는 이 prefix에 Lifecycle 만료 규칙을 걸어, 등록되지 않은 업로드를 저장소가 직접
+지우게 합니다. 규칙은 [실행과 운영](operations.md)에 있습니다. 로컬 저장소는 같은 경로 구조를 쓰고 고아 정리가 지웁니다.
+
 ### 저장소 계약과 트랜잭션 경계
 
-파일 본문은 서버를 거치지 않습니다. 클라이언트가 `POST /storage/uploads`로 파일마다 업로드 URL과 업로드 토큰을 받아 저장소에 직접 `PUT`하고,
-도메인 요청에는 토큰만 보냅니다. 도메인 서비스는 업로드 확정을 `StorageUploadService`에, 파일 삭제와 조회·다운로드 URL 생성을 `StorageService`에
-요청합니다. `LocalStorageService`, `S3StorageService`가 실제 저장소에 접근합니다.
+도메인 서비스는 다음 순서로 파일을 연결합니다.
 
-업로드 토큰은 저장 파일명, 업로더, 용도, 크기, 만료 시각을 HMAC으로 서명한 값입니다. 확정은 토큰의 서명·만료·업로더·용도를 검사한 뒤 저장소의 실제 크기와
-앞 64KB로 감지한 형식을 검사합니다. 다른 사용자의 파일이나 임의의 저장 키를 도메인에 연결하지 못하게 하는 것이 토큰의 역할입니다.
+1. **확정 (트랜잭션 밖)**: `StorageUploadService.confirm`이 토큰을 검증하고, `pending/` 파일의 실제 크기와 앞 64KB로 감지한 형식을 검사한 뒤
+   정식 키로 옮깁니다. 하나라도 검사에 실패하면 아무것도 옮기지 않습니다.
+2. **연결 (트랜잭션 안)**: `StorageFileService.attach`가 `PENDING → ATTACHED`로 바꾸고, 도메인 행은 그 `StorageFile`을 FK로 참조합니다.
+   이미 쓴 업로드가 섞여 있으면 `409 UPLOAD_ALREADY_USED`로 트랜잭션 전체가 롤백됩니다.
 
-파일 저장소는 MySQL 트랜잭션에 참여하지 않습니다. 그래서 확정을 DB 트랜잭션보다 먼저 실행하고, 이후 어느 단계에서 실패해도 결과가 "참조되지 않은 파일"에서
-끝나게 합니다. 서비스는 새 파일을 직접 지우지 않고 고아 파일 정리에 맡깁니다. DB가 없는 파일을 가리키는 상태는 생기지 않습니다.
+업로드 토큰은 저장 파일명, 업로더, 용도, 크기, 만료 시각을 HMAC으로 서명한 값입니다. 다른 사용자의 파일이나 임의의 저장 키를 도메인에 연결하지 못하게
+하는 것이 토큰의 역할입니다.
 
-| 호출 경로                   | 업로드 확정과 DB 트랜잭션                                                         |
-|-------------------------|-------------------------------------------------------------------------|
-| 게시글 생성·수정, 댓글 생성·수정    | 트랜잭션 밖에서 확정 후 `TransactionTemplate`으로 DB 변경                                     |
-| 프로필 변경 `updateUser`     | 트랜잭션 밖에서 확정 후 `TransactionTemplate`으로 DB 변경                                     |
-| 채팅 첨부 `saveFileMessage` | 클래스 기본 트랜잭션을 `NOT_SUPPORTED`로 끄고, 권한 사전 검사 → 확정 → `TransactionTemplate`으로 메시지 저장 |
+파일 저장소는 MySQL 트랜잭션에 참여하지 않습니다. 그래서 확정을 DB 트랜잭션보다 먼저 실행하고, 이후 어느 단계에서 실패해도 행이 `PENDING`으로
+남게 합니다. 서비스는 새 파일을 직접 지우지 않고 고아 정리에 맡깁니다. DB가 없는 파일을 가리키는 상태는 생기지 않습니다. 확정 뒤 저장이 실패하면
+`pending/` 파일은 이미 옮겨졌으므로, 같은 토큰으로 다시 보내면 `UPLOAD_INCOMPLETE`입니다. 클라이언트는 파일을 다시 올려야 합니다.
+
+| 호출 경로                   | 확정과 DB 트랜잭션                                                                         |
+|-------------------------|-------------------------------------------------------------------------------------|
+| 게시글 생성·수정, 댓글 생성·수정    | 트랜잭션 밖에서 확정 후 `TransactionTemplate` 안에서 `attach`와 DB 변경                                  |
+| 프로필 변경 `updateUser`     | 트랜잭션 밖에서 확정 후 `TransactionTemplate` 안에서 `attach`와 DB 변경                                  |
+| 채팅 첨부 `saveFileMessage` | 클래스 기본 트랜잭션을 `NOT_SUPPORTED`로 끄고, 권한 사전 검사 → 확정 → `TransactionTemplate` 안에서 `attach`와 메시지 저장 |
 
 확정은 파일마다 저장소에 요청을 보내므로, 그동안 DB 커넥션을 점유하지 않도록 트랜잭션 밖에서 실행합니다. 이를 위해 OSIV(`spring.jpa.open-in-view`)를 꺼서
 커넥션을 트랜잭션 동안만 사용합니다. 트랜잭션 밖에서 읽은 엔티티는 지연 로딩할 수 없으므로 사전 검사도 트랜잭션 안에서 하고, 저장 트랜잭션에서 다시 조회해
-확정하는 동안 생긴 변경(예: 게시글 삭제)을 다시 검사합니다.
+확정하는 동안 생긴 변경(예: 게시글 삭제)을 다시 검사합니다. 파일 테이블의 `getStoredFileName()` 등은 지연 로딩되는 `storage_file`을 읽으므로
+역시 트랜잭션 안에서만 호출합니다.
 
-업로드 토큰 유효시간(`app.storage.upload.token-ttl`, 기본 1시간)은 고아 정리 `minimum-age`보다 짧아야 합니다. 어긋나면 확정 전인 파일을 정리가
-지운 뒤 그 파일을 가리키는 행이 커밋될 수 있어, 앱이 기동 시 이 관계를 검사하고 시작을 거부합니다.
+업로드 토큰 유효시간(`app.storage.upload.token-ttl`, 기본 1시간)은 고아 정리 `minimum-age`보다 짧아야 합니다. 어긋나면 고아 정리가 아직 쓸 수
+있는 토큰의 `PENDING`을 만료시켜 파일을 지운 뒤, 그 파일을 가리키는 행이 커밋될 수 있어 앱이 기동 시 이 관계를 검사하고 시작을 거부합니다.
 
 ### 커밋·롤백 이후 파일 삭제
 
-- 확정했지만 커밋되지 않은 새 파일은 삭제하지 않고 고아 파일 정리에 맡깁니다. 사용자가 파일을 올린 뒤 등록하지 않은 경우도 같습니다.
-- 교체·제거한 기존 파일은 `DeleteOldStorageFilesEvent`를 등록하고 `AFTER_COMMIT`에 삭제를 시도합니다.
+- 확정했지만 커밋되지 않은 새 파일은 삭제하지 않고 고아 정리에 맡깁니다. 사용자가 파일을 올린 뒤 등록하지 않은 경우도 같습니다.
+- 교체·제거한 기존 파일은 `DeleteOldStorageFilesEvent`를 등록합니다. 동기 리스너가 같은 트랜잭션에서 행을 `ATTACHED → DELETED`로 바꾸고,
+  `AFTER_COMMIT` 리스너가 저장소 삭제를 시도합니다. 도메인 서비스는 이벤트만 발행하면 됩니다.
 
-이벤트 리스너는 `storageTaskExecutor`를 사용하는 비동기 작업입니다. 다만 실행기와 큐가 포화되면 `CallerRunsPolicy`에 따라 호출 스레드에서
+삭제 리스너는 `storageTaskExecutor`를 사용하는 비동기 작업입니다. 다만 실행기와 큐가 포화되면 `CallerRunsPolicy`에 따라 호출 스레드에서
 실행될 수 있습니다.
 
-삭제는 `best-effort`입니다. 삭제 실패는 로그로 남기며 이미 커밋된 DB 변경을 되돌리지 않습니다. 이벤트와 실행기 큐가 영속 저장되지 않으므로 프로세스 종료나 저장소
-장애가 발생하면 파일이 남을 수 있습니다.
+삭제는 `best-effort`입니다. 삭제 실패는 로그로 남기며 이미 커밋된 DB 변경을 되돌리지 않습니다. 이벤트와 실행기 큐는 영속 저장되지 않지만, 행이
+`DELETED`로 남으므로 남은 파일은 고아 정리의 저장소 스캔이 지웁니다.
 
-근거: [StorageUploadService](../src/main/java/com/sns/marigold/storage/service/StorageUploadService.java), [UploadTokenCodec](../src/main/java/com/sns/marigold/storage/service/UploadTokenCodec.java), [StorageEventListener](../src/main/java/com/sns/marigold/storage/event/StorageEventListener.java), [StorageTaskExecutorConfig](../src/main/java/com/sns/marigold/storage/config/StorageTaskExecutorConfig.java).
+근거: [StorageUploadService](../src/main/java/com/sns/marigold/storage/service/StorageUploadService.java), [StorageFileService](../src/main/java/com/sns/marigold/storage/service/StorageFileService.java), [UploadTokenCodec](../src/main/java/com/sns/marigold/storage/service/UploadTokenCodec.java), [StorageEventListener](../src/main/java/com/sns/marigold/storage/event/StorageEventListener.java), [StorageTaskExecutorConfig](../src/main/java/com/sns/marigold/storage/config/StorageTaskExecutorConfig.java).
 
 ### 고아 파일 정리
 
-`StorageOrphanCleanupService`는 저장소 파일 목록과 DB의 파일 참조를 비교합니다. `user_image`, `adoption_post_image`,
-`adoption_comment_image`, `chat_message_attachments`에서 참조하지 않고 마지막 수정 시각이 `minimumAge`보다 오래된 파일만 정리
-후보로 삼습니다.
+`StorageOrphanCleanupService`는 한 번 실행할 때 두 단계를 거칩니다.
 
-저장소 목록은 1,000개 이하의 페이지로 받고, 페이지마다 그 파일명만 `IN` 조회로 참조 여부를 확인한 뒤 바로 정리합니다. 메모리에는 한 페이지와 로그
-샘플만 남으므로 사용량이 전체 파일 수와 무관합니다. 실행 중 실패하면 앞 페이지의 후보는 이미 삭제됐을 수 있습니다. 파일명을 저장하는 테이블을 추가하면
-[StorageFileReferenceRepository](../src/main/java/com/sns/marigold/storage/cleanup/StorageFileReferenceRepository.java)의
-조회에도 넣어야 합니다. 빠지면 그 테이블이 참조하는 파일이 정리 대상이 됩니다.
+1. **만료된 PENDING 정리 (주 경로)**: `created_at`이 `minimumAge`보다 오래된 `PENDING` 행을 1,000개씩 읽어, `pending/`과 정식 키의
+   파일을 지우고 `DELETED`로 바꿉니다. 토큰 TTL이 `minimumAge`보다 짧으므로 이 행들은 더 확정될 수 없습니다. 파일을 먼저 지우므로 상태 변경이
+   실패해도 다음 실행이 다시 처리합니다.
+2. **저장소 스캔 (안전망)**: 저장소 목록을 1,000개 이하의 페이지로 받아, `PENDING`·`ATTACHED` 행이 없고 마지막 수정 시각이 `minimumAge`보다
+   오래된 파일을 지웁니다. 커밋 후 삭제에 실패한 `DELETED` 파일이 여기서 지워집니다. `pending/` 키는 저장 파일명 형식이 아니라서 스캔에서
+   빠집니다.
 
-실행 방식은 `off`, `startup`, `scheduled`, `both`이며 `dryRun=true`이면 후보만 기록합니다. 현재 저장소 설정은 다음과 같습니다.
+참조 여부는 `storage_file` 한 테이블만 봅니다. 파일을 저장하는 도메인 테이블을 추가해도 `storage_file`을 FK로 참조하면 정리 쿼리는 바꾸지
+않습니다. 메모리에는 한 페이지와 로그 샘플만 남으므로 사용량이 전체 파일 수와 무관합니다. 실행 중 실패하면 앞 페이지의 후보는 이미 삭제됐을 수
+있습니다.
 
-- `local`: 시작 시 실행, `minimum-age=24h`, `dry-run=false`로 실제 삭제 시도.
-- `prod`: 예약 실행(매일 04:00, Asia/Seoul), `minimum-age=24h`, `dry-run=false`로 실제 삭제 시도.
+실행 방식은 `off`, `startup`, `scheduled`, `both`이며 `dryRun=true`이면 두 단계 모두 후보만 기록합니다. 코드 기본값은 `mode=off`, `dry-run=true`이고,
+현재 프로필 설정은 다음과 같습니다.
 
-클라이언트 직접 업로드에서는 이 작업이 새 파일의 유일한 정리 수단입니다. 올린 뒤 등록하지 않은 파일이 평소에도 생기므로, `dry-run=true`이면 이런 파일이
-계속 쌓입니다.
+- `local`: 시작 시 실행, `minimum-age=24h`, `dry-run=false`
+- `prod`: 매일 04:00(Asia/Seoul) 예약 실행, `minimum-age=24h`, `dry-run=false`
+ 클라이언트 직접 업로드에서는 이 작업이 로컬 저장소의 새 파일을 지우는 유일한 수단이고, 운영에서는 `pending/`
+Lifecycle 규칙과 함께 동작합니다.
 
-이 작업은 DB에 참조가 남아 있는 파일을 정리하지 않습니다. 따라서 모든 파일 삭제 실패를 복구하는 장치는 아닙니다. 실행 중복 방지는 프로세스 내부
-`AtomicBoolean`으로만 이루어집니다.
+이 작업은 `ATTACHED` 파일을 정리하지 않습니다. 실행 중복 방지는 프로세스 내부 `AtomicBoolean`으로만 이루어집니다.
 
-근거: [StorageOrphanCleanupService](../src/main/java/com/sns/marigold/storage/cleanup/StorageOrphanCleanupService.java), [StorageFileReferenceRepository](../src/main/java/com/sns/marigold/storage/cleanup/StorageFileReferenceRepository.java), [로컬 설정](../src/main/resources/application-local.yml), [운영 설정](../src/main/resources/application-prod.yml).
+> [!WARNING]
+> `storage_file` 행이 없는 파일은 저장소 스캔이 고아로 봅니다. 기존 데이터가 있는 DB는 [실행과 운영](operations.md)의 마이그레이션으로 행을
+> 백필한 뒤에 정리 작업을 켜야 합니다.
+
+근거: [StorageOrphanCleanupService](../src/main/java/com/sns/marigold/storage/cleanup/StorageOrphanCleanupService.java), [StorageFileReferenceRepository](../src/main/java/com/sns/marigold/storage/cleanup/StorageFileReferenceRepository.java), [StorageCleanupProperties](../src/main/java/com/sns/marigold/storage/cleanup/StorageCleanupProperties.java).
 
 ## 공통 정책과 현재 제약
 
@@ -300,10 +333,12 @@ DB 커밋과 STOMP 발행은 원자적이지 않습니다. 현재 발행 경로�
   작성자 권한, 일반 상태 변경의 완료 전환 거부, 입양 취소, 업로드 확정 실패와 저장 실패 시 처리.
 - [StorageUploadServiceTest](../src/test/unit/java/com/sns/marigold/storage/service/StorageUploadServiceTest.java):
   토큰 위조·만료·업로더·용도 불일치, 크기와 형식 검사.
+- [StorageFileServiceTest](../src/test/unit/java/com/sns/marigold/storage/service/StorageFileServiceTest.java):
+  PENDING이 아닌 업로드를 연결하면 `UPLOAD_ALREADY_USED`, 상태 전이 조건.
 - [StorageEventListenerTest](../src/test/component/java/com/sns/marigold/storage/event/StorageEventListenerTest.java):
   커밋·롤백, 외부 트랜잭션 롤백과 커밋 직전 실패에 따른 파일 정리.
 - [StorageOrphanCleanupServiceTest](../src/test/unit/java/com/sns/marigold/storage/cleanup/StorageOrphanCleanupServiceTest.java):
-  참조 여부·파일 나이·dry-run에 따른 정리 대상, 페이지 단위 조회와 삭제.
+  만료된 PENDING 정리, 참조 여부·파일 나이·dry-run에 따른 정리 대상, 페이지 단위 조회와 삭제.
 - [ChatIntegrationTest](../src/test/integration/java/com/sns/marigold/chat/api/ChatIntegrationTest.java):
   실제 애플리케이션과 DB를 사용하는 채팅 동작.
 

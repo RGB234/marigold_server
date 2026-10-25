@@ -52,8 +52,10 @@ import com.sns.marigold.chat.repository.ChatMessageAttachmentRepository;
 import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
+import com.sns.marigold.storage.StorageFileFixtures;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.service.StorageFileService;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
@@ -79,6 +81,8 @@ class ChatServiceTest {
 
   @Mock private StorageUploadService storageUploadService;
 
+  @Mock private StorageFileService storageFileService;
+
   @Mock private TransactionTemplate transactionTemplate;
 
   @InjectMocks private ChatService chatService;
@@ -91,6 +95,10 @@ class ChatServiceTest {
 
   @BeforeEach
   void setUp() {
+    org.mockito.Mockito.lenient()
+        .when(storageFileService.attach(org.mockito.ArgumentMatchers.any()))
+        .thenAnswer(StorageFileFixtures.attachConfirmed());
+
     lenient()
         .doAnswer(
             invocation -> {

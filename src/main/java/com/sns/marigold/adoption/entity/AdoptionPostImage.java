@@ -5,10 +5,13 @@ import java.time.LocalDateTime;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import com.sns.marigold.storage.entity.StorageFile;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -34,7 +37,7 @@ import lombok.NoArgsConstructor;
     uniqueConstraints =
         @UniqueConstraint(
             name = "uk_adoption_post_image_stored_file",
-            columnNames = "stored_file_name"))
+            columnNames = "storage_file_id"))
 public class AdoptionPostImage {
 
   @Id
@@ -46,19 +49,26 @@ public class AdoptionPostImage {
   @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
-  // 스토리지에 저장된 실제 파일명 (삭제 시 필요)
-  @Column(nullable = false)
-  private String storedFileName;
-
-  // 사용자가 올린 원본 파일명 (다운로드용)
-  @Column(nullable = false)
-  private String originalFileName;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(
+      name = "storage_file_id",
+      nullable = false,
+      foreignKey = @ForeignKey(name = "fk_adoption_post_image_storage_file"))
+  private StorageFile storageFile;
 
   // FK
   // AdoptionPost의 mappedBy="adoptionPost"와 이름이 일치해야 함
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "adoption_post_id", nullable = false)
   private AdoptionPost adoptionPost;
+
+  public String getStoredFileName() {
+    return storageFile.getStoredFileName();
+  }
+
+  public String getOriginalFileName() {
+    return storageFile.getOriginalFileName();
+  }
 
   public void setAdoptionPost(AdoptionPost adoptionPost) {
     this.adoptionPost = adoptionPost;

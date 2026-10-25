@@ -1,6 +1,8 @@
 package com.sns.marigold.storage.cleanup;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.never;
@@ -8,6 +10,7 @@ import static org.mockito.Mockito.verify;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -18,6 +21,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.sns.marigold.storage.entity.StorageFile;
+import com.sns.marigold.storage.entity.StorageFileStatus;
+import com.sns.marigold.storage.repository.StorageFileRepository;
+import com.sns.marigold.storage.service.StorageFileService;
 import com.sns.marigold.storage.service.StorageService;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +39,8 @@ class StorageOrphanCleanupServiceTest {
       "adoption/comment/44444444-4444-4444-4444-444444444444.jpg";
 
   @Mock private StorageService storageService;
+  @Mock private StorageFileService storageFileService;
+  @Mock private StorageFileRepository storageFileRepository;
   @Mock private StorageFileInventory inventory;
   @Mock private StorageFileReferenceRepository referenceRepository;
 
@@ -39,9 +48,7 @@ class StorageOrphanCleanupServiceTest {
 
   @BeforeEach
   void setUp() {
-    cleanupService =
-        new StorageOrphanCleanupService(
-            storageService, inventory, referenceRepository, properties(false));
+    cleanupService = cleanupService(false);
   }
 
   @Test
@@ -78,15 +85,64 @@ class StorageOrphanCleanupServiceTest {
 
   @Test
   void dryRunDoesNotDeleteOrphans() {
-    cleanupService =
-        new StorageOrphanCleanupService(
-            storageService, inventory, referenceRepository, properties(true));
+    cleanupService = cleanupService(true);
     givenPages(List.of(new StoredFile(OLD_ORPHAN, Instant.now().minus(Duration.ofDays(2)))));
     given(referenceRepository.findReferenced(List.of(OLD_ORPHAN))).willReturn(Set.of());
 
     cleanupService.cleanup();
 
     verify(storageService, never()).deleteFilesBestEffort(any());
+  }
+
+  @Test
+  void discardsExpiredPendingUploadsAndMarksThemDeleted() {
+    givenExpiredPending(pending(1L, OLD_ORPHAN), pending(2L, OTHER_OLD_ORPHAN));
+
+    cleanupService.cleanup();
+
+    verify(storageService).discardUploadBestEffort(OLD_ORPHAN);
+    verify(storageService).discardUploadBestEffort(OTHER_OLD_ORPHAN);
+    verify(storageFileService).expirePending(List.of(OLD_ORPHAN, OTHER_OLD_ORPHAN));
+  }
+
+  @Test
+  void dryRunKeepsExpiredPendingUploads() {
+    cleanupService = cleanupService(true);
+    givenExpiredPending(pending(1L, OLD_ORPHAN));
+
+    cleanupService.cleanup();
+
+    verify(storageService, never()).discardUploadBestEffort(anyString());
+    verify(storageFileService, never()).expirePending(any());
+  }
+
+  private void givenExpiredPending(StorageFile... files) {
+    given(
+            storageFileRepository.findTop1000ByStatusAndCreatedAtBeforeAndIdGreaterThanOrderByIdAsc(
+                eq(StorageFileStatus.PENDING), any(LocalDateTime.class), eq(0L)))
+        .willReturn(List.of(files));
+  }
+
+  private static StorageFile pending(long id, String storedFileName) {
+    return StorageFile.builder()
+        .id(id)
+        .storedFileName(storedFileName)
+        .originalFileName("original.jpg")
+        .contentType("image/jpeg")
+        .fileSize(1L)
+        .status(StorageFileStatus.PENDING)
+        .statusChangedAt(LocalDateTime.now().minusDays(2))
+        .build();
+  }
+
+  private StorageOrphanCleanupService cleanupService(boolean dryRun) {
+    return new StorageOrphanCleanupService(
+        storageService,
+        storageFileService,
+        storageFileRepository,
+        inventory,
+        referenceRepository,
+        properties(dryRun));
   }
 
   @SafeVarargs

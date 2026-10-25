@@ -6,7 +6,9 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.Objects;
@@ -37,8 +39,8 @@ public class LocalStorageService extends AbstractStorageService {
   private final LocalStorageUrlSigner localStorageUrlSigner;
 
   @Override
-  protected void deleteStoredFile(String storedFileName) throws IOException {
-    Files.deleteIfExists(resolveStoredFile(storedFileName));
+  protected void deleteStoredFile(String key) throws IOException {
+    Files.deleteIfExists(resolveKey(key));
   }
 
   @Override
@@ -101,7 +103,7 @@ public class LocalStorageService extends AbstractStorageService {
 
   @Override
   public StoredFileHead readFileHead(String storedFileName, int maxBytes) {
-    Path filePath = resolveStoredFile(storedFileName);
+    Path filePath = resolvePendingFile(storedFileName);
     if (!Files.isRegularFile(filePath)) {
       throw StorageException.forUploadIncomplete(storedFileName);
     }
@@ -112,9 +114,24 @@ public class LocalStorageService extends AbstractStorageService {
     }
   }
 
+  @Override
+  public void promoteUpload(String storedFileName) {
+    Path pendingPath = resolvePendingFile(storedFileName);
+    Path targetPath = resolveStoredFile(storedFileName);
+    try {
+      Files.createDirectories(targetPath.getParent());
+      Files.move(pendingPath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+    } catch (NoSuchFileException e) {
+      throw StorageException.forUploadIncomplete(storedFileName);
+    } catch (IOException e) {
+      throw StorageException.forFileUploadFailed(e);
+    }
+  }
+
+  // 업로드 URL은 정식 경로 그대로 쓰고, 파일은 확정 전까지 pending/ 아래에 둔다
   public void storeUploadedFile(
       String storedFileName, InputStream inputStream, long contentLength) {
-    Path targetPath = resolveStoredFile(storedFileName);
+    Path targetPath = resolvePendingFile(storedFileName);
     long maxSize =
         UploadPurpose.ofStoredFileName(storedFileName)
             .map(UploadPurpose::maxSizeBytes)
@@ -123,9 +140,14 @@ public class LocalStorageService extends AbstractStorageService {
       throw StorageException.forFileSizeExceeded(storedFileName, contentLength, maxSize);
     }
 
+    // 확정 뒤 같은 URL로 다시 올린 파일은 어떤 행도 가리키지 않아 정리되지 않는다
+    if (Files.exists(resolveStoredFile(storedFileName))) {
+      throw StorageException.forFileUploadFailed(new FileAlreadyExistsException(storedFileName));
+    }
+
     try {
       Files.createDirectories(targetPath.getParent());
-      // 같은 URL로 확정된 파일을 덮어쓰지 못하게 새 파일로만 쓴다
+      // 같은 URL로 올린 파일을 덮어쓰지 못하게 새 파일로만 쓴다
       try (OutputStream outputStream =
           Files.newOutputStream(targetPath, StandardOpenOption.CREATE_NEW)) {
         long copied = inputStream.transferTo(outputStream);
@@ -162,9 +184,17 @@ public class LocalStorageService extends AbstractStorageService {
 
   private Path resolveStoredFile(String storedFileName) {
     validateStoredFileName(storedFileName);
+    return resolveKey(storedFileName);
+  }
 
+  private Path resolvePendingFile(String storedFileName) {
+    validateStoredFileName(storedFileName);
+    return resolveKey(StorageDirectory.pendingKey(storedFileName));
+  }
+
+  private Path resolveKey(String key) {
     Path rootPath = storageRoot();
-    Path filePath = rootPath.resolve(storedFileName).normalize();
+    Path filePath = rootPath.resolve(key).normalize();
     if (!filePath.startsWith(rootPath)) {
       throw StorageException.forFileNotFound();
     }

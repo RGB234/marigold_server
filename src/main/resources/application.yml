@@ -5,6 +5,9 @@ spring:
     include: oauth
   jpa:
     open-in-view: false # DB 커넥션을 요청 내내 쥐지 않고 트랜잭션 동안만 사용
+    properties:
+      hibernate:
+        default_batch_fetch_size: 100 # 이미지 목록의 storage_file 지연 로딩을 IN 조회로 묶는다
 
 server:
   servlet:

@@ -12,7 +12,7 @@ import com.sns.marigold.adoption.entity.AdoptionCommentImage;
 public interface AdoptionCommentImageRepository extends JpaRepository<AdoptionCommentImage, Long> {
 
   @Query(
-      "SELECT i.storedFileName FROM AdoptionCommentImage i "
+      "SELECT i.storageFile.storedFileName FROM AdoptionCommentImage i "
           + "WHERE i.adoptionComment.id IN ("
           + "  SELECT c.id FROM AdoptionComment c WHERE c.adoptionPost.id = :postId"
           + ")")

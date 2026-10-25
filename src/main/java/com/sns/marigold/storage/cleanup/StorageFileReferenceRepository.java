@@ -14,21 +14,16 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class StorageFileReferenceRepository {
 
-  // 파일을 저장하는 테이블을 추가하면 여기에도 넣어야 한다. 빠지면 고아 정리가 그 테이블의 파일을 지운다
+  // 도메인 테이블은 storage_file을 FK로 참조하므로 이 테이블만 보면 된다. DELETED는 지워야 할 파일이다
   private static final String FIND_REFERENCED_STORED_FILE_NAMES =
       """
-      SELECT stored_file_name FROM user_image WHERE stored_file_name IN (:names)
-      UNION ALL
-      SELECT stored_file_name FROM adoption_post_image WHERE stored_file_name IN (:names)
-      UNION ALL
-      SELECT stored_file_name FROM adoption_comment_image WHERE stored_file_name IN (:names)
-      UNION ALL
-      SELECT stored_file_name FROM chat_message_attachments WHERE stored_file_name IN (:names)
+      SELECT stored_file_name FROM storage_file
+      WHERE stored_file_name IN (:names) AND status <> 'DELETED'
       """;
 
   private final NamedParameterJdbcTemplate jdbcTemplate;
 
-  /** 주어진 파일명 중 DB가 참조하는 것만 돌려준다. */
+  /** 주어진 파일명 중 PENDING·ATTACHED 행이 있는 것만 돌려준다. */
   public Set<String> findReferenced(Collection<String> storedFileNames) {
     if (storedFileNames.isEmpty()) {
       return Set.of();

@@ -172,6 +172,30 @@ class LocalStorageControllerTest {
         .isEqualTo("hello".getBytes(StandardCharsets.UTF_8));
   }
 
+  @Test
+  void viewFile_NotPromotedYet() throws Exception {
+    String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
+    mockMvc
+        .perform(put(URI.create(uploadUrl(storedFileName, 5))).content("hello"))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(get(URI.create(storageService.getViewUrlOrNull(storedFileName))))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void uploadFile_RejectedAfterPromotion() throws Exception {
+    String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
+    String url = uploadUrl(storedFileName, 5);
+    mockMvc.perform(put(URI.create(url)).content("hello")).andExpect(status().isOk());
+    storageService.promoteUpload(storedFileName);
+
+    mockMvc.perform(put(URI.create(url)).content("other")).andExpect(status().is5xxServerError());
+
+    assertThat(tempDir.resolve(StorageDirectory.pendingKey(storedFileName))).doesNotExist();
+  }
+
   private String uploadUrl(String storedFileName, long size) {
     return storageService.createUploadUrl(
         storedFileName, "image/png", size, Duration.ofMinutes(15));
@@ -182,6 +206,7 @@ class LocalStorageControllerTest {
     byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
     storageService.storeUploadedFile(
         storedFileName, new ByteArrayInputStream(content), content.length);
+    storageService.promoteUpload(storedFileName);
     return storedFileName;
   }
 }

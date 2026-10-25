@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -29,8 +30,11 @@ import com.sns.marigold.storage.config.StorageUploadProperties;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.dto.UploadIssueRequestDto;
 import com.sns.marigold.storage.dto.UploadIssueResponseDto;
+import com.sns.marigold.storage.entity.StorageFile;
+import com.sns.marigold.storage.entity.StorageFileStatus;
 import com.sns.marigold.storage.exception.StorageError;
 import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.repository.StorageFileRepository;
 
 @ExtendWith(MockitoExtension.class)
 class StorageUploadServiceTest {
@@ -44,6 +48,7 @@ class StorageUploadServiceTest {
       new StorageUploadProperties("test-secret", Duration.ofMinutes(15), Duration.ofHours(1));
 
   @Mock private StorageService storageService;
+  @Mock private StorageFileRepository storageFileRepository;
 
   private UploadTokenCodec uploadTokenCodec;
   private StorageUploadService uploadService;
@@ -55,6 +60,7 @@ class StorageUploadServiceTest {
         new StorageUploadService(
             storageService,
             uploadTokenCodec,
+            storageFileRepository,
             PROPERTIES,
             cleanupWithMinimumAge(Duration.ofHours(24)));
   }
@@ -66,6 +72,7 @@ class StorageUploadServiceTest {
                 new StorageUploadService(
                     storageService,
                     uploadTokenCodec,
+                    storageFileRepository,
                     PROPERTIES,
                     cleanupWithMinimumAge(PROPERTIES.tokenTtl())))
         .isInstanceOf(IllegalStateException.class);
@@ -81,6 +88,7 @@ class StorageUploadServiceTest {
                 new StorageUploadService(
                     storageService,
                     uploadTokenCodec,
+                    storageFileRepository,
                     properties,
                     cleanupWithMinimumAge(Duration.ofHours(24))))
         .isInstanceOf(IllegalStateException.class);
@@ -107,6 +115,33 @@ class StorageUploadServiceTest {
     assertThat(claims.userId()).isEqualTo(USER_ID);
     verify(storageService)
         .createUploadUrl(claims.storedFileName(), "image/jpeg", 100L, PROPERTIES.urlTtl());
+    verify(storageFileRepository)
+        .saveAll(
+            argThat(
+                (List<StorageFile> files) ->
+                    files.size() == 1
+                        && files.get(0).getStoredFileName().equals(claims.storedFileName())
+                        && files.get(0).getOriginalFileName().equals("Cat.JPG")
+                        && files.get(0).getContentType().equals("image/jpeg")
+                        && files.get(0).getFileSize() == 100L
+                        && files.get(0).getStatus() == StorageFileStatus.PENDING));
+  }
+
+  @Test
+  void issue_SavesNothingWhenAnyFileIsInvalid() {
+    given(storageService.createUploadUrl(anyString(), anyString(), anyLong(), any()))
+        .willReturn("https://upload.example/url");
+
+    assertError(
+        () ->
+            uploadService.issue(
+                USER_ID,
+                request(
+                    UploadPurpose.ADOPTION_POST_IMAGE,
+                    file("cat.jpg", 100),
+                    file("memo.pdf", 100))),
+        StorageError.FILE_INVALID);
+    verify(storageFileRepository, never()).saveAll(any());
   }
 
   @Test
@@ -155,6 +190,23 @@ class StorageUploadServiceTest {
     assertThat(result.get(0).getOriginalFileName()).isEqualTo("original.png");
     assertThat(result.get(0).getContentType()).isEqualTo("image/png");
     assertThat(result.get(0).getFileSize()).isEqualTo(PNG_BYTES.length);
+    verify(storageService).promoteUpload("adoption/post/a.png");
+  }
+
+  @Test
+  void confirm_PromotesNothingWhenAnyFileFails() {
+    String first = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
+    String second = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/b.png");
+    givenStoredFile("adoption/post/a.png", PNG_BYTES);
+    given(storageService.readFileHead("adoption/post/b.png", StorageUploadService.DETECTION_BYTES))
+        .willThrow(StorageException.forUploadIncomplete("adoption/post/b.png"));
+
+    assertError(
+        () ->
+            uploadService.confirm(
+                USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, List.of(first, second)),
+        StorageError.UPLOAD_INCOMPLETE);
+    verify(storageService, never()).promoteUpload(anyString());
   }
 
   @Test

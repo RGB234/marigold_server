@@ -55,9 +55,11 @@ import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.chat.service.ChatService;
+import com.sns.marigold.storage.StorageFileFixtures;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.service.StorageFileService;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
@@ -73,6 +75,8 @@ class AdoptionPostServiceTest {
   @Mock private StorageService storageService;
 
   @Mock private StorageUploadService storageUploadService;
+
+  @Mock private StorageFileService storageFileService;
 
   @Mock private AdoptionCommentService adoptionCommentService;
 
@@ -106,6 +110,10 @@ class AdoptionPostServiceTest {
 
   @BeforeEach
   void setUp() {
+    org.mockito.Mockito.lenient()
+        .when(storageFileService.attach(org.mockito.ArgumentMatchers.any()))
+        .thenAnswer(StorageFileFixtures.attachConfirmed());
+
     testUser =
         User.builder()
             .id(1L)
@@ -119,12 +127,14 @@ class AdoptionPostServiceTest {
         new ArrayList<>(
             List.of(
                 AdoptionPostImage.builder()
-                    .storedFileName("adoption/post/11111111-1111-1111-1111-111111111111.jpg")
-                    .originalFileName("old1.jpg")
+                    .storageFile(
+                        StorageFileFixtures.attached(
+                            "adoption/post/11111111-1111-1111-1111-111111111111.jpg", "old1.jpg"))
                     .build(),
                 AdoptionPostImage.builder()
-                    .storedFileName("adoption/post/22222222-2222-2222-2222-222222222222.jpg")
-                    .originalFileName("old2.jpg")
+                    .storageFile(
+                        StorageFileFixtures.attached(
+                            "adoption/post/22222222-2222-2222-2222-222222222222.jpg", "old2.jpg"))
                     .build()));
 
     testPost =
@@ -490,15 +500,21 @@ class AdoptionPostServiceTest {
     // given
     testPost.addImage(
         AdoptionPostImage.builder()
-            .storedFileName("adoption/post/55555555-5555-5555-5555-555555555555.jpg")
+            .storageFile(
+                StorageFileFixtures.attached(
+                    "adoption/post/55555555-5555-5555-5555-555555555555.jpg", "image.jpg"))
             .build());
     testPost.addImage(
         AdoptionPostImage.builder()
-            .storedFileName("adoption/post/66666666-6666-6666-6666-666666666666.jpg")
+            .storageFile(
+                StorageFileFixtures.attached(
+                    "adoption/post/66666666-6666-6666-6666-666666666666.jpg", "image.jpg"))
             .build());
     testPost.addImage(
         AdoptionPostImage.builder()
-            .storedFileName("adoption/post/77777777-7777-7777-7777-777777777777.jpg")
+            .storageFile(
+                StorageFileFixtures.attached(
+                    "adoption/post/77777777-7777-7777-7777-777777777777.jpg", "image.jpg"))
             .build());
 
     given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));

@@ -5,10 +5,13 @@ import java.time.LocalDateTime;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import com.sns.marigold.storage.entity.StorageFile;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -34,7 +37,7 @@ import lombok.NoArgsConstructor;
     uniqueConstraints =
         @UniqueConstraint(
             name = "uk_chat_message_attachments_stored_file",
-            columnNames = "stored_file_name"))
+            columnNames = "storage_file_id"))
 public class ChatMessageAttachment {
 
   @Id
@@ -46,21 +49,32 @@ public class ChatMessageAttachment {
   @JoinColumn(name = "chat_message_id", nullable = false)
   private ChatMessage chatMessage;
 
-  @Column(nullable = false)
-  private String storedFileName;
-
-  @Column(nullable = false)
-  private String originalFileName;
-
-  @Column(nullable = false)
-  private String contentType;
-
-  @Column(nullable = false)
-  private long fileSize;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(
+      name = "storage_file_id",
+      nullable = false,
+      foreignKey = @ForeignKey(name = "fk_chat_message_attachments_storage_file"))
+  private StorageFile storageFile;
 
   @CreatedDate
   @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt;
+
+  public String getStoredFileName() {
+    return storageFile.getStoredFileName();
+  }
+
+  public String getOriginalFileName() {
+    return storageFile.getOriginalFileName();
+  }
+
+  public String getContentType() {
+    return storageFile.getContentType();
+  }
+
+  public long getFileSize() {
+    return storageFile.getFileSize();
+  }
 
   public void setChatMessage(ChatMessage chatMessage) {
     this.chatMessage = chatMessage;

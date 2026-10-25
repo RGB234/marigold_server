@@ -28,8 +28,10 @@ import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.tsid.TsidCodec;
+import com.sns.marigold.storage.StorageFileFixtures;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.service.StorageFileService;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
@@ -50,6 +52,8 @@ class UserServiceTest {
 
   @Mock private StorageUploadService storageUploadService;
 
+  @Mock private StorageFileService storageFileService;
+
   @Mock private TransactionTemplate transactionTemplate;
 
   @Mock private ApplicationEventPublisher eventPublisher;
@@ -65,6 +69,10 @@ class UserServiceTest {
   @BeforeEach
   @SuppressWarnings("null")
   void setUp() {
+    org.mockito.Mockito.lenient()
+        .when(storageFileService.attach(org.mockito.ArgumentMatchers.any()))
+        .thenAnswer(StorageFileFixtures.attachConfirmed());
+
     testUser =
         User.builder()
             .id(1L)
@@ -285,8 +293,9 @@ class UserServiceTest {
     testUser.update(
         "tester",
         UserImage.builder()
-            .storedFileName("user/profile/22222222-2222-2222-2222-222222222222.jpg")
-            .originalFileName("old.jpg")
+            .storageFile(
+                StorageFileFixtures.attached(
+                    "user/profile/22222222-2222-2222-2222-222222222222.jpg", "old.jpg"))
             .build());
 
     UserUpdateDto dto = new UserUpdateDto();
@@ -323,8 +332,9 @@ class UserServiceTest {
     testUser.update(
         "tester",
         UserImage.builder()
-            .storedFileName("user/profile/22222222-2222-2222-2222-222222222222.jpg")
-            .originalFileName("old.jpg")
+            .storageFile(
+                StorageFileFixtures.attached(
+                    "user/profile/22222222-2222-2222-2222-222222222222.jpg", "old.jpg"))
             .build());
 
     UserUpdateDto dto = new UserUpdateDto();
@@ -354,7 +364,8 @@ class UserServiceTest {
   void updateUser_RemoveImageWithUpload_SkipsConfirm() {
     String oldFile = "user/profile/22222222-2222-2222-2222-222222222222.jpg";
     testUser.update(
-        "tester", UserImage.builder().storedFileName(oldFile).originalFileName("old.jpg").build());
+        "tester",
+        UserImage.builder().storageFile(StorageFileFixtures.attached(oldFile, "old.jpg")).build());
     UserUpdateDto dto = new UserUpdateDto();
     dto.setNickname("newNickname");
     dto.setRemoveImage(true);
@@ -378,8 +389,9 @@ class UserServiceTest {
     testUser.update(
         "tester",
         UserImage.builder()
-            .storedFileName("user/profile/22222222-2222-2222-2222-222222222222.jpg")
-            .originalFileName("old.jpg")
+            .storageFile(
+                StorageFileFixtures.attached(
+                    "user/profile/22222222-2222-2222-2222-222222222222.jpg", "old.jpg"))
             .build());
 
     given(userRepository.findById(1L)).willReturn(Optional.of(testUser));

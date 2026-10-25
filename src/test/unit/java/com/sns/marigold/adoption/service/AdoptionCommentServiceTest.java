@@ -39,8 +39,10 @@ import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.exception.AuthException;
+import com.sns.marigold.storage.StorageFileFixtures;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.service.StorageFileService;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
@@ -62,6 +64,8 @@ class AdoptionCommentServiceTest {
 
   @Mock private StorageUploadService storageUploadService;
 
+  @Mock private StorageFileService storageFileService;
+
   @Mock private TransactionTemplate transactionTemplate;
 
   @Mock private ApplicationEventPublisher eventPublisher;
@@ -75,6 +79,10 @@ class AdoptionCommentServiceTest {
 
   @BeforeEach
   void setUp() {
+    org.mockito.Mockito.lenient()
+        .when(storageFileService.attach(org.mockito.ArgumentMatchers.any()))
+        .thenAnswer(StorageFileFixtures.attachConfirmed());
+
     adoptionCommentService =
         new AdoptionCommentService(
             adoptionCommentRepository,
@@ -83,6 +91,7 @@ class AdoptionCommentServiceTest {
             userService,
             storageService,
             storageUploadService,
+            storageFileService,
             transactionTemplate,
             eventPublisher,
             adoptionCommentImageRepository);
@@ -94,8 +103,10 @@ class AdoptionCommentServiceTest {
         AdoptionComment.builder().adoptionPost(post).writer(writer).content("comment").build();
     comment.addImage(
         AdoptionCommentImage.builder()
-            .storedFileName("adoption/comment/11111111-1111-1111-1111-111111111111.jpg")
-            .originalFileName("comment-image-1.jpg")
+            .storageFile(
+                StorageFileFixtures.attached(
+                    "adoption/comment/11111111-1111-1111-1111-111111111111.jpg",
+                    "comment-image-1.jpg"))
             .build());
 
     org.mockito.Mockito.lenient()

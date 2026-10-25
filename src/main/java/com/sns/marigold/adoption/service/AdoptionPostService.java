@@ -37,9 +37,11 @@ import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageError;
 import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.service.StorageFileService;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
@@ -58,6 +60,7 @@ public class AdoptionPostService {
   private final UserService userService;
   private final StorageService storageService;
   private final StorageUploadService storageUploadService;
+  private final StorageFileService storageFileService;
   private final AdoptionCommentService adoptionCommentService;
   private final ChatService chatService;
 
@@ -85,13 +88,13 @@ public class AdoptionPostService {
     User writer = userService.findEntityById(writerId);
     AdoptionPost adoptionPost = dto.toEntity(writer);
 
-    // 확정은 트랜잭션 밖에서 한다. 이후 어디서 실패해도 확정된 파일은 참조되지 않은 채 남고 고아 정리가 지운다
+    // 확정은 트랜잭션 밖에서 한다. 이후 어디서 실패해도 파일 행은 PENDING으로 남고 고아 정리가 지운다
     List<FileUploadDto> confirmedImages =
         storageUploadService.confirm(writerId, UploadPurpose.ADOPTION_POST_IMAGE, uploadTokens);
 
     return transactionTemplate.execute(
         status -> {
-          adoptionPost.changeImages(toPostImages(confirmedImages));
+          adoptionPost.changeImages(toPostImages(storageFileService.attach(confirmedImages)));
           return adoptionPostRepository.save(adoptionPost).getId();
         });
   }
@@ -107,9 +110,8 @@ public class AdoptionPostService {
                 .validateImageReplacement(imagesToKeep, uploadTokens.size()));
 
     // 1. 새 이미지 확정 (트랜잭션 외부에서 수행하여 DB 커넥션 점유 최소화)
-    List<AdoptionPostImage> newImages =
-        toPostImages(
-            storageUploadService.confirm(userId, UploadPurpose.ADOPTION_POST_IMAGE, uploadTokens));
+    List<FileUploadDto> confirmedImages =
+        storageUploadService.confirm(userId, UploadPurpose.ADOPTION_POST_IMAGE, uploadTokens);
 
     AdoptionPostEditor editor =
         AdoptionPostEditor.builder()
@@ -137,7 +139,8 @@ public class AdoptionPostService {
                   .collect(Collectors.toList());
 
           // 이미지 교체 (유지할 것은 두고, 삭제할 것은 지우고, 새것은 추가)
-          info.replaceImages(imagesToKeep, newImages);
+          info.replaceImages(
+              imagesToKeep, toPostImages(storageFileService.attach(confirmedImages)));
 
           // 3. 트랜잭션 안에서 이벤트 발행 -> 커밋 성공 시에만 리스너 동작
           if (!storedFileNamesToDelete.isEmpty()) {
@@ -155,14 +158,9 @@ public class AdoptionPostService {
     return adoptionPost;
   }
 
-  private List<AdoptionPostImage> toPostImages(List<FileUploadDto> confirmedImages) {
-    return confirmedImages.stream()
-        .map(
-            image ->
-                AdoptionPostImage.builder()
-                    .storedFileName(image.getStoredFileName())
-                    .originalFileName(image.getOriginalFileName())
-                    .build())
+  private List<AdoptionPostImage> toPostImages(List<StorageFile> storageFiles) {
+    return storageFiles.stream()
+        .map(file -> AdoptionPostImage.builder().storageFile(file).build())
         .toList();
   }
 

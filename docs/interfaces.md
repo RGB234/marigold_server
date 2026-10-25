@@ -23,7 +23,9 @@ REST API의 공통 prefix는 `/api/v1`입니다. 상세 경로, 요청 필드와
 3. 도메인 API의 JSON 본문에 토큰을 담아 보냅니다. 게시글·댓글·채팅은 `uploadTokens` 목록, 프로필은 `imageUploadToken`입니다.
 
 업로드 URL은 기본 15분, 토큰은 기본 1시간 동안 유효합니다. 토큰이 위조·만료되었거나 다른 사용자·용도의 것이면 `UPLOAD_TOKEN_INVALID`, 파일이 없거나
-크기가 다르면 `UPLOAD_INCOMPLETE`로 `400`을 반환합니다. 둘 다 파일을 다시 발급받아 올려야 합니다. `/storage/files/**`는 로컬 프로필에서만
+크기가 다르면 `UPLOAD_INCOMPLETE`로 `400`을 반환합니다. 둘 다 파일을 다시 발급받아 올려야 합니다. 토큰은 한 번만 쓸 수 있습니다. 이미 다른
+행에 연결한 토큰은 `409 UPLOAD_ALREADY_USED`이고, 확정 뒤 저장이 실패한 요청의 토큰을 다시 보내면 `UPLOAD_INCOMPLETE`입니다. 요청을 다시
+보낼 때는 업로드부터 다시 합니다. `/storage/files/**`는 로컬 프로필에서만
 활성화되며, 운영 프로필은 S3 URL을 사용합니다.
 
 ## 인증과 CSRF

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.sns.marigold.storage.config.LocalStorageProperties;
+import com.sns.marigold.storage.exception.StorageError;
 import com.sns.marigold.storage.exception.StorageException;
 
 class LocalStorageServiceTest {
@@ -20,7 +21,7 @@ class LocalStorageServiceTest {
   @TempDir Path tempDir;
 
   @Test
-  @DisplayName("PUT으로 받은 로컬 파일을 조회할 수 있다")
+  @DisplayName("PUT으로 받은 로컬 파일은 확정 후 조회할 수 있다")
   void storeUploadedFileAndReadFile() throws Exception {
     LocalStorageService storageService = localStorageService();
     String storedFileName = "chat/attachment/11111111-1111-1111-1111-111111111111.txt";
@@ -28,11 +29,49 @@ class LocalStorageServiceTest {
 
     storageService.storeUploadedFile(
         storedFileName, new ByteArrayInputStream(content), content.length);
+    assertThat(tempDir.resolve(StorageDirectory.pendingKey(storedFileName))).isRegularFile();
+    assertThatThrownBy(() -> storageService.readFile(storedFileName))
+        .isInstanceOf(StorageException.class);
+
+    storageService.promoteUpload(storedFileName);
     LocalStorageService.LocalStoredFile storedFile = storageService.readFile(storedFileName);
 
     assertThat(tempDir.resolve(storedFileName)).isRegularFile();
+    assertThat(tempDir.resolve(StorageDirectory.pendingKey(storedFileName))).doesNotExist();
     assertThat(storedFile.contentType()).isEqualTo("text/plain");
     assertThat(storedFile.resource().getContentAsString(StandardCharsets.UTF_8)).isEqualTo("hello");
+  }
+
+  @Test
+  @DisplayName("올리지 않은 파일은 확정할 수 없다")
+  void promoteUpload_Missing() {
+    LocalStorageService storageService = localStorageService();
+
+    assertThatThrownBy(
+            () ->
+                storageService.promoteUpload(
+                    "chat/attachment/11111111-1111-1111-1111-111111111111.txt"))
+        .isInstanceOfSatisfying(
+            StorageException.class,
+            e -> assertThat(e.getErrorSpec()).isEqualTo(StorageError.UPLOAD_INCOMPLETE));
+  }
+
+  @Test
+  @DisplayName("등록되지 않은 업로드는 pending/과 정식 경로 파일을 모두 지운다")
+  void discardUpload_DeletesBothPaths() throws Exception {
+    LocalStorageService storageService = localStorageService();
+    String promoted = "adoption/post/11111111-1111-1111-1111-111111111111.png";
+    String pending = "adoption/post/22222222-2222-2222-2222-222222222222.png";
+    byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
+    storageService.storeUploadedFile(promoted, new ByteArrayInputStream(content), content.length);
+    storageService.promoteUpload(promoted);
+    storageService.storeUploadedFile(pending, new ByteArrayInputStream(content), content.length);
+
+    storageService.discardUploadBestEffort(promoted);
+    storageService.discardUploadBestEffort(pending);
+
+    assertThat(tempDir.resolve(promoted)).doesNotExist();
+    assertThat(tempDir.resolve(StorageDirectory.pendingKey(pending))).doesNotExist();
   }
 
   @Test

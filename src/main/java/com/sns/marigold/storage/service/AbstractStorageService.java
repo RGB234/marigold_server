@@ -29,7 +29,21 @@ public abstract class AbstractStorageService implements StorageService {
     }
   }
 
-  protected abstract void deleteStoredFile(String storedFileName) throws IOException;
+  @Override
+  public void discardUploadBestEffort(String storedFileName) {
+    Objects.requireNonNull(storedFileName, "storedFileName must not be null");
+    try {
+      validateStoredFileName(storedFileName);
+      deleteStoredFile(StorageDirectory.pendingKey(storedFileName));
+      // 확정은 했지만 도메인 저장이 실패한 경우 정식 키에도 남아 있다
+      deleteStoredFile(storedFileName);
+    } catch (Exception e) {
+      log.warn("event=storage_discard_failed storedFileName={}", storedFileName, e);
+    }
+  }
+
+  /** 키를 검증하지 않고 지웁니다. 호출자가 {@link #validateStoredFileName}으로 검증한 키만 넘깁니다. */
+  protected abstract void deleteStoredFile(String key) throws IOException;
 
   protected String sanitizeContentDispositionFileName(String fileName) {
     if (fileName == null || fileName.isBlank()) {

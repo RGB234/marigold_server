@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.sns.marigold.adoption.entity.AdoptionComment;
 import com.sns.marigold.adoption.entity.AdoptionCommentImage;
@@ -40,6 +41,8 @@ public class AdoptionCommentApiIntegrationTest extends ApiIntegrationTest {
   @Autowired private AdoptionCommentRepository adoptionCommentRepository;
 
   @Autowired private AdoptionCommentImageRepository adoptionCommentImageRepository;
+
+  @Autowired private TransactionTemplate transactionTemplate;
 
   private Long postId;
 
@@ -175,9 +178,12 @@ public class AdoptionCommentApiIntegrationTest extends ApiIntegrationTest {
         .andExpect(status().isNoContent());
   }
 
+  // 파일명은 지연 로딩되는 storage_file에 있어 트랜잭션 안에서 읽는다
   private List<String> storedCommentImages() {
-    return adoptionCommentImageRepository.findAll().stream()
-        .map(AdoptionCommentImage::getStoredFileName)
-        .toList();
+    return transactionTemplate.execute(
+        status ->
+            adoptionCommentImageRepository.findAll().stream()
+                .map(AdoptionCommentImage::getStoredFileName)
+                .toList());
   }
 }

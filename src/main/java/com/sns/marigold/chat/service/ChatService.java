@@ -35,7 +35,9 @@ import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.service.StorageFileService;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
@@ -58,6 +60,7 @@ public class ChatService {
   private final RoomParticipantRepository participantRepository;
   private final StorageService storageService;
   private final StorageUploadService storageUploadService;
+  private final StorageFileService storageFileService;
   private final TransactionTemplate transactionTemplate;
 
   public ChatRoomDto getChatRoom(@NonNull Long roomId, @NonNull Long currentUserId) {
@@ -193,7 +196,7 @@ public class ChatService {
       throw ChatException.forEmptyMessage();
     }
 
-    // 저장이 실패해도 확정된 파일은 고아 정리가 지운다
+    // 저장이 실패해도 파일 행은 PENDING으로 남고 고아 정리가 지운다
     List<FileUploadDto> confirmedFiles =
         storageUploadService.confirm(currentUserId, UploadPurpose.CHAT_ATTACHMENT, tokens);
     return transactionTemplate.execute(
@@ -210,14 +213,9 @@ public class ChatService {
                   .message(normalizedMessage)
                   .build();
 
-          for (FileUploadDto confirmedFile : confirmedFiles) {
+          for (StorageFile storageFile : storageFileService.attach(confirmedFiles)) {
             chatMessage.addAttachment(
-                ChatMessageAttachment.builder()
-                    .storedFileName(confirmedFile.getStoredFileName())
-                    .originalFileName(confirmedFile.getOriginalFileName())
-                    .contentType(confirmedFile.getContentType())
-                    .fileSize(confirmedFile.getFileSize())
-                    .build());
+                ChatMessageAttachment.builder().storageFile(storageFile).build());
           }
 
           ChatMessage savedMessage = chatMessageRepository.saveAndFlush(chatMessage);

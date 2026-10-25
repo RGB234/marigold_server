@@ -5,10 +5,13 @@ import java.time.LocalDateTime;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import com.sns.marigold.storage.entity.StorageFile;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -34,7 +37,7 @@ import lombok.NoArgsConstructor;
     uniqueConstraints =
         @UniqueConstraint(
             name = "uk_adoption_comment_image_stored_file",
-            columnNames = "stored_file_name"))
+            columnNames = "storage_file_id"))
 public class AdoptionCommentImage {
 
   @Id
@@ -46,15 +49,24 @@ public class AdoptionCommentImage {
   @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
-  @Column(nullable = false)
-  private String storedFileName;
-
-  @Column(nullable = false)
-  private String originalFileName;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(
+      name = "storage_file_id",
+      nullable = false,
+      foreignKey = @ForeignKey(name = "fk_adoption_comment_image_storage_file"))
+  private StorageFile storageFile;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "adoption_comment_id", nullable = false)
   private AdoptionComment adoptionComment;
+
+  public String getStoredFileName() {
+    return storageFile.getStoredFileName();
+  }
+
+  public String getOriginalFileName() {
+    return storageFile.getOriginalFileName();
+  }
 
   public void setAdoptionComment(AdoptionComment adoptionComment) {
     this.adoptionComment = adoptionComment;

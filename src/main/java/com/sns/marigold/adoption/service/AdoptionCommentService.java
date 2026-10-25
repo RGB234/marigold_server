@@ -26,7 +26,9 @@ import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.service.StorageFileService;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
@@ -45,6 +47,7 @@ public class AdoptionCommentService {
   private final UserService userService;
   private final StorageService storageService;
   private final StorageUploadService storageUploadService;
+  private final StorageFileService storageFileService;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
   private final AdoptionCommentImageRepository adoptionCommentImageRepository;
@@ -88,7 +91,7 @@ public class AdoptionCommentService {
       }
     }
 
-    // 확정은 트랜잭션 밖에서 한다. 저장이 실패해도 확정된 파일은 고아 정리가 지운다
+    // 확정은 트랜잭션 밖에서 한다. 저장이 실패해도 파일 행은 PENDING으로 남고 고아 정리가 지운다
     List<FileUploadDto> confirmedImages =
         storageUploadService.confirm(userId, UploadPurpose.ADOPTION_COMMENT_IMAGE, uploadTokens);
 
@@ -104,7 +107,8 @@ public class AdoptionCommentService {
                   .content(dto.getContent())
                   .build();
 
-          for (AdoptionCommentImage image : toCommentImages(confirmedImages)) {
+          for (AdoptionCommentImage image :
+              toCommentImages(storageFileService.attach(confirmedImages))) {
             comment.addImage(image);
           }
 
@@ -145,7 +149,7 @@ public class AdoptionCommentService {
                     .map(AdoptionCommentImage::getStoredFileName)
                     .collect(Collectors.toList());
 
-            comment.changeImages(toCommentImages(confirmedImages));
+            comment.changeImages(toCommentImages(storageFileService.attach(confirmedImages)));
 
             if (!imagesToDelete.isEmpty()) {
               eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
@@ -154,14 +158,9 @@ public class AdoptionCommentService {
         });
   }
 
-  private List<AdoptionCommentImage> toCommentImages(List<FileUploadDto> confirmedImages) {
-    return confirmedImages.stream()
-        .map(
-            image ->
-                AdoptionCommentImage.builder()
-                    .storedFileName(image.getStoredFileName())
-                    .originalFileName(image.getOriginalFileName())
-                    .build())
+  private List<AdoptionCommentImage> toCommentImages(List<StorageFile> storageFiles) {
+    return storageFiles.stream()
+        .map(file -> AdoptionCommentImage.builder().storageFile(file).build())
         .collect(Collectors.toList());
   }
 

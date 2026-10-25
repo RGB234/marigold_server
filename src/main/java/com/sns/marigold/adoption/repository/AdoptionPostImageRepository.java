@@ -21,7 +21,7 @@ public interface AdoptionPostImageRepository extends JpaRepository<AdoptionPostI
   void deleteImagesByWriter(@Param("writerId") Long writerId);
 
   @Query(
-      "SELECT a.storedFileName FROM AdoptionPostImage a "
+      "SELECT a.storageFile.storedFileName FROM AdoptionPostImage a "
           + "WHERE a.adoptionPost.id IN ("
           + "   SELECT i.id FROM AdoptionPost i "
           + "   WHERE i.writer.id = :writerId"

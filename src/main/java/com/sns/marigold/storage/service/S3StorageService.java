@@ -13,8 +13,10 @@ import com.sns.marigold.storage.exception.StorageException;
 
 import io.awspring.cloud.s3.S3Template;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -26,6 +28,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 @Service
 @ConditionalOnProperty(name = "app.storage.type", havingValue = "s3")
 @RequiredArgsConstructor
+@Slf4j
 public class S3StorageService extends AbstractStorageService {
 
   private final S3Template s3Template;
@@ -34,8 +37,8 @@ public class S3StorageService extends AbstractStorageService {
   private final S3Properties s3Properties;
 
   @Override
-  protected void deleteStoredFile(String storedFileName) {
-    s3Template.deleteObject(bucketName(), storedFileName);
+  protected void deleteStoredFile(String key) {
+    s3Template.deleteObject(bucketName(), key);
   }
 
   @Override
@@ -94,7 +97,7 @@ public class S3StorageService extends AbstractStorageService {
     PutObjectRequest objectRequest =
         PutObjectRequest.builder()
             .bucket(bucketName())
-            .key(storedFileName)
+            .key(StorageDirectory.pendingKey(storedFileName))
             .contentType(contentType)
             .contentLength(size)
             .build();
@@ -111,11 +114,11 @@ public class S3StorageService extends AbstractStorageService {
   @Override
   public StoredFileHead readFileHead(String storedFileName, int maxBytes) {
     validateStoredFileName(storedFileName);
+    String pendingKey = StorageDirectory.pendingKey(storedFileName);
     try {
       long size =
           s3Client
-              .headObject(
-                  HeadObjectRequest.builder().bucket(bucketName()).key(storedFileName).build())
+              .headObject(HeadObjectRequest.builder().bucket(bucketName()).key(pendingKey).build())
               .contentLength();
       if (size == 0) {
         return new StoredFileHead(0, new byte[0]);
@@ -125,7 +128,7 @@ public class S3StorageService extends AbstractStorageService {
               .getObjectAsBytes(
                   GetObjectRequest.builder()
                       .bucket(bucketName())
-                      .key(storedFileName)
+                      .key(pendingKey)
                       .range("bytes=0-" + (Math.min(size, maxBytes) - 1))
                       .build())
               .asByteArray();
@@ -137,6 +140,34 @@ public class S3StorageService extends AbstractStorageService {
       throw StorageException.forFileReadFailed(storedFileName, e);
     } catch (SdkException e) {
       throw StorageException.forFileReadFailed(storedFileName, e);
+    }
+  }
+
+  @Override
+  public void promoteUpload(String storedFileName) {
+    validateStoredFileName(storedFileName);
+    String pendingKey = StorageDirectory.pendingKey(storedFileName);
+    try {
+      s3Client.copyObject(
+          CopyObjectRequest.builder()
+              .sourceBucket(bucketName())
+              .sourceKey(pendingKey)
+              .destinationBucket(bucketName())
+              .destinationKey(storedFileName)
+              .build());
+    } catch (software.amazon.awssdk.services.s3.model.S3Exception e) {
+      if (e.statusCode() == 404) {
+        throw StorageException.forUploadIncomplete(storedFileName);
+      }
+      throw StorageException.forFileUploadFailed(e);
+    } catch (SdkException e) {
+      throw StorageException.forFileUploadFailed(e);
+    }
+    // 남아도 pending/ Lifecycle 규칙이 지운다
+    try {
+      deleteStoredFile(pendingKey);
+    } catch (RuntimeException e) {
+      log.warn("event=storage_pending_delete_failed storedFileName={}", storedFileName, e);
     }
   }
 

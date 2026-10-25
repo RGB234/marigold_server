@@ -1,6 +1,8 @@
 package com.sns.marigold.storage.event;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -24,11 +26,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.SyncTaskExecutor;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.sns.marigold.storage.service.StorageFileService;
 import com.sns.marigold.storage.service.StorageService;
 
 class StorageEventListenerTest {
@@ -36,6 +40,8 @@ class StorageEventListenerTest {
   private final List<String> oldFiles = List.of("user/profile/old.jpg");
   private AnnotationConfigApplicationContext context;
   private StorageService storageService;
+  private StorageFileService storageFileService;
+  private final List<Boolean> markedInTransaction = new java.util.ArrayList<>();
   private TransactionTemplate transactionTemplate;
 
   @BeforeEach
@@ -44,12 +50,24 @@ class StorageEventListenerTest {
     Connection connection = mock(Connection.class);
     when(dataSource.getConnection()).thenReturn(connection);
     when(connection.getAutoCommit()).thenReturn(true);
-    transactionTemplate = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
+    DataSourceTransactionManager transactionManager = new DataSourceTransactionManager(dataSource);
+    transactionTemplate = new TransactionTemplate(transactionManager);
 
     storageService = mock(StorageService.class);
+    storageFileService = mock(StorageFileService.class);
+    doAnswer(
+            invocation -> {
+              markedInTransaction.add(
+                  TransactionSynchronizationManager.isActualTransactionActive());
+              return null;
+            })
+        .when(storageFileService)
+        .markDeleted(oldFiles);
     context = new AnnotationConfigApplicationContext();
     context.register(Config.class);
+    context.registerBean(PlatformTransactionManager.class, () -> transactionManager);
     context.registerBean(StorageService.class, () -> storageService);
+    context.registerBean(StorageFileService.class, () -> storageFileService);
     context.registerBean(StorageEventListener.class);
     context.refresh();
   }
@@ -57,6 +75,18 @@ class StorageEventListenerTest {
   @AfterEach
   void tearDown() {
     context.close();
+  }
+
+  @Test
+  @DisplayName("파일 행은 발행한 트랜잭션 안에서 DELETED로 바꾼다")
+  void marksDeletedInPublishingTransaction() {
+    transactionTemplate.executeWithoutResult(
+        status -> {
+          context.publishEvent(new DeleteOldStorageFilesEvent(oldFiles));
+          verify(storageFileService).markDeleted(oldFiles);
+        });
+
+    assertThat(markedInTransaction).containsExactly(true);
   }
 
   @Test

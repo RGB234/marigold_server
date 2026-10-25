@@ -16,6 +16,7 @@ import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.service.StorageFileService;
 import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
@@ -38,6 +39,7 @@ public class UserService {
   private final UserRepository userRepository;
   private final StorageService storageService;
   private final StorageUploadService storageUploadService;
+  private final StorageFileService storageFileService;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
   private final PasswordEncoder passwordEncoder;
@@ -119,7 +121,7 @@ public class UserService {
 
   // 업로드 확정 동안 DB 커넥션을 점유하지 않도록 트랜잭션은 TransactionTemplate 구간으로 한정
   public void updateUser(Long uid, UserUpdateDto dto) {
-    // 1. 이미지 확정. 이후 저장이 실패해도 확정된 파일은 고아 정리가 지운다
+    // 1. 이미지 확정. 이후 저장이 실패해도 파일 행은 PENDING으로 남고 고아 정리가 지운다
     final FileUploadDto newImageUploadDto =
         !dto.isRemoveImage() && dto.getImageUploadToken() != null
             ? storageUploadService
@@ -144,8 +146,7 @@ public class UserService {
 
             UserImage newImage =
                 UserImage.builder()
-                    .storedFileName(newImageUploadDto.getStoredFileName())
-                    .originalFileName(newImageUploadDto.getOriginalFileName())
+                    .storageFile(storageFileService.attach(List.of(newImageUploadDto)).get(0))
                     .build();
             user.update(dto.getNickname(), newImage);
           } else {

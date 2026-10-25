@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -27,6 +28,7 @@ import com.sns.marigold.storage.exception.StorageException;
 import io.awspring.cloud.s3.S3Template;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
@@ -112,7 +114,7 @@ class S3StorageServiceTest {
         ArgumentCaptor.forClass(PutObjectPresignRequest.class);
     verify(s3Presigner).presignPutObject(captor.capture());
     assertThat(captor.getValue().signatureDuration()).isEqualTo(Duration.ofMinutes(15));
-    assertThat(captor.getValue().putObjectRequest().key()).isEqualTo(storedFileName);
+    assertThat(captor.getValue().putObjectRequest().key()).isEqualTo("pending/" + storedFileName);
     assertThat(captor.getValue().putObjectRequest().contentType()).isEqualTo("image/png");
     assertThat(captor.getValue().putObjectRequest().contentLength()).isEqualTo(100L);
   }
@@ -132,7 +134,48 @@ class S3StorageServiceTest {
     assertThat(head.head()).isEqualTo(PNG_BYTES);
     ArgumentCaptor<GetObjectRequest> captor = ArgumentCaptor.forClass(GetObjectRequest.class);
     verify(s3Client).getObjectAsBytes(captor.capture());
+    assertThat(captor.getValue().key()).isEqualTo("pending/" + storedFileName);
     assertThat(captor.getValue().range()).isEqualTo("bytes=0-" + (PNG_BYTES.length - 1));
+  }
+
+  @Test
+  @DisplayName("확정은 pending/ 파일을 정식 키로 복사한 뒤 원본을 지운다")
+  void promoteUpload_CopiesThenDeletesPending() {
+    String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
+
+    storageService.promoteUpload(storedFileName);
+
+    ArgumentCaptor<CopyObjectRequest> captor = ArgumentCaptor.forClass(CopyObjectRequest.class);
+    verify(s3Client).copyObject(captor.capture());
+    assertThat(captor.getValue().sourceKey()).isEqualTo("pending/" + storedFileName);
+    assertThat(captor.getValue().destinationKey()).isEqualTo(storedFileName);
+    verify(s3Template).deleteObject("test-bucket", "pending/" + storedFileName);
+  }
+
+  @Test
+  @DisplayName("pending/ 파일이 없으면 확정은 UPLOAD_INCOMPLETE")
+  void promoteUpload_Missing() {
+    String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
+    given(s3Client.copyObject(any(CopyObjectRequest.class)))
+        .willThrow(NoSuchKeyException.builder().statusCode(404).build());
+
+    assertThatThrownBy(() -> storageService.promoteUpload(storedFileName))
+        .isInstanceOfSatisfying(
+            StorageException.class,
+            exception ->
+                assertThat(exception.getErrorSpec()).isEqualTo(StorageError.UPLOAD_INCOMPLETE));
+    verify(s3Template, never()).deleteObject(any(), any());
+  }
+
+  @Test
+  @DisplayName("등록되지 않은 업로드는 pending/과 정식 키를 모두 지운다")
+  void discardUpload_DeletesBothKeys() {
+    String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
+
+    storageService.discardUploadBestEffort(storedFileName);
+
+    verify(s3Template).deleteObject("test-bucket", "pending/" + storedFileName);
+    verify(s3Template).deleteObject("test-bucket", storedFileName);
   }
 
   @Test

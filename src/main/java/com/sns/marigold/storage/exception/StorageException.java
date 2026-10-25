@@ -80,6 +80,13 @@ public class StorageException extends ApplicationException {
         null);
   }
 
+  public static StorageException forUploadAlreadyUsed(int requested, int attached) {
+    return new StorageException(
+        StorageError.UPLOAD_ALREADY_USED,
+        "upload is not pending: requested=" + requested + ", attached=" + attached,
+        null);
+  }
+
   public static StorageException forUploadSizeMismatch(
       String storedFileName, long expected, long actual) {
     return new StorageException(
