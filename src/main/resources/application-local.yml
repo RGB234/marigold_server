@@ -32,6 +32,12 @@ logging:
     com.sns.marigold: DEBUG
     audit: INFO
 
+    com:
+      sns:
+        marigold:
+          storage:
+            cleanup: INFO
+
 springdoc:
   api-docs:
     enabled: true
@@ -50,6 +56,11 @@ app:
 
     upload:
       token-secret: local-dev-upload-token-secret
+
+    cleanup:
+      mode: startup
+      minimum-age: 24h
+      dry-run: false
 
 url:
   frontend:

@@ -33,6 +33,12 @@ logging:
     com.sns.marigold: WARN
     audit: INFO
 
+    com:
+      sns:
+        marigold:
+          storage:
+            cleanup: INFO
+
 springdoc:
   api-docs:
     enabled: false
@@ -48,6 +54,13 @@ app:
     # url-ttl(기본 15m) <= token-ttl(기본 1h) < cleanup.minimum-age 를 지켜야 기동된다
     upload:
       token-secret: ${UPLOAD_TOKEN_SECRET}
+
+    cleanup:
+      cron: 0 0 4 * * *
+      zone: Asia/Seoul
+      mode: scheduled
+      minimum-age: 24h
+      dry-run: false
 
 url:
   frontend:

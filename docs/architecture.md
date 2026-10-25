@@ -254,13 +254,13 @@ DB 커밋과 STOMP 발행은 원자적이지 않습니다. 현재 발행 경로�
 실행 방식은 `off`, `startup`, `scheduled`, `both`이며 `dryRun=true`이면 후보만 기록합니다. 현재 저장소 설정은 다음과 같습니다.
 
 - `local`: 시작 시 실행, `minimum-age=24h`, `dry-run=false`로 실제 삭제 시도.
-- `prod`: 예약 실행, `minimum-age=24h`, `dry-run=true`로 후보만 기록.
+- `prod`: 예약 실행(매일 04:00, Asia/Seoul), `minimum-age=24h`, `dry-run=false`로 실제 삭제 시도.
 
-클라이언트 직접 업로드에서는 이 작업이 새 파일의 유일한 정리 수단입니다. 올린 뒤 등록하지 않은 파일이 평소에도 생기므로, 운영 설정이 `dry-run=true`로 남아
-있으면 이런 파일이 계속 쌓입니다.
+클라이언트 직접 업로드에서는 이 작업이 새 파일의 유일한 정리 수단입니다. 올린 뒤 등록하지 않은 파일이 평소에도 생기므로, `dry-run=true`이면 이런 파일이
+계속 쌓입니다.
 
-이 작업은 DB에 참조가 남아 있는 파일을 정리하지 않습니다. 따라서 모든 파일 삭제 실패를 복구하는 장치는 아니며, 특히 운영 기본 설정은 자동 삭제를 수행하지 않습니다. 실행
-중복 방지는 프로세스 내부 `AtomicBoolean`으로만 이루어집니다.
+이 작업은 DB에 참조가 남아 있는 파일을 정리하지 않습니다. 따라서 모든 파일 삭제 실패를 복구하는 장치는 아닙니다. 실행 중복 방지는 프로세스 내부
+`AtomicBoolean`으로만 이루어집니다.
 
 근거: [StorageOrphanCleanupService](../src/main/java/com/sns/marigold/storage/cleanup/StorageOrphanCleanupService.java), [StorageFileReferenceRepository](../src/main/java/com/sns/marigold/storage/cleanup/StorageFileReferenceRepository.java), [로컬 설정](../src/main/resources/application-local.yml), [운영 설정](../src/main/resources/application-prod.yml).
 
