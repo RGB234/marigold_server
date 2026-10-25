@@ -5,7 +5,7 @@ server:
 spring:
   config:
     import:
-      - required:file:../secrets/back/.env.local[.properties]
+      - file:../secrets/back/.env.local[.properties]
 
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect

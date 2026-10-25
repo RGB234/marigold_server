@@ -5,7 +5,7 @@ server:
 spring:
   config:
     import:
-      - required:file:/home/ec2-user/.env.prod[.properties]
+      - file:/home/user/.env.prod[.properties]
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
