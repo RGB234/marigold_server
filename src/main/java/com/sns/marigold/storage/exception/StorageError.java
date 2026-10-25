@@ -14,7 +14,8 @@ public enum StorageError implements ErrorSpec {
       "업로드 정보가 올바르지 않거나 만료되었습니다. 파일을 다시 올려 주세요.",
       FailureKind.INVALID_INPUT),
   UPLOAD_INCOMPLETE(
-      "UPLOAD_INCOMPLETE", "파일 업로드가 완료되지 않았습니다. 파일을 다시 올려 주세요.", FailureKind.INVALID_INPUT);
+      "UPLOAD_INCOMPLETE", "파일 업로드가 완료되지 않았습니다. 파일을 다시 올려 주세요.", FailureKind.INVALID_INPUT),
+  UPLOAD_ALREADY_USED("UPLOAD_ALREADY_USED", "이미 사용한 업로드입니다. 파일을 다시 올려 주세요.", FailureKind.CONFLICT);
 
   private final String code;
   private final String publicMessage;

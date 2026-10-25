@@ -30,7 +30,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @Table(
     name = "user_image",
-    uniqueConstraints = @UniqueConstraint(name = "uk_user_image_user", columnNames = "user_id"))
+    uniqueConstraints = {
+      @UniqueConstraint(name = "uk_user_image_user", columnNames = "user_id"),
+      // 같은 업로드 토큰을 두 번 써서 파일 하나를 여러 행이 공유하지 못하게 한다
+      @UniqueConstraint(name = "uk_user_image_stored_file", columnNames = "stored_file_name")
+    })
 public class UserImage {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)

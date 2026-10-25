@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.mock.web.MockHttpServletRequest;
 
+import com.sns.marigold.storage.exception.StorageError;
 import com.sns.marigold.user.exception.UserError;
 
 class UniqueConflictPolicyTest {
@@ -31,6 +32,16 @@ class UniqueConflictPolicyTest {
         .containsEntry("errorCode", "USER_NICKNAME_ALREADY_EXISTS");
     assertThat(response.getBody().getDetail())
         .isEqualTo(UserError.NICKNAME_ALREADY_EXISTS.publicMessage());
+  }
+
+  @Test
+  void reusedUploadFileUsesUploadAlreadyUsed() {
+    var exception =
+        new ConstraintViolationException(
+            "duplicate",
+            new SQLException("duplicate", "23000", 1062),
+            "adoption_post_image.uk_adoption_post_image_stored_file");
+    assertThat(UniqueConflictPolicy.resolve(exception)).isEqualTo(StorageError.UPLOAD_ALREADY_USED);
   }
 
   @Test

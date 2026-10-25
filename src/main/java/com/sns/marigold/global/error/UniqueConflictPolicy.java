@@ -7,6 +7,7 @@ import org.hibernate.exception.ConstraintViolationException;
 
 import com.sns.marigold.adoption.exception.AdoptionError;
 import com.sns.marigold.chat.exception.ChatError;
+import com.sns.marigold.storage.exception.StorageError;
 import com.sns.marigold.user.exception.UserError;
 
 /** MySQL duplicate key 오류만 충돌로 분류합니다. FK/NOT NULL 오류는 서버 오류로 유지합니다. */
@@ -18,7 +19,11 @@ final class UniqueConflictPolicy {
           "uk_users_provider", UserError.OAUTH2_ACCOUNT_ALREADY_IN_USE,
           "uk_adoption_adopter_post", AdoptionError.POST_ALREADY_COMPLETED,
           "uk_user_image_user", UserError.IMAGE_CONFLICT,
-          "uk_room_participant_room_user", ChatError.PARTICIPANT_ALREADY_EXISTS);
+          "uk_room_participant_room_user", ChatError.PARTICIPANT_ALREADY_EXISTS,
+          "uk_user_image_stored_file", StorageError.UPLOAD_ALREADY_USED,
+          "uk_adoption_post_image_stored_file", StorageError.UPLOAD_ALREADY_USED,
+          "uk_adoption_comment_image_stored_file", StorageError.UPLOAD_ALREADY_USED,
+          "uk_chat_message_attachments_stored_file", StorageError.UPLOAD_ALREADY_USED);
 
   private UniqueConflictPolicy() {}
 

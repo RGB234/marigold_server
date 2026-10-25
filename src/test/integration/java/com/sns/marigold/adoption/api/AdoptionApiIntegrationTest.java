@@ -112,6 +112,34 @@ public class AdoptionApiIntegrationTest extends ApiIntegrationTest {
   }
 
   @Test
+  @DisplayName("이미 게시글에 쓴 업로드 토큰으로 다른 게시글을 만들면 409를 반환한다")
+  void createAdoptionPost_ReusedUploadToken() throws Exception {
+    User writer = Objects.requireNonNull(tester1);
+    String uploadToken = issueImageUploadToken(writer);
+    String body = json(postBody("Test Title", "12345678901234567890", uploadToken));
+
+    mockMvc
+        .perform(
+            post(UrlConstants.ADOPTION_BASE)
+                .header("Authorization", "Bearer " + getAccessToken(writer))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(
+            post(UrlConstants.ADOPTION_BASE)
+                .header("Authorization", "Bearer " + getAccessToken(writer))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errorCode").value("UPLOAD_ALREADY_USED"));
+
+    assertEquals(2, adoptionPostRepository.count());
+    assertEquals(1, adoptionPostImageRepository.count());
+  }
+
+  @Test
   @DisplayName("입양 게시글 생성 시 입력값이 유효하지 않으면 400에러를 반환한다")
   void createAdoptionPost_BadRequest() throws Exception {
     mockMvc

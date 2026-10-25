@@ -15,6 +15,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,7 +28,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@Table(name = "adoption_post_image")
+@Table(
+    name = "adoption_post_image",
+    // 같은 업로드 토큰을 두 번 써서 파일 하나를 여러 행이 공유하지 못하게 한다
+    uniqueConstraints =
+        @UniqueConstraint(
+            name = "uk_adoption_post_image_stored_file",
+            columnNames = "stored_file_name"))
 public class AdoptionPostImage {
 
   @Id
