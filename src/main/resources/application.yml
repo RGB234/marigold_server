@@ -3,6 +3,8 @@ spring:
     name: marigold
   profiles:
     include: oauth
+  jpa:
+    open-in-view: false # DB 커넥션을 요청 내내 쥐지 않고 트랜잭션 동안만 사용
 
 server:
   servlet:

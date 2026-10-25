@@ -2,9 +2,6 @@ package com.sns.marigold.adoption.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -22,7 +19,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 
 import com.sns.marigold.adoption.entity.AdoptionPost;
@@ -33,17 +29,11 @@ import com.sns.marigold.adoption.repository.AdoptionPostImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.global.web.UrlConstants;
-import com.sns.marigold.storage.service.StoredFileHead;
 import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.support.ApiIntegrationTest;
 import com.sns.marigold.user.entity.User;
 
 public class AdoptionApiIntegrationTest extends ApiIntegrationTest {
-
-  // Tika가 image/jpeg로 감지하는 최소 바이트
-  private static final byte[] JPEG_BYTES = {
-    (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00
-  };
 
   @Autowired private AdoptionPostRepository adoptionPostRepository;
 
@@ -68,16 +58,14 @@ public class AdoptionApiIntegrationTest extends ApiIntegrationTest {
                     .features("12345678901234567890")
                     .build()));
 
-    // 클라이언트가 PUT을 끝낸 상태: 확정 단계가 읽는 파일 앞부분을 JPEG로 돌려준다
-    given(storageService.readFileHead(anyString(), anyInt()))
-        .willReturn(new StoredFileHead(JPEG_BYTES.length, JPEG_BYTES));
+    givenUploadedJpeg();
   }
 
   @Test
   @DisplayName("발급받은 업로드 토큰으로 입양 게시글을 생성한다")
   void createAdoptionPost() throws Exception {
     User writer = Objects.requireNonNull(tester1);
-    String uploadToken = issueImageUploadToken(writer);
+    String uploadToken = issueJpegUploadToken(writer, UploadPurpose.ADOPTION_POST_IMAGE);
 
     mockMvc
         .perform(
@@ -96,7 +84,8 @@ public class AdoptionApiIntegrationTest extends ApiIntegrationTest {
   @Test
   @DisplayName("다른 사용자에게 발급된 업로드 토큰으로는 게시글을 생성할 수 없다")
   void createAdoptionPost_OtherUsersUploadToken() throws Exception {
-    String othersUploadToken = issueImageUploadToken(Objects.requireNonNull(tester2));
+    String othersUploadToken =
+        issueJpegUploadToken(Objects.requireNonNull(tester2), UploadPurpose.ADOPTION_POST_IMAGE);
 
     mockMvc
         .perform(
@@ -115,7 +104,7 @@ public class AdoptionApiIntegrationTest extends ApiIntegrationTest {
   @DisplayName("이미 게시글에 쓴 업로드 토큰으로 다른 게시글을 만들면 409를 반환한다")
   void createAdoptionPost_ReusedUploadToken() throws Exception {
     User writer = Objects.requireNonNull(tester1);
-    String uploadToken = issueImageUploadToken(writer);
+    String uploadToken = issueJpegUploadToken(writer, UploadPurpose.ADOPTION_POST_IMAGE);
     String body = json(postBody("Test Title", "12345678901234567890", uploadToken));
 
     mockMvc
@@ -173,7 +162,7 @@ public class AdoptionApiIntegrationTest extends ApiIntegrationTest {
   void updateAdoptionPost() throws Exception {
     User writer = Objects.requireNonNull(tester1);
     Long postId = Objects.requireNonNull(Objects.requireNonNull(defaultPost).getId());
-    String uploadToken = issueImageUploadToken(writer);
+    String uploadToken = issueJpegUploadToken(writer, UploadPurpose.ADOPTION_POST_IMAGE);
 
     mockMvc
         .perform(
@@ -270,27 +259,6 @@ public class AdoptionApiIntegrationTest extends ApiIntegrationTest {
         .andExpect(jsonPath("$.content[0].title").value("Original Title"));
   }
 
-  private String issueImageUploadToken(@NonNull User user) throws Exception {
-    Map<String, Object> request =
-        Map.of(
-            "purpose",
-            UploadPurpose.ADOPTION_POST_IMAGE.name(),
-            "files",
-            List.of(Map.of("fileName", "test1.jpg", "size", JPEG_BYTES.length)));
-    String response =
-        mockMvc
-            .perform(
-                post(UrlConstants.STORAGE_BASE + "/uploads")
-                    .header("Authorization", "Bearer " + getAccessToken(user))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(json(request)))
-            .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    return objectMapper.readTree(response).get(0).get("uploadToken").asText();
-  }
-
   private Map<String, Object> postBody(String title, String features, String uploadToken) {
     Map<String, Object> body = new HashMap<>();
     body.put("species", Species.DOG.name());
@@ -311,9 +279,5 @@ public class AdoptionApiIntegrationTest extends ApiIntegrationTest {
     body.put("sex", Sex.FEMALE.name());
     body.put("area", "Busan");
     return body;
-  }
-
-  private String json(Object body) throws Exception {
-    return objectMapper.writeValueAsString(body);
   }
 }

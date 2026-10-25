@@ -361,6 +361,33 @@ class AdoptionPostServiceTest {
   }
 
   @Test
+  @DisplayName("업로드를 확정하는 동안 게시글이 삭제되면 수정을 반영하지 않는다.")
+  void update_DeletedWhileConfirming() {
+    // given: 사전 검사 때는 살아 있고, 저장 트랜잭션에서 다시 읽을 때는 삭제된 게시글
+    AdoptionPost deletedPost =
+        AdoptionPost.builder()
+            .writer(testUser)
+            .title("Test Title")
+            .images(new ArrayList<>(testImages))
+            .build();
+    deletedPost.softDelete();
+    given(adoptionPostRepository.findById(100L))
+        .willReturn(Optional.of(testPost), Optional.of(deletedPost));
+    AdoptionPostUpdateDto dto =
+        AdoptionPostUpdateDto.builder()
+            .title("Updated Title")
+            .imagesToKeep(testImages.stream().map(AdoptionPostImage::getStoredFileName).toList())
+            .build();
+
+    // when & then
+    assertThatThrownBy(() -> adoptionPostService.update(100L, 1L, dto))
+        .isInstanceOf(AdoptionPostException.class)
+        .hasMessageContaining(AdoptionPostException.forAdoptionPostDeleted().getMessage());
+    assertThat(testPost.getTitle()).isEqualTo("Test Title");
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
   @DisplayName("목록 조회 시 대표 이미지 URL을 만들 수 없어도 게시글은 반환한다.")
   void search_ImageNotFound() {
     // given

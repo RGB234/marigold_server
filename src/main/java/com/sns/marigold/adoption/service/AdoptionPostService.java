@@ -97,17 +97,14 @@ public class AdoptionPostService {
   }
 
   public void update(Long postId, Long userId, AdoptionPostUpdateDto dto) {
-    AdoptionPost adoptionPost = findEntityById(postId);
-
-    if (adoptionPost.getDeletedAt() != null) {
-      throw AdoptionPostException.forAdoptionPostDeleted();
-    }
-
-    validateWriter(adoptionPost, userId);
-
     List<String> imagesToKeep = normalizeImagesToKeep(dto.getImagesToKeep());
     List<String> uploadTokens = Objects.requireNonNullElse(dto.getUploadTokens(), List.of());
-    adoptionPost.validateImageReplacement(imagesToKeep, uploadTokens.size());
+
+    // 권한 없는 요청이나 잘못된 이미지 구성은 저장소 조회 전에 거부. 지연 로딩하는 이미지 목록을 읽으므로 트랜잭션 안에서 검사
+    transactionTemplate.executeWithoutResult(
+        status ->
+            getUpdatablePost(postId, userId)
+                .validateImageReplacement(imagesToKeep, uploadTokens.size()));
 
     // 1. 새 이미지 확정 (트랜잭션 외부에서 수행하여 DB 커넥션 점유 최소화)
     List<AdoptionPostImage> newImages =
@@ -129,8 +126,8 @@ public class AdoptionPostService {
     // 2. DB 트랜잭션 (데이터 변경). 실패해도 확정된 새 파일은 고아 정리가 지운다
     transactionTemplate.executeWithoutResult(
         status -> {
-          // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
-          AdoptionPost info = findEntityById(postId);
+          // 확정하는 동안 삭제됐을 수 있으므로 트랜잭션 안에서 다시 조회하고 검사
+          AdoptionPost info = getUpdatablePost(postId, userId);
           info.updateInfo(editor);
 
           List<String> storedFileNamesToDelete =
@@ -147,6 +144,15 @@ public class AdoptionPostService {
             eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(storedFileNamesToDelete));
           }
         });
+  }
+
+  private AdoptionPost getUpdatablePost(Long postId, Long userId) {
+    AdoptionPost adoptionPost = findEntityById(postId);
+    if (adoptionPost.getDeletedAt() != null) {
+      throw AdoptionPostException.forAdoptionPostDeleted();
+    }
+    validateWriter(adoptionPost, userId);
+    return adoptionPost;
   }
 
   private List<AdoptionPostImage> toPostImages(List<FileUploadDto> confirmedImages) {
