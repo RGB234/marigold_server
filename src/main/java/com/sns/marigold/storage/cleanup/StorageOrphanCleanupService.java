@@ -2,6 +2,7 @@ package com.sns.marigold.storage.cleanup;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -35,46 +36,68 @@ public class StorageOrphanCleanupService {
     }
 
     long startedAt = System.nanoTime();
+    CleanupStats stats = new CleanupStats();
     try {
-      List<StoredFile> storedFiles = inventory.listStoredFiles();
-      Set<String> referencedFileNames = referenceRepository.findAllStoredFileNames();
       Instant cutoff = Instant.now().minus(properties.minimumAge());
-      List<String> orphanFileNames = findOrphans(storedFiles, referencedFileNames, cutoff);
+      inventory.forEachPage(page -> cleanupPage(page, cutoff, stats));
 
-      if (!orphanFileNames.isEmpty()) {
+      if (stats.candidates > 0) {
         log.warn(
             "event=storage_orphan_cleanup_candidates count={} dryRun={} sample={} sampleTruncated={}",
-            orphanFileNames.size(),
+            stats.candidates,
             properties.dryRun(),
-            orphanFileNames.stream().limit(LOG_SAMPLE_SIZE).toList(),
-            orphanFileNames.size() > LOG_SAMPLE_SIZE);
-      }
-
-      if (!properties.dryRun() && !orphanFileNames.isEmpty()) {
-        storageService.deleteFilesBestEffort(orphanFileNames);
+            stats.candidateSample,
+            stats.candidates > LOG_SAMPLE_SIZE);
       }
 
       log.info(
           "event=storage_orphan_cleanup_completed scanned={} referenced={} candidates={} dryRun={} durationMs={}",
-          storedFiles.size(),
-          referencedFileNames.size(),
-          orphanFileNames.size(),
+          stats.scanned,
+          stats.referenced,
+          stats.candidates,
           properties.dryRun(),
           Duration.ofNanos(System.nanoTime() - startedAt).toMillis());
     } catch (RuntimeException e) {
-      log.error("event=storage_orphan_cleanup_failed", e);
+      // 앞 페이지의 고아는 이미 지웠을 수 있어서 진행한 만큼 남긴다
+      log.error(
+          "event=storage_orphan_cleanup_failed scanned={} candidates={} dryRun={}",
+          stats.scanned,
+          stats.candidates,
+          properties.dryRun(),
+          e);
       throw e;
     } finally {
       running.set(false);
     }
   }
 
-  private List<String> findOrphans(
-      List<StoredFile> storedFiles, Set<String> referencedFileNames, Instant cutoff) {
-    return storedFiles.stream()
-        .filter(file -> file.lastModified().isBefore(cutoff))
-        .map(StoredFile::storedFileName)
-        .filter(fileName -> !referencedFileNames.contains(fileName))
-        .toList();
+  // 페이지마다 조회하고 지워서, 메모리에는 한 페이지와 로그 샘플만 남는다
+  private void cleanupPage(List<StoredFile> page, Instant cutoff, CleanupStats stats) {
+    List<String> agedFileNames =
+        page.stream()
+            .filter(file -> file.lastModified().isBefore(cutoff))
+            .map(StoredFile::storedFileName)
+            .toList();
+    Set<String> referencedFileNames = referenceRepository.findReferenced(agedFileNames);
+    List<String> orphanFileNames =
+        agedFileNames.stream().filter(fileName -> !referencedFileNames.contains(fileName)).toList();
+
+    stats.scanned += page.size();
+    stats.referenced += referencedFileNames.size();
+    stats.candidates += orphanFileNames.size();
+    orphanFileNames.stream()
+        .limit(LOG_SAMPLE_SIZE - stats.candidateSample.size())
+        .forEach(stats.candidateSample::add);
+
+    if (!properties.dryRun() && !orphanFileNames.isEmpty()) {
+      storageService.deleteFilesBestEffort(orphanFileNames);
+    }
+  }
+
+  private static final class CleanupStats {
+    private long scanned;
+    private long referenced;
+    private long candidates;
+    private final List<String> candidateSample = new ArrayList<>();
   }
 }

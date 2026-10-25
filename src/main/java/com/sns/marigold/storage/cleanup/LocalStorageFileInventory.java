@@ -5,8 +5,11 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -25,18 +28,30 @@ public class LocalStorageFileInventory implements StorageFileInventory {
   private final LocalStorageProperties properties;
 
   @Override
-  public List<StoredFile> listStoredFiles() {
+  public void forEachPage(Consumer<List<StoredFile>> pageConsumer) {
     Path root = storageRoot();
     if (Files.notExists(root)) {
-      return List.of();
+      return;
     }
 
     try (Stream<Path> paths = Files.walk(root)) {
-      return paths
-          .filter(Files::isRegularFile)
-          .map(path -> toStoredFile(root, path))
-          .filter(Objects::nonNull)
-          .toList();
+      Iterator<StoredFile> files =
+          paths
+              .filter(Files::isRegularFile)
+              .map(path -> toStoredFile(root, path))
+              .filter(Objects::nonNull)
+              .iterator();
+      List<StoredFile> page = new ArrayList<>(PAGE_SIZE);
+      while (files.hasNext()) {
+        page.add(files.next());
+        if (page.size() == PAGE_SIZE) {
+          pageConsumer.accept(List.copyOf(page));
+          page.clear();
+        }
+      }
+      if (!page.isEmpty()) {
+        pageConsumer.accept(List.copyOf(page));
+      }
     } catch (IOException e) {
       throw new UncheckedIOException("Failed to list local storage files", e);
     }

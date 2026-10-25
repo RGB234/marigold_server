@@ -6,7 +6,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -27,21 +29,36 @@ class LocalStorageFileInventoryTest {
     Files.setLastModifiedTime(storedFile, FileTime.from(lastModified));
     Files.writeString(tempDir.resolve("unmanaged.txt"), "keep");
 
-    LocalStorageFileInventory inventory =
-        new LocalStorageFileInventory(
-            new LocalStorageProperties(tempDir.toString(), null, null, 0, 0));
+    List<List<StoredFile>> pages = new ArrayList<>();
+    inventory(tempDir).forEachPage(pages::add);
 
-    List<StoredFile> result = inventory.listStoredFiles();
-
-    assertThat(result).containsExactly(new StoredFile(storedFileName, lastModified));
+    assertThat(pages).containsExactly(List.of(new StoredFile(storedFileName, lastModified)));
   }
 
   @Test
-  void missingStorageRootReturnsEmptyList() {
-    LocalStorageFileInventory inventory =
-        new LocalStorageFileInventory(
-            new LocalStorageProperties(tempDir.resolve("missing").toString(), null, null, 0, 0));
+  void splitsFilesIntoPagesOfAtMostPageSize() throws Exception {
+    Path directory = tempDir.resolve("adoption/post");
+    Files.createDirectories(directory);
+    for (int i = 0; i <= StorageFileInventory.PAGE_SIZE; i++) {
+      Files.writeString(directory.resolve(UUID.randomUUID() + ".jpg"), "image");
+    }
 
-    assertThat(inventory.listStoredFiles()).isEmpty();
+    List<List<StoredFile>> pages = new ArrayList<>();
+    inventory(tempDir).forEachPage(pages::add);
+
+    assertThat(pages).extracting(List::size).containsExactly(StorageFileInventory.PAGE_SIZE, 1);
+  }
+
+  @Test
+  void missingStorageRootPassesNoPage() {
+    List<List<StoredFile>> pages = new ArrayList<>();
+    inventory(tempDir.resolve("missing")).forEachPage(pages::add);
+
+    assertThat(pages).isEmpty();
+  }
+
+  private LocalStorageFileInventory inventory(Path root) {
+    return new LocalStorageFileInventory(
+        new LocalStorageProperties(root.toString(), null, null, 0, 0));
   }
 }

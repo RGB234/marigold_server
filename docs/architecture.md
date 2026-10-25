@@ -246,6 +246,11 @@ DB 커밋과 STOMP 발행은 원자적이지 않습니다. 현재 발행 경로�
 `adoption_comment_image`, `chat_message_attachments`에서 참조하지 않고 마지막 수정 시각이 `minimumAge`보다 오래된 파일만 정리
 후보로 삼습니다.
 
+저장소 목록은 1,000개 이하의 페이지로 받고, 페이지마다 그 파일명만 `IN` 조회로 참조 여부를 확인한 뒤 바로 정리합니다. 메모리에는 한 페이지와 로그
+샘플만 남으므로 사용량이 전체 파일 수와 무관합니다. 실행 중 실패하면 앞 페이지의 후보는 이미 삭제됐을 수 있습니다. 파일명을 저장하는 테이블을 추가하면
+[StorageFileReferenceRepository](../src/main/java/com/sns/marigold/storage/cleanup/StorageFileReferenceRepository.java)의
+조회에도 넣어야 합니다. 빠지면 그 테이블이 참조하는 파일이 정리 대상이 됩니다.
+
 실행 방식은 `off`, `startup`, `scheduled`, `both`이며 `dryRun=true`이면 후보만 기록합니다. 현재 저장소 설정은 다음과 같습니다.
 
 - `local`: 시작 시 실행, `minimum-age=24h`, `dry-run=false`로 실제 삭제 시도.
@@ -298,7 +303,7 @@ DB 커밋과 STOMP 발행은 원자적이지 않습니다. 현재 발행 경로�
 - [StorageEventListenerTest](../src/test/component/java/com/sns/marigold/storage/event/StorageEventListenerTest.java):
   커밋·롤백, 외부 트랜잭션 롤백과 커밋 직전 실패에 따른 파일 정리.
 - [StorageOrphanCleanupServiceTest](../src/test/unit/java/com/sns/marigold/storage/cleanup/StorageOrphanCleanupServiceTest.java):
-  참조 여부·파일 나이·dry-run에 따른 정리 대상.
+  참조 여부·파일 나이·dry-run에 따른 정리 대상, 페이지 단위 조회와 삭제.
 - [ChatIntegrationTest](../src/test/integration/java/com/sns/marigold/chat/api/ChatIntegrationTest.java):
   실제 애플리케이션과 DB를 사용하는 채팅 동작.
 

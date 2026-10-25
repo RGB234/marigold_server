@@ -1,8 +1,8 @@
 package com.sns.marigold.storage.cleanup;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -24,8 +24,7 @@ public class S3StorageFileInventory implements StorageFileInventory {
   private final S3Properties properties;
 
   @Override
-  public List<StoredFile> listStoredFiles() {
-    List<StoredFile> files = new ArrayList<>();
+  public void forEachPage(Consumer<List<StoredFile>> pageConsumer) {
     String continuationToken = null;
 
     do {
@@ -33,17 +32,20 @@ public class S3StorageFileInventory implements StorageFileInventory {
           s3Client.listObjectsV2(
               ListObjectsV2Request.builder()
                   .bucket(bucketName())
+                  .maxKeys(PAGE_SIZE)
                   .continuationToken(continuationToken)
                   .build());
-      response.contents().stream()
-          .filter(object -> StorageDirectory.isValidStoredFileName(object.key()))
-          .filter(object -> object.lastModified() != null)
-          .map(object -> new StoredFile(object.key(), object.lastModified()))
-          .forEach(files::add);
+      List<StoredFile> page =
+          response.contents().stream()
+              .filter(object -> StorageDirectory.isValidStoredFileName(object.key()))
+              .filter(object -> object.lastModified() != null)
+              .map(object -> new StoredFile(object.key(), object.lastModified()))
+              .toList();
+      if (!page.isEmpty()) {
+        pageConsumer.accept(page);
+      }
       continuationToken = response.nextContinuationToken();
     } while (continuationToken != null);
-
-    return List.copyOf(files);
   }
 
   private String bucketName() {
