@@ -63,6 +63,7 @@ net stop MySQL84
 | `AWS_ACCESS_KEY` | S3 접근 권한이 있는 AWS access key ID입니다. |
 | `AWS_SECRET_KEY` | 위 access key ID에 대응하는 AWS secret access key입니다. |
 | `AWS_REGION` | S3 bucket이 위치한 AWS region code입니다. 예: `ap-northeast-2`. |
+| `UPLOAD_TOKEN_SECRET` | 클라이언트 직접 업로드 토큰의 서명 키입니다. 32 byte 이상의 임의 문자열을 사용합니다. 비어 있으면 기동에 실패합니다. |
 
 
 ## 실행과 빌드
@@ -114,6 +115,25 @@ Docker image는 Java 17에서 애플리케이션을 빌드하고 8080 port를 �
 `deploy.sh`는 이 저장소에 없으므로 컨테이너 교체, 환경변수 주입과 rollback 방식은 EC2 배포 스크립트에서 별도로 관리됩니다. 현재 workflow에는 테스트나 포맷 검사 단계가 없습니다.
 
 ***중요 - 현재는 배포가 중단된 상태입니다. Github actions와 EC2, S3 모두 비활성화되었습니다. (update 2026.10.19)***
+
+### 운영 DB 스키마 변경
+
+`prod`는 `ddl-auto: none`이므로 엔티티에 추가한 제약을 배포 전에 직접 적용해야 합니다. 업로드 토큰을 다시 써서 파일 하나를 여러 행이 공유하지 못하게 하는
+저장 파일명 unique 제약은 다음과 같습니다. 먼저 중복이 없는지 확인합니다. 저장 파일명은 UUID라 정상 데이터에는 중복이 없습니다.
+
+```sql
+SELECT 'user_image' AS t, stored_file_name, COUNT(*) FROM user_image GROUP BY stored_file_name HAVING COUNT(*) > 1
+UNION ALL SELECT 'adoption_post_image', stored_file_name, COUNT(*) FROM adoption_post_image GROUP BY stored_file_name HAVING COUNT(*) > 1
+UNION ALL SELECT 'adoption_comment_image', stored_file_name, COUNT(*) FROM adoption_comment_image GROUP BY stored_file_name HAVING COUNT(*) > 1
+UNION ALL SELECT 'chat_message_attachments', stored_file_name, COUNT(*) FROM chat_message_attachments GROUP BY stored_file_name HAVING COUNT(*) > 1;
+
+ALTER TABLE user_image ADD CONSTRAINT uk_user_image_stored_file UNIQUE (stored_file_name);
+ALTER TABLE adoption_post_image ADD CONSTRAINT uk_adoption_post_image_stored_file UNIQUE (stored_file_name);
+ALTER TABLE adoption_comment_image ADD CONSTRAINT uk_adoption_comment_image_stored_file UNIQUE (stored_file_name);
+ALTER TABLE chat_message_attachments ADD CONSTRAINT uk_chat_message_attachments_stored_file UNIQUE (stored_file_name);
+```
+
+제약 이름은 `UniqueConflictPolicy`가 `409 UPLOAD_ALREADY_USED`로 변환하는 기준이므로 바꾸지 않습니다.
 
 
 ## 관측

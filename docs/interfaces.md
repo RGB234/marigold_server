@@ -10,9 +10,21 @@ REST API의 공통 prefix는 `/api/v1`입니다. 상세 경로, 요청 필드와
 - `/user`: 공개 프로필·검색과 인증 사용자의 프로필·계정 관리
 - `/adoption`: 게시글·댓글 조회와 작성, 입양자 확정
 - `/chat/rooms`: 채팅방, 메시지 이력, 첨부파일과 방 나가기
-- `/storage`: 로컬 저장소에서만 사용하는 서명된 파일 조회·다운로드
+- `/storage`: 업로드 URL 발급과, 로컬 저장소에서만 사용하는 서명된 파일 조회·다운로드·업로드
 
-`/storage`는 업로드용 공용 API가 아니며 S3를 사용하는 운영 프로필에서는 활성화되지 않습니다.
+## 파일 업로드
+
+게시글·댓글·프로필·채팅 첨부 API는 multipart를 받지 않습니다. 파일은 다음 순서로 보냅니다.
+
+1. `POST /storage/uploads`에 `purpose`(`ADOPTION_POST_IMAGE`, `ADOPTION_COMMENT_IMAGE`, `USER_PROFILE_IMAGE`,
+   `CHAT_ATTACHMENT`)와 파일별 `fileName`, `size`를 보냅니다. 응답은 요청 순서대로 `uploadUrl`, `contentType`, `uploadToken`입니다.
+2. 각 파일을 `uploadUrl`로 `PUT`합니다. `Content-Type` 헤더에는 응답의 `contentType`을 그대로 넣습니다. 운영에서는 S3 presigned
+   URL이라 신고한 크기나 타입과 다르면 S3가 거부하고, 우리 서버의 인증 헤더나 쿠키를 붙이면 안 됩니다.
+3. 도메인 API의 JSON 본문에 토큰을 담아 보냅니다. 게시글·댓글·채팅은 `uploadTokens` 목록, 프로필은 `imageUploadToken`입니다.
+
+업로드 URL은 기본 15분, 토큰은 기본 1시간 동안 유효합니다. 토큰이 위조·만료되었거나 다른 사용자·용도의 것이면 `UPLOAD_TOKEN_INVALID`, 파일이 없거나
+크기가 다르면 `UPLOAD_INCOMPLETE`로 `400`을 반환합니다. 둘 다 파일을 다시 발급받아 올려야 합니다. `/storage/files/**`는 로컬 프로필에서만
+활성화되며, 운영 프로필은 S3 URL을 사용합니다.
 
 ## 인증과 CSRF
 
@@ -42,7 +54,7 @@ REST API의 공통 prefix는 `/api/v1`입니다. 상세 경로, 요청 필드와
 - CONNECT가 성공하면 STOMP `CONNECTED` frame을 받습니다.
 - SUBSCRIBE 성공에는 별도 application payload가 없습니다. 이후 `/sub/chat/room/{roomId}`로 수신되는 메시지는 `ChatMessageDto` 형식입니다.
 - `/pub/chat/message`로 보낸 메시지가 저장되면 같은 방의 `/sub/chat/room/{roomId}`로 `ChatMessageDto`를 발행합니다. SEND 요청 자체에 대한 별도 application ACK는 없습니다.
-- HTTP multipart로 생성한 첨부파일 메시지도 HTTP `201 Created` 응답과 별개로 같은 방 구독 경로에 발행됩니다.
+- HTTP로 생성한 첨부파일 메시지도 HTTP `201 Created` 응답과 별개로 같은 방 구독 경로에 발행됩니다.
 
 ### 실패 응답
 

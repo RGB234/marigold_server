@@ -31,8 +31,8 @@ flowchart LR
     Storage -->|s3| S3["Amazon S3"]
 ```
 
-REST는 데이터 조회·변경과 파일 업로드를, STOMP는 실시간 텍스트 메시지 송수신을 담당합니다. 파일 본문은 저장소에 두고 DB에는 저장 파일명, 원본 파일명 등의
-메타데이터를 보관합니다.
+REST는 데이터 조회·변경과 업로드 URL 발급을, STOMP는 실시간 텍스트 메시지 송수신을 담당합니다. 파일 본문은 클라이언트가 저장소에 직접 올리고 DB에는 저장
+파일명, 원본 파일명 등의 메타데이터를 보관합니다.
 
 저장소 구현은 `app.storage.type`으로 선택합니다. 저장소에 포함된 `local` 프로필은 로컬 파일시스템을, `prod` 프로필은 S3를 사용합니다. 위 그림은
 코드의 연결 구조이며 실제 서비스의 가동 상태를 의미하지 않습니다.
@@ -166,7 +166,7 @@ HTTP 세션 기반 인증을 사용하지 않습니다.
 
 ### 채팅 저장과 발행
 
-REST는 방 생성·조회, 메시지 이력, 첨부파일 업로드·다운로드 URL을 담당합니다. 텍스트 메시지는 STOMP로 수신합니다.
+REST는 방 생성·조회, 메시지 이력, 첨부파일 메시지 생성과 다운로드 URL을 담당합니다. 텍스트 메시지는 STOMP로 수신합니다.
 
 ```mermaid
 sequenceDiagram
@@ -192,8 +192,8 @@ sequenceDiagram
 CONNECT에서 CSRF와 JWT를 검증하고, SUBSCRIBE에서 방의 활성 참여자인지 검사합니다. SEND에서도 세션 만료와 경로를 검사하며, `ChatService`가
 나가지 않은 참여자인지와 방이 닫히지 않았는지를 다시 확인합니다. 연결에 사용한 access token 만료 시 서버가 연결을 종료합니다.
 
-파일 메시지는 REST Controller가 `saveFileMessage`를 호출합니다. 이 메서드는 DB 트랜잭션 안에서 파일을 업로드하고 메시지·첨부 메타데이터를 저장합니다.
-서비스 트랜잭션 커밋 후 Controller가 STOMP로 발행하고 HTTP `201`을 반환합니다.
+파일 메시지는 REST Controller가 `saveFileMessage`를 호출합니다. 이 메서드는 트랜잭션 밖에서 업로드 토큰을 확정한 뒤 `TransactionTemplate`으로
+메시지·첨부 메타데이터를 저장합니다. 서비스 트랜잭션 커밋 후 Controller가 STOMP로 발행하고 HTTP `201`을 반환합니다.
 
 DB 커밋과 STOMP 발행은 원자적이지 않습니다. 현재 발행 경로에는 영속 발행 대기열이나 재시도 처리가 없으므로 커밋 뒤 발행이 실패하면 메시지는 DB에 남지만 실시간 전달은
 누락될 수 있습니다. 저장된 내용은 REST 이력 조회로 확인할 수 있습니다.
@@ -204,23 +204,32 @@ DB 커밋과 STOMP 발행은 원자적이지 않습니다. 현재 발행 경로�
 
 ### 저장소 계약과 트랜잭션 경계
 
-도메인 서비스는 `StorageService`를 통해 업로드, 파일 삭제와 조회·다운로드 URL 생성을 요청합니다. `AbstractStorageService`가 공통 검증과 실패
-시 정리를 담당하고 `LocalStorageService`, `S3StorageService`가 실제 저장소에 접근합니다.
+파일 본문은 서버를 거치지 않습니다. 클라이언트가 `POST /storage/uploads`로 파일마다 업로드 URL과 업로드 토큰을 받아 저장소에 직접 `PUT`하고,
+도메인 요청에는 토큰만 보냅니다. 도메인 서비스는 업로드 확정을 `StorageUploadService`에, 파일 삭제와 조회·다운로드 URL 생성을 `StorageService`에
+요청합니다. `LocalStorageService`, `S3StorageService`가 실제 저장소에 접근합니다.
 
-파일 저장소는 MySQL 트랜잭션에 참여하지 않습니다. 따라서 DB 롤백만으로 업로드한 파일이 되돌려지지 않으며 별도의 보상 삭제가 필요합니다.
+업로드 토큰은 저장 파일명, 업로더, 용도, 크기, 만료 시각을 HMAC으로 서명한 값입니다. 확정은 토큰의 서명·만료·업로더·용도를 검사한 뒤 저장소의 실제 크기와
+앞 64KB로 감지한 형식을 검사합니다. 다른 사용자의 파일이나 임의의 저장 키를 도메인에 연결하지 못하게 하는 것이 토큰의 역할입니다.
 
-| 호출 경로                   | 파일 업로드와 DB 트랜잭션                                                         |
+파일 저장소는 MySQL 트랜잭션에 참여하지 않습니다. 그래서 확정을 DB 트랜잭션보다 먼저 실행하고, 이후 어느 단계에서 실패해도 결과가 "참조되지 않은 파일"에서
+끝나게 합니다. 서비스는 새 파일을 직접 지우지 않고 고아 파일 정리에 맡깁니다. DB가 없는 파일을 가리키는 상태는 생기지 않습니다.
+
+| 호출 경로                   | 업로드 확정과 DB 트랜잭션                                                         |
 |-------------------------|-------------------------------------------------------------------------|
-| 게시글 생성·수정, 댓글 생성·수정    | 트랜잭션 밖에서 업로드 후 `TransactionTemplate`으로 DB 변경                                     |
-| 프로필 변경 `updateUser`     | 트랜잭션 밖에서 업로드 후 `TransactionTemplate`으로 DB 변경                                     |
-| 채팅 첨부 `saveFileMessage` | 클래스 기본 트랜잭션을 `NOT_SUPPORTED`로 끄고, 권한 사전 검사 → 업로드 → `TransactionTemplate`으로 메시지 저장 |
+| 게시글 생성·수정, 댓글 생성·수정    | 트랜잭션 밖에서 확정 후 `TransactionTemplate`으로 DB 변경                                     |
+| 프로필 변경 `updateUser`     | 트랜잭션 밖에서 확정 후 `TransactionTemplate`으로 DB 변경                                     |
+| 채팅 첨부 `saveFileMessage` | 클래스 기본 트랜잭션을 `NOT_SUPPORTED`로 끄고, 권한 사전 검사 → 확정 → `TransactionTemplate`으로 메시지 저장 |
 
-업로드 동안 DB 커넥션을 점유하지 않기 위해 업로드는 트랜잭션 밖에서 실행합니다. 이 서비스 메서드에 `@Transactional`을 다시 붙이거나 트랜잭션 안에서 호출하면
-커밋 실패가 보상 `catch` 밖에서 발생하므로 새 업로드 파일이 고아 파일로 남습니다.
+확정은 파일마다 저장소에 요청을 보내므로, 그동안 DB 커넥션을 점유하지 않도록 트랜잭션 밖에서 실행합니다. 이를 위해 OSIV(`spring.jpa.open-in-view`)를 꺼서
+커넥션을 트랜잭션 동안만 사용합니다. 트랜잭션 밖에서 읽은 엔티티는 지연 로딩할 수 없으므로 사전 검사도 트랜잭션 안에서 하고, 저장 트랜잭션에서 다시 조회해
+확정하는 동안 생긴 변경(예: 게시글 삭제)을 다시 검사합니다.
+
+업로드 토큰 유효시간(`app.storage.upload.token-ttl`, 기본 1시간)은 고아 정리 `minimum-age`보다 짧아야 합니다. 어긋나면 확정 전인 파일을 정리가
+지운 뒤 그 파일을 가리키는 행이 커밋될 수 있어, 앱이 기동 시 이 관계를 검사하고 시작을 거부합니다.
 
 ### 커밋·롤백 이후 파일 삭제
 
-- 새 업로드 파일의 보상 삭제는 Service의 `catch`가 동기로 수행합니다. `TransactionTemplate`이 최상위 트랜잭션이므로 커밋 실패도 이 `catch`에서 잡힙니다.
+- 확정했지만 커밋되지 않은 새 파일은 삭제하지 않고 고아 파일 정리에 맡깁니다. 사용자가 파일을 올린 뒤 등록하지 않은 경우도 같습니다.
 - 교체·제거한 기존 파일은 `DeleteOldStorageFilesEvent`를 등록하고 `AFTER_COMMIT`에 삭제를 시도합니다.
 
 이벤트 리스너는 `storageTaskExecutor`를 사용하는 비동기 작업입니다. 다만 실행기와 큐가 포화되면 `CallerRunsPolicy`에 따라 호출 스레드에서
@@ -229,7 +238,7 @@ DB 커밋과 STOMP 발행은 원자적이지 않습니다. 현재 발행 경로�
 삭제는 `best-effort`입니다. 삭제 실패는 로그로 남기며 이미 커밋된 DB 변경을 되돌리지 않습니다. 이벤트와 실행기 큐가 영속 저장되지 않으므로 프로세스 종료나 저장소
 장애가 발생하면 파일이 남을 수 있습니다.
 
-근거: [StorageEventListener](../src/main/java/com/sns/marigold/storage/event/StorageEventListener.java), [AbstractStorageService](../src/main/java/com/sns/marigold/storage/service/AbstractStorageService.java), [StorageTaskExecutorConfig](../src/main/java/com/sns/marigold/storage/config/StorageTaskExecutorConfig.java).
+근거: [StorageUploadService](../src/main/java/com/sns/marigold/storage/service/StorageUploadService.java), [UploadTokenCodec](../src/main/java/com/sns/marigold/storage/service/UploadTokenCodec.java), [StorageEventListener](../src/main/java/com/sns/marigold/storage/event/StorageEventListener.java), [StorageTaskExecutorConfig](../src/main/java/com/sns/marigold/storage/config/StorageTaskExecutorConfig.java).
 
 ### 고아 파일 정리
 
@@ -241,6 +250,9 @@ DB 커밋과 STOMP 발행은 원자적이지 않습니다. 현재 발행 경로�
 
 - `local`: 시작 시 실행, `minimum-age=24h`, `dry-run=false`로 실제 삭제 시도.
 - `prod`: 예약 실행, `minimum-age=24h`, `dry-run=true`로 후보만 기록.
+
+클라이언트 직접 업로드에서는 이 작업이 새 파일의 유일한 정리 수단입니다. 올린 뒤 등록하지 않은 파일이 평소에도 생기므로, 운영 설정이 `dry-run=true`로 남아
+있으면 이런 파일이 계속 쌓입니다.
 
 이 작업은 DB에 참조가 남아 있는 파일을 정리하지 않습니다. 따라서 모든 파일 삭제 실패를 복구하는 장치는 아니며, 특히 운영 기본 설정은 자동 삭제를 수행하지 않습니다. 실행
 중복 방지는 프로세스 내부 `AtomicBoolean`으로만 이루어집니다.
@@ -280,7 +292,9 @@ DB 커밋과 STOMP 발행은 원자적이지 않습니다. 현재 발행 경로�
 ### 변경 시 확인할 테스트
 
 - [AdoptionPostServiceTest](../src/test/unit/java/com/sns/marigold/adoption/service/AdoptionPostServiceTest.java):
-  작성자 권한, 일반 상태 변경의 완료 전환 거부, 입양 취소와 업로드 보상 삭제.
+  작성자 권한, 일반 상태 변경의 완료 전환 거부, 입양 취소, 업로드 확정 실패와 저장 실패 시 처리.
+- [StorageUploadServiceTest](../src/test/unit/java/com/sns/marigold/storage/service/StorageUploadServiceTest.java):
+  토큰 위조·만료·업로더·용도 불일치, 크기와 형식 검사.
 - [StorageEventListenerTest](../src/test/component/java/com/sns/marigold/storage/event/StorageEventListenerTest.java):
   커밋·롤백, 외부 트랜잭션 롤백과 커밋 직전 실패에 따른 파일 정리.
 - [StorageOrphanCleanupServiceTest](../src/test/unit/java/com/sns/marigold/storage/cleanup/StorageOrphanCleanupServiceTest.java):
