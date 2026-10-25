@@ -24,7 +24,7 @@ New-Item -ItemType Directory -Force ..\secrets\back | Out-Null
 Copy-Item .env.example ..\secrets\back\.env.local
 ```
 
-`../secrets/back/.env.local`에 JWT·CSRF 비밀키, OAuth 클라이언트 정보와 로컬 DB 접속 정보를 입력합니다. 두 비밀키는 각각 32바이트 이상의 서로 다른 값이어야 하며, `DB_URL`이 가리키는 데이터베이스는 미리 생성되어 있어야 합니다.
+`../secrets/back/.env.local`에 Access·Refresh·CSRF 비밀키, OAuth 클라이언트 정보와 로컬 DB 접속 정보를 입력합니다. 세 비밀키는 각각 32바이트 이상이어야 하며, Access와 Refresh 비밀키는 서로 다른 값을 사용해야 합니다. `DB_URL`이 가리키는 데이터베이스는 미리 생성되어 있어야 합니다.
 
 ```powershell
 .\gradlew.bat bootRun --args='--spring.profiles.active=local'
@@ -37,12 +37,21 @@ Copy-Item .env.example ..\secrets\back\.env.local
 - OpenAPI JSON: http://localhost:8080/v3/api-docs
 
 > [!WARNING]
-> `local` 프로필은 시작할 때 JPA 스키마를 다시 생성합니다. 폐기 가능한 로컬 데이터베이스에만 연결하세요.
+> `local` 프로필은 시작할 때 JPA 스키마를 자동으로 변경할 수 있습니다. 개발 전용 데이터베이스에만 연결하세요.
 
 ## 검사
 
 ```powershell
+# 단위 테스트
 .\gradlew.bat test
+
+# 컴포넌트 테스트
+.\gradlew.bat componentTest
+
+# 통합 테스트(Docker 필요)
+.\gradlew.bat integrationTest
+
+# 포맷 검사
 .\gradlew.bat spotlessCheck
 ```
 
@@ -52,7 +61,17 @@ Copy-Item .env.example ..\secrets\back\.env.local
 .\gradlew.bat generateValidationPolicy
 ```
 
-통합 테스트는 Testcontainers로 MySQL 컨테이너를 시작하므로 Docker가 실행 중이어야 합니다.
+테스트는 `src/test` 아래에서 종류별로 관리하며, 각 `java` 폴더 안에서는 운영 코드의 package 구조를 유지합니다.
+
+| 디렉터리 | 검증 범위 | 실행 명령 |
+| --- | --- | --- |
+| `src/test/unit/java` | 객체 로직, 직렬화·검증 규칙 | `test` |
+| `src/test/component/java` | MVC·보안·트랜잭션 이벤트 구성, 실제 협력 객체를 연결한 인증·로컬 저장소 동작 | `componentTest` |
+| `src/test/integration/java` | 애플리케이션 여러 계층과 실제 MySQL 연결 | `integrationTest` |
+
+단일 객체를 직접 호출하고 협력 객체를 mock으로 대체하는 테스트는 `unit`, 제한된 기능의 실제 객체나 Spring 구성을 연결하는 테스트는 `component`에 둡니다. 컴포넌트 테스트는 임시 파일이나 내장 서버를 사용할 수 있지만 외부 DB·S3는 필요하지 않습니다.
+
+`integrationTest`는 Testcontainers로 MySQL 컨테이너를 시작하므로 Docker가 실행 중이어야 합니다. 공통 지원 코드는 `src/test/integration/java/com/sns/marigold/support`, 전용 설정은 `src/test/integration/resources/application-integration-test.yaml`에 있습니다. `check`를 실행하면 세 종류의 테스트와 포맷 검사를 모두 실행합니다.
 
 ## 문서
 
