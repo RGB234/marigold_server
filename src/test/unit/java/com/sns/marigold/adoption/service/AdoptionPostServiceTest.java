@@ -3,6 +3,7 @@ package com.sns.marigold.adoption.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -26,12 +27,9 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.sns.marigold.adoption.dto.AdoptionPostCreateDto;
 import com.sns.marigold.adoption.dto.AdoptionPostDetailDto;
@@ -57,11 +55,12 @@ import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.chat.service.ChatService;
-import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageException;
-import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
+import com.sns.marigold.storage.service.StorageUploadService;
+import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.service.UserService;
@@ -72,6 +71,8 @@ class AdoptionPostServiceTest {
   @Mock private UserService userService;
 
   @Mock private StorageService storageService;
+
+  @Mock private StorageUploadService storageUploadService;
 
   @Mock private AdoptionCommentService adoptionCommentService;
 
@@ -164,14 +165,9 @@ class AdoptionPostServiceTest {
   }
 
   @Test
-  @DisplayName("게시글 생성 시 정상적으로 저장되고 ID를 반환한다.")
+  @DisplayName("게시글 생성 시 확정한 이미지로 저장되고 ID를 반환한다.")
   void create_Success() {
     // given
-    List<MultipartFile> multipartFiles =
-        List.of(
-            new MockMultipartFile(
-                "file", "original.jpg", MediaType.IMAGE_PNG_VALUE, "test".getBytes()));
-
     AdoptionPostCreateDto dto =
         AdoptionPostCreateDto.builder()
             .title("New Post")
@@ -182,17 +178,15 @@ class AdoptionPostServiceTest {
             .area("Busan")
             .neutering(Neutering.UNKNOWN)
             .features("Lovely cat")
-            .images(multipartFiles)
+            .uploadTokens(List.of("token-1"))
             .build();
 
     given(userService.findEntityById(1L)).willReturn(testUser);
-    given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_POST)))
+    given(storageUploadService.confirm(1L, UploadPurpose.ADOPTION_POST_IMAGE, List.of("token-1")))
         .willReturn(
             List.of(
-                ImageUploadDto.builder()
-                    .originalFileName("original.jpg")
-                    .storedFileName("adoption/post/33333333-3333-3333-3333-333333333333.jpg")
-                    .build()));
+                confirmedImage(
+                    "adoption/post/33333333-3333-3333-3333-333333333333.jpg", "original.jpg")));
 
     AdoptionPost savedPost = mock(AdoptionPost.class);
     given(savedPost.getId()).willReturn(100L);
@@ -203,9 +197,6 @@ class AdoptionPostServiceTest {
 
     // then
     assertThat(postId).isEqualTo(100L);
-    verify(storageService, times(1))
-        .uploadImages(
-            multipartFiles, StorageDirectory.ADOPTION_POST); // 스토리지 서비스에 정확한 파일이 전달되었는지 검증
 
     // 저장될 때 AdoptionPost 엔티티에 Image 객체가 제대로 생성되어 들어갔는지 검증
     ArgumentCaptor<AdoptionPost> postCaptor = ArgumentCaptor.forClass(AdoptionPost.class);
@@ -216,68 +207,71 @@ class AdoptionPostServiceTest {
     assertThat(capturedPost.getImages().get(0).getOriginalFileName()).isEqualTo("original.jpg");
     assertThat(capturedPost.getImages().get(0).getStoredFileName())
         .isEqualTo("adoption/post/33333333-3333-3333-3333-333333333333.jpg");
-    verifyNoInteractions(eventPublisher);
-    verify(storageService, never()).deleteUploadedImagesBestEffort(any());
+    verifyNoInteractions(eventPublisher, storageService);
   }
 
   @Test
-  @DisplayName("게시글 생성 시 이미지가 없으면 업로드 전에 실패한다.")
+  @DisplayName("게시글 생성 시 이미지가 없으면 확정 전에 실패한다.")
   void create_WithoutImages() {
-    AdoptionPostCreateDto dto = AdoptionPostCreateDto.builder().images(List.of()).build();
+    AdoptionPostCreateDto dto = AdoptionPostCreateDto.builder().uploadTokens(List.of()).build();
 
     assertThatThrownBy(() -> adoptionPostService.create(dto, 1L))
         .isInstanceOf(AdoptionPostException.class)
         .hasMessageContaining(AdoptionPostException.forInvalidPostImages().getMessage());
 
-    verify(storageService, never()).uploadImages(any(), any());
-    verifyNoInteractions(userService, adoptionPostRepository);
+    verifyNoInteractions(storageUploadService, userService, adoptionPostRepository);
   }
 
   @Test
-  @DisplayName("사용자 조회에 실패하면 이미지를 업로드하지 않는다.")
-  void create_UserNotFoundDoesNotUploadImages() {
-    MockMultipartFile image =
-        new MockMultipartFile("images", "new.jpg", "image/jpeg", new byte[] {1});
-    AdoptionPostCreateDto dto = AdoptionPostCreateDto.builder().images(List.of(image)).build();
+  @DisplayName("사용자 조회에 실패하면 업로드를 확정하지 않는다.")
+  void create_UserNotFoundDoesNotConfirmUploads() {
+    AdoptionPostCreateDto dto =
+        AdoptionPostCreateDto.builder().uploadTokens(List.of("token-1")).build();
     UserException failure = UserException.forUserNotFound();
     given(userService.findEntityById(1L)).willThrow(failure);
 
     assertThatThrownBy(() -> adoptionPostService.create(dto, 1L)).isSameAs(failure);
 
-    verify(storageService, never()).uploadImages(any(), any());
-    verifyNoInteractions(eventPublisher, transactionTemplate);
+    verifyNoInteractions(storageUploadService, eventPublisher, transactionTemplate);
   }
 
   @Test
-  @DisplayName("업로드 후 트랜잭션 시작에 실패하면 새 파일을 직접 삭제한다.")
-  void create_TransactionStartFailureDeletesUploadedImages() {
-    MockMultipartFile image =
-        new MockMultipartFile("images", "new.jpg", "image/jpeg", new byte[] {1});
-    AdoptionPostCreateDto dto = AdoptionPostCreateDto.builder().images(List.of(image)).build();
-    List<ImageUploadDto> uploadedImages =
-        List.of(
-            new ImageUploadDto(
-                "adoption/post/33333333-3333-3333-3333-333333333333.jpg", "new.jpg"));
+  @DisplayName("업로드 확정에 실패하면 트랜잭션을 시작하지 않는다.")
+  void create_ConfirmFailureDoesNotStartTransaction() {
+    AdoptionPostCreateDto dto =
+        AdoptionPostCreateDto.builder().uploadTokens(List.of("token-1")).build();
     given(userService.findEntityById(1L)).willReturn(testUser);
-    given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_POST)))
-        .willReturn(uploadedImages);
+    StorageException failure = StorageException.forInvalidUploadToken("expired");
+    given(storageUploadService.confirm(anyLong(), any(), any())).willThrow(failure);
+
+    assertThatThrownBy(() -> adoptionPostService.create(dto, 1L)).isSameAs(failure);
+
+    verifyNoInteractions(transactionTemplate, adoptionPostRepository);
+  }
+
+  @Test
+  @DisplayName("확정 후 트랜잭션이 실패해도 확정한 파일을 지우지 않고 고아 정리에 맡긴다.")
+  void create_TransactionFailureKeepsConfirmedFiles() {
+    AdoptionPostCreateDto dto =
+        AdoptionPostCreateDto.builder().uploadTokens(List.of("token-1")).build();
+    given(userService.findEntityById(1L)).willReturn(testUser);
+    given(storageUploadService.confirm(anyLong(), any(), any()))
+        .willReturn(
+            List.of(
+                confirmedImage(
+                    "adoption/post/33333333-3333-3333-3333-333333333333.jpg", "new.jpg")));
     IllegalStateException failure = new IllegalStateException("transaction start failed");
     doThrow(failure).when(transactionTemplate).execute(any());
 
     assertThatThrownBy(() -> adoptionPostService.create(dto, 1L)).isSameAs(failure);
 
-    verify(storageService).deleteUploadedImagesBestEffort(uploadedImages);
+    verifyNoInteractions(storageService);
     verify(eventPublisher, never()).publishEvent(any());
   }
 
   @Test
   @DisplayName("게시글 수정 시 작성자가 일치하면 정상적으로 수정된다.")
   void update_Success() {
-    List<MultipartFile> multipartFiles =
-        List.of(
-            new MockMultipartFile(
-                "file", "original.jpg", MediaType.IMAGE_PNG_VALUE, "test".getBytes()));
-
     // given
     AdoptionPostUpdateDto dto =
         AdoptionPostUpdateDto.builder()
@@ -290,19 +284,15 @@ class AdoptionPostServiceTest {
             .neutering(Neutering.YES)
             .features("Updated features")
             .imagesToKeep(List.of("adoption/post/11111111-1111-1111-1111-111111111111.jpg"))
-            .images(multipartFiles)
+            .uploadTokens(List.of("token-1"))
             .build();
 
-    List<ImageUploadDto> uploadedImages =
-        List.of(
-            ImageUploadDto.builder()
-                .originalFileName("original.jpg")
-                .storedFileName("adoption/post/44444444-4444-4444-4444-444444444444.jpg")
-                .build());
-
     given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
-    given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_POST)))
-        .willReturn(uploadedImages);
+    given(storageUploadService.confirm(1L, UploadPurpose.ADOPTION_POST_IMAGE, List.of("token-1")))
+        .willReturn(
+            List.of(
+                confirmedImage(
+                    "adoption/post/44444444-4444-4444-4444-444444444444.jpg", "original.jpg")));
 
     // when
     adoptionPostService.update(100L, 1L, dto);
@@ -339,7 +329,7 @@ class AdoptionPostServiceTest {
             .neutering(Neutering.YES)
             .features("Updated features")
             .imagesToKeep(List.of("adoption/post/99999999-9999-9999-9999-999999999999.jpg"))
-            .images(List.of())
+            .uploadTokens(List.of())
             .build();
 
     given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
@@ -354,7 +344,7 @@ class AdoptionPostServiceTest {
         .containsExactly(
             "adoption/post/11111111-1111-1111-1111-111111111111.jpg",
             "adoption/post/22222222-2222-2222-2222-222222222222.jpg");
-    verify(storageService, never()).uploadImages(any(), any());
+    verifyNoInteractions(storageUploadService);
     verify(eventPublisher, never()).publishEvent(any());
   }
 
@@ -565,5 +555,14 @@ class AdoptionPostServiceTest {
         .isInstanceOf(AdoptionPostException.class)
         .hasMessageContaining(AdoptionPostException.forAdoptionPostNotCompleted().getMessage());
     verify(adoptionAdopterRepository, never()).deleteByAdoptionPostId(any());
+  }
+
+  private static FileUploadDto confirmedImage(String storedFileName, String originalFileName) {
+    return FileUploadDto.builder()
+        .storedFileName(storedFileName)
+        .originalFileName(originalFileName)
+        .contentType("image/jpeg")
+        .fileSize(1L)
+        .build();
   }
 }

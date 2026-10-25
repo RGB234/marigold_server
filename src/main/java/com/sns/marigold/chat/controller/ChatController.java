@@ -9,7 +9,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -23,12 +22,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.chat.ChatDestinations;
+import com.sns.marigold.chat.dto.ChatFileMessageRequestDto;
 import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.dto.ChatRoomDto;
 import com.sns.marigold.chat.dto.NewChatDto;
@@ -173,7 +171,7 @@ public class ChatController {
 
   @Operation(
       summary = "파일 메시지 생성",
-      description = "채팅방에 파일 첨부 메시지를 multipart/form-data로 생성하고 WebSocket으로 브로드캐스트합니다.",
+      description = "채팅방에 파일 첨부 메시지를 생성하고 WebSocket으로 브로드캐스트합니다. 첨부파일은 업로드 토큰으로 보냅니다.",
       security = {
         @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
@@ -186,19 +184,18 @@ public class ChatController {
     @ApiResponse(responseCode = "404", description = "채팅방 없음")
   })
   @PreAuthorize("isAuthenticated()")
-  @PostMapping(value = "/{roomId}/messages/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PostMapping("/{roomId}/messages/files")
   public ResponseEntity<ChatMessageDto> createFileMessage(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Parameter(description = "TSID 형식 채팅방 ID", required = true) @PathVariable("roomId") @NonNull
           TsidValue roomId,
-      @Parameter(description = "메시지 본문", required = false)
-          @RequestPart(value = "message", required = false)
-          String message,
-      @Parameter(description = "첨부파일 목록", required = true) @RequestPart("files")
-          List<MultipartFile> files) {
+      @RequestBody ChatFileMessageRequestDto request) {
     ChatMessageDto savedMessage =
         chatService.saveFileMessage(
-            roomId.value(), message, files, Objects.requireNonNull(principal.getUserId()));
+            roomId.value(),
+            request.getMessage(),
+            request.getUploadTokens(),
+            Objects.requireNonNull(principal.getUserId()));
     messagingTemplate.convertAndSend(ChatDestinations.room(savedMessage.getRoomId()), savedMessage);
     return ResponseEntity.status(HttpStatus.CREATED).body(savedMessage);
   }

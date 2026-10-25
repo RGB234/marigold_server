@@ -2,8 +2,6 @@ package com.sns.marigold.adoption.dto;
 
 import java.util.List;
 
-import org.springframework.web.multipart.MultipartFile;
-
 import com.sns.marigold.global.validation.ValidationPolicy;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -31,8 +29,8 @@ public class AdoptionCommentUpdateDto {
   @Schema(description = "기존 댓글 이미지를 삭제할지 여부", defaultValue = "false", example = "false")
   private Boolean removeImage;
 
-  @Schema(description = "새로 업로드할 댓글 이미지 파일 목록. 최대 1개", type = "string", format = "binary")
-  private List<MultipartFile> images;
+  @Schema(description = "새 댓글 이미지의 업로드 토큰 목록. 최대 1개")
+  private List<String> uploadTokens;
 
   public boolean shouldRemoveImage() {
     return Boolean.TRUE.equals(removeImage);

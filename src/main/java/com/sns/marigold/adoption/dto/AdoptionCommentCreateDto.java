@@ -2,8 +2,6 @@ package com.sns.marigold.adoption.dto;
 
 import java.util.List;
 
-import org.springframework.web.multipart.MultipartFile;
-
 import com.sns.marigold.global.validation.ValidationPolicy;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -31,6 +29,6 @@ public class AdoptionCommentCreateDto {
   @Size(max = ValidationPolicy.Comment.CONTENT_MAX_LENGTH, message = "댓글은 1000자 이하여야 합니다.")
   private String content;
 
-  @Schema(description = "업로드할 댓글 이미지 파일 목록. 최대 1개", type = "string", format = "binary")
-  private List<MultipartFile> images;
+  @Schema(description = "댓글 이미지의 업로드 토큰 목록. 최대 1개")
+  private List<String> uploadTokens;
 }

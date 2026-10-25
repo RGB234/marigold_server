@@ -2,13 +2,11 @@ package com.sns.marigold.user.controller;
 
 import java.util.List;
 
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -81,7 +79,7 @@ public class UserController {
 
   @Operation(
       summary = "내 프로필 수정",
-      description = "인증된 사용자의 닉네임과 프로필 이미지를 수정합니다. multipart/form-data 요청입니다.",
+      description = "인증된 사용자의 닉네임과 프로필 이미지를 수정합니다. 새 이미지는 업로드 토큰으로 보냅니다.",
       security = {
         @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
@@ -93,10 +91,13 @@ public class UserController {
     @ApiResponse(responseCode = "409", description = "중복 닉네임")
   })
   @PreAuthorize("isAuthenticated()")
-  @PatchMapping(value = "/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PatchMapping("/me")
   public UserInfoDto update(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(description = "수정할 프로필 정보") @ModelAttribute @Valid UserUpdateDto dto) {
+      @Parameter(description = "수정할 프로필 정보")
+          @org.springframework.web.bind.annotation.RequestBody
+          @Valid
+          UserUpdateDto dto) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw com.sns.marigold.auth.exception.AuthException.forUnauthorized();

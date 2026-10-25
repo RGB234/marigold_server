@@ -2,8 +2,6 @@ package com.sns.marigold.adoption.dto;
 
 import java.util.List;
 
-import org.springframework.web.multipart.MultipartFile;
-
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
@@ -77,6 +75,6 @@ public class AdoptionPostUpdateDto {
   @Schema(description = "유지할 기존 이미지 파일명 목록", nullable = true, example = "[\"images/old.jpg\"]")
   private List<String> imagesToKeep;
 
-  @Schema(description = "새로 업로드할 이미지 파일 목록", type = "string", format = "binary", nullable = true)
-  private List<MultipartFile> images;
+  @Schema(description = "새로 추가할 이미지의 업로드 토큰 목록", nullable = true)
+  private List<String> uploadTokens;
 }

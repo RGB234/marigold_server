@@ -3,7 +3,7 @@ package com.sns.marigold.user.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -54,14 +54,15 @@ public class UserApiIntegrationTest extends ApiIntegrationTest {
 
     mockMvc
         .perform(
-            multipart(UrlConstants.USER_BASE + "/me")
-                .param("nickname", "updatedUser")
-                .param("removeImage", "false")
-                .with(
-                    request -> {
-                      request.setMethod("PATCH");
-                      return request;
-                    })
+            patch(UrlConstants.USER_BASE + "/me")
+                .contentType("application/json")
+                .content(
+                    """
+                    {
+                      "nickname": "updatedUser",
+                      "removeImage": false
+                    }
+                    """)
                 .header("Authorization", "Bearer " + getAccessToken(user)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.nickname").value("updatedUser"));

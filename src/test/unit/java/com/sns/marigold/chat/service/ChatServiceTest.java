@@ -3,7 +3,6 @@ package com.sns.marigold.chat.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -12,7 +11,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -32,7 +30,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -57,8 +54,9 @@ import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.exception.StorageException;
-import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
+import com.sns.marigold.storage.service.StorageUploadService;
+import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
 
@@ -78,6 +76,8 @@ class ChatServiceTest {
   @Mock private RoomParticipantRepository participantRepository;
 
   @Mock private StorageService storageService;
+
+  @Mock private StorageUploadService storageUploadService;
 
   @Mock private TransactionTemplate transactionTemplate;
 
@@ -422,35 +422,29 @@ class ChatServiceTest {
   }
 
   @Test
-  @DisplayName("파일 메시지는 여러 첨부파일을 저장한다.")
+  @DisplayName("파일 메시지는 확정한 여러 첨부파일을 저장한다.")
   void saveFileMessage_Success() {
     // given
-    MockMultipartFile textFile =
-        new MockMultipartFile(
-            "files", "note.txt", "text/plain", "hello".getBytes(StandardCharsets.UTF_8));
-    MockMultipartFile csvFile =
-        new MockMultipartFile(
-            "files", "memo.csv", "text/csv", "a,b".getBytes(StandardCharsets.UTF_8));
-
+    List<String> uploadTokens = List.of("token-1", "token-2");
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
     given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
         .willReturn(true);
 
-    given(storageService.uploadFiles(any(), eq(StorageDirectory.CHAT_ATTACHMENT)))
+    given(storageUploadService.confirm(1L, UploadPurpose.CHAT_ATTACHMENT, uploadTokens))
         .willReturn(
             List.of(
                 FileUploadDto.builder()
                     .storedFileName("chat/attachment/11111111-1111-1111-1111-111111111111.txt")
                     .originalFileName("note.txt")
                     .contentType("text/plain")
-                    .fileSize(textFile.getSize())
+                    .fileSize(5L)
                     .build(),
                 FileUploadDto.builder()
                     .storedFileName("chat/attachment/22222222-2222-2222-2222-222222222222.csv")
                     .originalFileName("memo.csv")
                     .contentType("text/csv")
-                    .fileSize(csvFile.getSize())
+                    .fileSize(3L)
                     .build()));
     given(chatMessageRepository.saveAndFlush(any(ChatMessage.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
@@ -464,8 +458,7 @@ class ChatServiceTest {
         .willReturn("https://file/2");
 
     // when
-    ChatMessageDto result =
-        chatService.saveFileMessage(100L, "첨부 확인", List.of(textFile, csvFile), 1L);
+    ChatMessageDto result = chatService.saveFileMessage(100L, "첨부 확인", uploadTokens, 1L);
 
     // then
     assertThat(result.getMessage()).isEqualTo("첨부 확인");
@@ -473,63 +466,64 @@ class ChatServiceTest {
     assertThat(result.getAttachments()).hasSize(2);
     assertThat(result.getAttachments().get(0).getOriginalFileName()).isEqualTo("note.txt");
     assertThat(result.getAttachments().get(1).getViewUrl()).isEqualTo("https://file/2");
-    verify(storageService, never()).deleteUploadedFilesBestEffort(any());
-    verify(storageService, times(1)).uploadFiles(any(), eq(StorageDirectory.CHAT_ATTACHMENT));
     verify(chatMessageRepository, times(1)).saveAndFlush(any(ChatMessage.class));
     verify(participantRepository, never()).findAllByChatRoom(chatRoom);
   }
 
   @Test
-  @DisplayName("파일 메시지 저장 실패 시 업로드한 파일을 즉시 삭제한다.")
+  @DisplayName("파일 메시지 저장이 실패해도 확정한 파일은 지우지 않고 고아 정리에 맡긴다.")
   void saveFileMessage_SaveFailure() {
-    MockMultipartFile file =
-        new MockMultipartFile(
-            "files", "note.txt", "text/plain", "hello".getBytes(StandardCharsets.UTF_8));
-    List<FileUploadDto> uploadedFiles =
-        List.of(
-            FileUploadDto.builder()
-                .storedFileName("chat/attachment/11111111-1111-1111-1111-111111111111.txt")
-                .originalFileName("note.txt")
-                .contentType("text/plain")
-                .fileSize(file.getSize())
-                .build());
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
     given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
         .willReturn(true);
-    given(storageService.uploadFiles(any(), eq(StorageDirectory.CHAT_ATTACHMENT)))
-        .willReturn(uploadedFiles);
+    given(storageUploadService.confirm(1L, UploadPurpose.CHAT_ATTACHMENT, List.of("token-1")))
+        .willReturn(
+            List.of(
+                FileUploadDto.builder()
+                    .storedFileName("chat/attachment/11111111-1111-1111-1111-111111111111.txt")
+                    .originalFileName("note.txt")
+                    .contentType("text/plain")
+                    .fileSize(5L)
+                    .build()));
     given(chatMessageRepository.saveAndFlush(any(ChatMessage.class)))
         .willThrow(new IllegalStateException("save failed"));
 
-    assertThatThrownBy(() -> chatService.saveFileMessage(100L, "", List.of(file), 1L))
+    assertThatThrownBy(() -> chatService.saveFileMessage(100L, "", List.of("token-1"), 1L))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("save failed");
 
-    verify(storageService).deleteUploadedFilesBestEffort(uploadedFiles);
+    verifyNoInteractions(storageService);
   }
 
   @Test
-  @DisplayName("허용하지 않는 확장자의 파일 메시지는 저장하지 않는다.")
-  void saveFileMessage_InvalidExtension() {
+  @DisplayName("업로드 확정에 실패한 파일 메시지는 저장하지 않는다.")
+  void saveFileMessage_ConfirmFailure() {
     // given
-    MockMultipartFile invalidFile =
-        new MockMultipartFile(
-            "files",
-            "script.exe",
-            "application/octet-stream",
-            "echo".getBytes(StandardCharsets.UTF_8));
-
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
     given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
         .willReturn(true);
+    given(storageUploadService.confirm(1L, UploadPurpose.CHAT_ATTACHMENT, List.of("token-1")))
+        .willThrow(StorageException.forInvalidUploadToken("expired"));
 
     // when & then
-    assertThatThrownBy(() -> chatService.saveFileMessage(100L, "", List.of(invalidFile), 1L))
+    assertThatThrownBy(() -> chatService.saveFileMessage(100L, "", List.of("token-1"), 1L))
         .isInstanceOf(StorageException.class);
-    verify(storageService, times(0)).uploadFiles(any(), any());
     verify(chatMessageRepository, times(0)).saveAndFlush(any(ChatMessage.class));
+  }
+
+  @Test
+  @DisplayName("참여자가 아니라면 첨부파일 업로드를 확정하지 않는다.")
+  void saveFileMessage_NotParticipantDoesNotConfirm() {
+    given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
+    given(userRepository.findById(3L)).willReturn(Optional.of(user3));
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 3L))
+        .willReturn(false);
+
+    assertThatThrownBy(() -> chatService.saveFileMessage(100L, "", List.of("token-1"), 3L))
+        .isInstanceOf(AuthException.class);
+    verifyNoInteractions(storageUploadService);
   }
 
   @Test

@@ -1,7 +1,5 @@
 package com.sns.marigold.user.dto.update;
 
-import org.springframework.web.multipart.MultipartFile;
-
 import com.sns.marigold.global.validation.ValidationPolicy;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -12,7 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
-@Setter // @ModelAttribute 사용 시 필요
+@Setter
 @NoArgsConstructor
 @Schema(description = "사용자 프로필 수정 요청")
 public class UserUpdateDto {
@@ -26,8 +24,8 @@ public class UserUpdateDto {
       message = "닉네임은 영문자, 한글, 숫자만 사용할 수 있습니다.")
   private String nickname;
 
-  @Schema(description = "새 프로필 이미지 파일", type = "string", format = "binary")
-  private MultipartFile image;
+  @Schema(description = "새 프로필 이미지의 업로드 토큰", nullable = true)
+  private String imageUploadToken;
 
   @Schema(description = "현재 프로필 이미지 삭제 여부", type = "boolean", example = "false")
   private boolean removeImage = false;

@@ -3,7 +3,6 @@ package com.sns.marigold.adoption.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -23,7 +22,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
@@ -41,10 +39,11 @@ import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.exception.AuthException;
-import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
+import com.sns.marigold.storage.service.StorageUploadService;
+import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
 
@@ -60,6 +59,8 @@ class AdoptionCommentServiceTest {
   @Mock private UserService userService;
 
   @Mock private StorageService storageService;
+
+  @Mock private StorageUploadService storageUploadService;
 
   @Mock private TransactionTemplate transactionTemplate;
 
@@ -81,6 +82,7 @@ class AdoptionCommentServiceTest {
             adoptionAdopterRepository,
             userService,
             storageService,
+            storageUploadService,
             transactionTemplate,
             eventPublisher,
             adoptionCommentImageRepository);
@@ -117,17 +119,20 @@ class AdoptionCommentServiceTest {
   }
 
   @Test
-  @DisplayName("댓글 생성 성공 시 업로드한 이미지를 삭제하지 않는다.")
-  void createComment_WithImage_KeepsUploadedImage() {
-    MockMultipartFile image =
-        new MockMultipartFile("images", "new.jpg", "image/jpeg", new byte[] {1});
+  @DisplayName("댓글 생성 시 확정한 이미지를 댓글에 연결한다.")
+  void createComment_WithImage_AttachesConfirmedImage() {
     AdoptionCommentCreateDto dto =
-        AdoptionCommentCreateDto.builder().content("new comment").images(List.of(image)).build();
+        AdoptionCommentCreateDto.builder()
+            .content("new comment")
+            .uploadTokens(List.of("token-1"))
+            .build();
     String storedFileName = "adoption/comment/33333333-3333-3333-3333-333333333333.jpg";
     given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(post));
     given(userService.findEntityById(1L)).willReturn(writer);
-    given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_COMMENT)))
-        .willReturn(List.of(new ImageUploadDto(storedFileName, "new.jpg")));
+    given(
+            storageUploadService.confirm(
+                1L, UploadPurpose.ADOPTION_COMMENT_IMAGE, List.of("token-1")))
+        .willReturn(List.of(confirmedImage(storedFileName, "new.jpg")));
     given(adoptionCommentRepository.save(any(AdoptionComment.class)))
         .willAnswer(
             invocation -> {
@@ -138,30 +143,28 @@ class AdoptionCommentServiceTest {
 
     assertThat(adoptionCommentService.createComment(100L, 1L, dto)).isEqualTo(10L);
 
-    verify(adoptionCommentRepository).save(any(AdoptionComment.class));
-    verifyNoInteractions(eventPublisher);
-    verify(storageService, never()).deleteUploadedImagesBestEffort(any());
+    ArgumentCaptor<AdoptionComment> commentCaptor = ArgumentCaptor.forClass(AdoptionComment.class);
+    verify(adoptionCommentRepository).save(commentCaptor.capture());
+    assertThat(commentCaptor.getValue().getImages())
+        .extracting(AdoptionCommentImage::getStoredFileName)
+        .containsExactly(storedFileName);
+    verifyNoInteractions(eventPublisher, storageService);
   }
 
   @Test
-  @DisplayName("댓글 생성 시 이미지가 두 개 이상이면 업로드 전에 실패한다.")
+  @DisplayName("댓글 생성 시 이미지가 두 개 이상이면 확정 전에 실패한다.")
   void createComment_WithTooManyImages() {
-    MockMultipartFile first =
-        new MockMultipartFile("images", "first.jpg", "image/jpeg", new byte[] {1});
-    MockMultipartFile second =
-        new MockMultipartFile("images", "second.jpg", "image/jpeg", new byte[] {2});
     AdoptionCommentCreateDto dto =
         AdoptionCommentCreateDto.builder()
             .content("new comment")
-            .images(List.of(first, second))
+            .uploadTokens(List.of("token-1", "token-2"))
             .build();
 
     assertThatThrownBy(() -> adoptionCommentService.createComment(100L, 1L, dto))
         .isInstanceOf(AdoptionCommentException.class)
         .hasMessageContaining(AdoptionCommentException.forInvalidCommentImages().getMessage());
 
-    verify(storageService, never()).uploadImages(any(), any());
-    verifyNoInteractions(adoptionPostRepository);
+    verifyNoInteractions(storageUploadService, adoptionPostRepository);
   }
 
   @Test
@@ -184,43 +187,37 @@ class AdoptionCommentServiceTest {
   @Test
   @DisplayName("댓글 수정 시 이미지 삭제와 추가를 동시에 요청하면 실패한다.")
   void updateComment_WithConflictingImageChange() {
-    MockMultipartFile image =
-        new MockMultipartFile("images", "new.jpg", "image/jpeg", new byte[] {1});
     AdoptionCommentUpdateDto dto =
         AdoptionCommentUpdateDto.builder()
             .content("updated comment")
             .removeImage(true)
-            .images(List.of(image))
+            .uploadTokens(List.of("token-1"))
             .build();
 
     assertThatThrownBy(() -> adoptionCommentService.updateComment(100L, 10L, 1L, dto))
         .isInstanceOf(AdoptionCommentException.class)
         .hasMessageContaining(AdoptionCommentException.forInvalidCommentImages().getMessage());
 
-    verify(storageService, never()).uploadImages(any(), any());
-    verifyNoInteractions(adoptionCommentRepository);
+    verifyNoInteractions(storageUploadService, adoptionCommentRepository);
   }
 
   @Test
   @DisplayName("댓글 수정 시 새 이미지가 있으면 기존 이미지를 교체하고 기존 이미지 삭제 이벤트를 발행한다.")
   void updateComment_ReplaceImage() {
     // given
-    MockMultipartFile newImage =
-        new MockMultipartFile("images", "new.jpg", "image/jpeg", "new-image".getBytes());
     AdoptionCommentUpdateDto dto =
         AdoptionCommentUpdateDto.builder()
             .content("updated comment")
-            .images(List.of(newImage))
+            .uploadTokens(List.of("token-1"))
             .build();
-    List<ImageUploadDto> uploadedImages =
-        List.of(
-            ImageUploadDto.builder()
-                .storedFileName("adoption/comment/33333333-3333-3333-3333-333333333333.jpg")
-                .originalFileName("new.jpg")
-                .build());
     given(adoptionCommentRepository.findById(10L)).willReturn(Optional.of(comment));
-    given(storageService.uploadImages(any(), eq(StorageDirectory.ADOPTION_COMMENT)))
-        .willReturn(uploadedImages);
+    given(
+            storageUploadService.confirm(
+                1L, UploadPurpose.ADOPTION_COMMENT_IMAGE, List.of("token-1")))
+        .willReturn(
+            List.of(
+                confirmedImage(
+                    "adoption/comment/33333333-3333-3333-3333-333333333333.jpg", "new.jpg")));
 
     // when
     adoptionCommentService.updateComment(100L, 10L, 1L, dto);
@@ -400,5 +397,14 @@ class AdoptionCommentServiceTest {
         .containsExactlyInAnyOrder(
             "adoption/comment/11111111-1111-1111-1111-111111111111.jpg",
             "adoption/comment/22222222-2222-2222-2222-222222222222.jpg");
+  }
+
+  private static FileUploadDto confirmedImage(String storedFileName, String originalFileName) {
+    return FileUploadDto.builder()
+        .storedFileName(storedFileName)
+        .originalFileName(originalFileName)
+        .contentType("image/jpeg")
+        .fileSize(1L)
+        .build();
   }
 }

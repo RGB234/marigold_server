@@ -9,7 +9,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -61,7 +60,7 @@ public class AdoptionPostController {
 
   @Operation(
       summary = "입양 게시글 생성",
-      description = "입양 게시글과 이미지를 multipart/form-data로 생성합니다.",
+      description = "입양 게시글을 생성합니다. 이미지는 먼저 업로드 URL을 발급받아 올린 뒤 업로드 토큰으로 보냅니다.",
       security = {
         @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
@@ -73,9 +72,9 @@ public class AdoptionPostController {
     @ApiResponse(responseCode = "403", description = "CSRF token 누락 또는 불일치")
   })
   @PreAuthorize("isAuthenticated()")
-  @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PostMapping("")
   public ResponseEntity<IdResponseDto> create(
-      @Parameter(description = "생성할 입양 게시글 정보") @ModelAttribute @Validated({Default.class})
+      @Parameter(description = "생성할 입양 게시글 정보") @RequestBody @Validated({Default.class})
           AdoptionPostCreateDto dto,
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal) {
     // Defensive Coding
@@ -192,7 +191,7 @@ public class AdoptionPostController {
   public ResponseEntity<Void> update(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable Long id,
-      @Parameter(description = "수정할 입양 게시글 정보") @Validated({Default.class}) @ModelAttribute
+      @Parameter(description = "수정할 입양 게시글 정보") @Validated({Default.class}) @RequestBody
           AdoptionPostUpdateDto dto) {
     Long userId = principal.getUserId();
     if (userId == null) {

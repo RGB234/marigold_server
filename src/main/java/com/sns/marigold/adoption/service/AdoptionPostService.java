@@ -13,7 +13,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.sns.marigold.adoption.dto.AdoptionCandidateDto;
 import com.sns.marigold.adoption.dto.AdoptionPostCreateDto;
@@ -37,13 +36,13 @@ import com.sns.marigold.chat.entity.RoomParticipant;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.chat.service.ChatService;
-import com.sns.marigold.global.web.MultipartFiles;
-import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageError;
 import com.sns.marigold.storage.exception.StorageException;
-import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
+import com.sns.marigold.storage.service.StorageUploadService;
+import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
@@ -58,6 +57,7 @@ public class AdoptionPostService {
 
   private final UserService userService;
   private final StorageService storageService;
+  private final StorageUploadService storageUploadService;
   private final AdoptionCommentService adoptionCommentService;
   private final ChatService chatService;
 
@@ -79,35 +79,21 @@ public class AdoptionPostService {
   }
 
   public Long create(AdoptionPostCreateDto dto, Long writerId) {
-    List<MultipartFile> images = MultipartFiles.nonEmpty(dto.getImages());
-    AdoptionPost.validateImageCount(images.size());
+    List<String> uploadTokens = Objects.requireNonNullElse(dto.getUploadTokens(), List.of());
+    AdoptionPost.validateImageCount(uploadTokens.size());
 
     User writer = userService.findEntityById(writerId);
     AdoptionPost adoptionPost = dto.toEntity(writer);
 
-    List<ImageUploadDto> uploadedImages =
-        storageService.uploadImages(images, StorageDirectory.ADOPTION_POST);
+    // 확정은 트랜잭션 밖에서 한다. 이후 어디서 실패해도 확정된 파일은 참조되지 않은 채 남고 고아 정리가 지운다
+    List<FileUploadDto> confirmedImages =
+        storageUploadService.confirm(writerId, UploadPurpose.ADOPTION_POST_IMAGE, uploadTokens);
 
-    try {
-      return transactionTemplate.execute(
-          status -> {
-            adoptionPost.changeImages(
-                uploadedImages.stream()
-                    .map(
-                        image ->
-                            AdoptionPostImage.builder()
-                                .storedFileName(image.getStoredFileName())
-                                .originalFileName(image.getOriginalFileName())
-                                .build())
-                    .toList());
-
-            return adoptionPostRepository.save(adoptionPost).getId();
-          });
-    } catch (RuntimeException e) {
-      log.debug("Create failed. Deleting uploaded storage files.");
-      storageService.deleteUploadedImagesBestEffort(uploadedImages);
-      throw e;
-    }
+    return transactionTemplate.execute(
+        status -> {
+          adoptionPost.changeImages(toPostImages(confirmedImages));
+          return adoptionPostRepository.save(adoptionPost).getId();
+        });
   }
 
   public void update(Long postId, Long userId, AdoptionPostUpdateDto dto) {
@@ -120,68 +106,58 @@ public class AdoptionPostService {
     validateWriter(adoptionPost, userId);
 
     List<String> imagesToKeep = normalizeImagesToKeep(dto.getImagesToKeep());
-    List<MultipartFile> images = MultipartFiles.nonEmpty(dto.getImages());
-    adoptionPost.validateImageReplacement(imagesToKeep, images.size());
+    List<String> uploadTokens = Objects.requireNonNullElse(dto.getUploadTokens(), List.of());
+    adoptionPost.validateImageReplacement(imagesToKeep, uploadTokens.size());
 
-    // 1. 새 이미지 업로드 (실패 시 예외 발생, 파일 자동 삭제됨)
-    // 트랜잭션 외부에서 수행하여 DB 커넥션 점유 최소화
-    final List<ImageUploadDto> uploadedImages =
-        storageService.uploadImages(images, StorageDirectory.ADOPTION_POST);
+    // 1. 새 이미지 확정 (트랜잭션 외부에서 수행하여 DB 커넥션 점유 최소화)
+    List<AdoptionPostImage> newImages =
+        toPostImages(
+            storageUploadService.confirm(userId, UploadPurpose.ADOPTION_POST_IMAGE, uploadTokens));
 
-    try {
-      // 2. 새로 추가할 이미지 엔티티 생성 준비
-      List<AdoptionPostImage> newImages =
-          uploadedImages.stream()
-              .map(
-                  image ->
-                      AdoptionPostImage.builder()
-                          .storedFileName(image.getStoredFileName())
-                          .originalFileName(image.getOriginalFileName())
-                          .build())
-              .toList();
+    AdoptionPostEditor editor =
+        AdoptionPostEditor.builder()
+            .title(dto.getTitle())
+            .age(dto.getAge())
+            .weight(dto.getWeight())
+            .features(dto.getFeatures())
+            .area(dto.getArea())
+            .species(dto.getSpecies())
+            .sex(dto.getSex())
+            .neutering(dto.getNeutering())
+            .build();
 
-      AdoptionPostEditor editor =
-          AdoptionPostEditor.builder()
-              .title(dto.getTitle())
-              .age(dto.getAge())
-              .weight(dto.getWeight())
-              .features(dto.getFeatures())
-              .area(dto.getArea())
-              .species(dto.getSpecies())
-              .sex(dto.getSex())
-              .neutering(dto.getNeutering())
-              .build();
+    // 2. DB 트랜잭션 (데이터 변경). 실패해도 확정된 새 파일은 고아 정리가 지운다
+    transactionTemplate.executeWithoutResult(
+        status -> {
+          // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
+          AdoptionPost info = findEntityById(postId);
+          info.updateInfo(editor);
 
-      // 3. DB 트랜잭션 (데이터 변경)
-      transactionTemplate.executeWithoutResult(
-          status -> {
-            // 영속성 컨텍스트 내에서 엔티티 재조회 (필수)
-            AdoptionPost info = findEntityById(postId);
-            info.updateInfo(editor);
+          List<String> storedFileNamesToDelete =
+              info.getImages().stream()
+                  .map(AdoptionPostImage::getStoredFileName)
+                  .filter(fileName -> !imagesToKeep.contains(fileName))
+                  .collect(Collectors.toList());
 
-            List<String> storedFileNamesToDelete =
-                info.getImages().stream()
-                    .map(AdoptionPostImage::getStoredFileName)
-                    .filter(fileName -> !imagesToKeep.contains(fileName))
-                    .collect(Collectors.toList());
+          // 이미지 교체 (유지할 것은 두고, 삭제할 것은 지우고, 새것은 추가)
+          info.replaceImages(imagesToKeep, newImages);
 
-            // 이미지 교체 (유지할 것은 두고, 삭제할 것은 지우고, 새것은 추가)
-            info.replaceImages(imagesToKeep, newImages);
+          // 3. 트랜잭션 안에서 이벤트 발행 -> 커밋 성공 시에만 리스너 동작
+          if (!storedFileNamesToDelete.isEmpty()) {
+            eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(storedFileNamesToDelete));
+          }
+        });
+  }
 
-            // 4. 트랜잭션 안에서 이벤트 발행 -> 커밋 성공 시에만 리스너 동작
-            if (!storedFileNamesToDelete.isEmpty()) {
-              eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(storedFileNamesToDelete));
-            }
-          });
-
-    } catch (RuntimeException e) {
-      // 5. 실패 시 보상 트랜잭션: 새로 업로드한 파일 삭제
-      // 트랜잭션 롤백과 무관하게 업로드된 파일은 지워야 함
-      log.debug("Update failed. Deleting uploaded storage files.");
-
-      storageService.deleteUploadedImagesBestEffort(uploadedImages);
-      throw e;
-    }
+  private List<AdoptionPostImage> toPostImages(List<FileUploadDto> confirmedImages) {
+    return confirmedImages.stream()
+        .map(
+            image ->
+                AdoptionPostImage.builder()
+                    .storedFileName(image.getStoredFileName())
+                    .originalFileName(image.getOriginalFileName())
+                    .build())
+        .toList();
   }
 
   private List<String> normalizeImagesToKeep(List<String> imagesToKeep) {

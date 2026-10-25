@@ -1,7 +1,6 @@
 package com.sns.marigold.adoption.service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +11,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.sns.marigold.adoption.dto.AdoptionCommentCreateDto;
 import com.sns.marigold.adoption.dto.AdoptionCommentResponseDto;
@@ -27,20 +25,18 @@ import com.sns.marigold.adoption.repository.AdoptionCommentImageRepository;
 import com.sns.marigold.adoption.repository.AdoptionCommentRepository;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
-import com.sns.marigold.global.web.MultipartFiles;
-import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
+import com.sns.marigold.storage.service.StorageUploadService;
+import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.service.UserService;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class AdoptionCommentService {
 
   private final AdoptionCommentRepository adoptionCommentRepository;
@@ -48,6 +44,7 @@ public class AdoptionCommentService {
   private final AdoptionAdopterRepository adoptionAdopterRepository;
   private final UserService userService;
   private final StorageService storageService;
+  private final StorageUploadService storageUploadService;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
   private final AdoptionCommentImageRepository adoptionCommentImageRepository;
@@ -60,8 +57,8 @@ public class AdoptionCommentService {
   }
 
   public Long createComment(Long postId, Long userId, AdoptionCommentCreateDto dto) {
-    List<MultipartFile> images = MultipartFiles.nonEmpty(dto.getImages());
-    AdoptionComment.validateImageCount(images.size());
+    List<String> uploadTokens = Objects.requireNonNullElse(dto.getUploadTokens(), List.of());
+    AdoptionComment.validateImageCount(uploadTokens.size());
 
     AdoptionPost adoptionPost =
         adoptionPostRepository
@@ -91,105 +88,81 @@ public class AdoptionCommentService {
       }
     }
 
-    List<ImageUploadDto> uploadedImages =
-        storageService.uploadImages(images, StorageDirectory.ADOPTION_COMMENT);
+    // 확정은 트랜잭션 밖에서 한다. 저장이 실패해도 확정된 파일은 고아 정리가 지운다
+    List<FileUploadDto> confirmedImages =
+        storageUploadService.confirm(userId, UploadPurpose.ADOPTION_COMMENT_IMAGE, uploadTokens);
 
     final AdoptionComment finalParent = parent;
 
-    try {
-      return transactionTemplate.execute(
-          status -> {
-            AdoptionComment comment =
-                AdoptionComment.builder()
-                    .adoptionPost(adoptionPost)
-                    .writer(writer)
-                    .parent(finalParent)
-                    .content(dto.getContent())
-                    .build();
+    return transactionTemplate.execute(
+        status -> {
+          AdoptionComment comment =
+              AdoptionComment.builder()
+                  .adoptionPost(adoptionPost)
+                  .writer(writer)
+                  .parent(finalParent)
+                  .content(dto.getContent())
+                  .build();
 
-            List<AdoptionCommentImage> newImages =
-                uploadedImages.stream()
-                    .map(
-                        image ->
-                            AdoptionCommentImage.builder()
-                                .storedFileName(image.getStoredFileName())
-                                .originalFileName(image.getOriginalFileName())
-                                .build())
-                    .collect(Collectors.toList());
+          for (AdoptionCommentImage image : toCommentImages(confirmedImages)) {
+            comment.addImage(image);
+          }
 
-            for (AdoptionCommentImage image : newImages) {
-              comment.addImage(image);
-            }
-
-            return adoptionCommentRepository.save(comment).getId();
-          });
-    } catch (RuntimeException e) {
-      log.debug("Comment creation failed. Deleting uploaded storage files.");
-      storageService.deleteUploadedImagesBestEffort(uploadedImages);
-      throw e;
-    }
+          return adoptionCommentRepository.save(comment).getId();
+        });
   }
 
   public void updateComment(
       Long postId, Long commentId, Long userId, AdoptionCommentUpdateDto dto) {
-    List<MultipartFile> newImageFiles = MultipartFiles.nonEmpty(dto.getImages());
-    if (dto.shouldRemoveImage() && !newImageFiles.isEmpty()) {
+    List<String> uploadTokens = Objects.requireNonNullElse(dto.getUploadTokens(), List.of());
+    if (dto.shouldRemoveImage() && !uploadTokens.isEmpty()) {
       throw AdoptionCommentException.forInvalidCommentImages();
     }
 
-    if (!newImageFiles.isEmpty()) {
-      AdoptionComment.validateImageCount(newImageFiles.size());
+    if (!uploadTokens.isEmpty()) {
+      AdoptionComment.validateImageCount(uploadTokens.size());
       transactionTemplate.executeWithoutResult(
           status -> getUpdatableComment(postId, commentId, userId));
     } else if (dto.shouldRemoveImage()) {
       AdoptionComment.validateImageCount(0);
     }
 
-    List<ImageUploadDto> uploadedImages =
-        newImageFiles.isEmpty()
-            ? Collections.emptyList()
-            : storageService.uploadImages(newImageFiles, StorageDirectory.ADOPTION_COMMENT);
+    List<FileUploadDto> confirmedImages =
+        storageUploadService.confirm(userId, UploadPurpose.ADOPTION_COMMENT_IMAGE, uploadTokens);
 
-    try {
-      transactionTemplate.executeWithoutResult(
-          status -> {
-            AdoptionComment comment = getUpdatableComment(postId, commentId, userId);
-            if (newImageFiles.isEmpty() && !dto.shouldRemoveImage()) {
-              AdoptionComment.validateImageCount(comment.getImages().size());
+    transactionTemplate.executeWithoutResult(
+        status -> {
+          AdoptionComment comment = getUpdatableComment(postId, commentId, userId);
+          if (uploadTokens.isEmpty() && !dto.shouldRemoveImage()) {
+            AdoptionComment.validateImageCount(comment.getImages().size());
+          }
+
+          comment.update(dto.getContent());
+
+          if (!confirmedImages.isEmpty() || dto.shouldRemoveImage()) {
+            List<String> imagesToDelete =
+                comment.getImages().stream()
+                    .map(AdoptionCommentImage::getStoredFileName)
+                    .collect(Collectors.toList());
+
+            comment.changeImages(toCommentImages(confirmedImages));
+
+            if (!imagesToDelete.isEmpty()) {
+              eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
             }
+          }
+        });
+  }
 
-            comment.update(dto.getContent());
-
-            if (!uploadedImages.isEmpty() || dto.shouldRemoveImage()) {
-              List<String> imagesToDelete =
-                  comment.getImages().stream()
-                      .map(AdoptionCommentImage::getStoredFileName)
-                      .collect(Collectors.toList());
-
-              List<AdoptionCommentImage> newImages =
-                  uploadedImages.stream()
-                      .map(
-                          image ->
-                              AdoptionCommentImage.builder()
-                                  .storedFileName(image.getStoredFileName())
-                                  .originalFileName(image.getOriginalFileName())
-                                  .build())
-                      .collect(Collectors.toList());
-
-              comment.changeImages(newImages);
-
-              if (!imagesToDelete.isEmpty()) {
-                eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(imagesToDelete));
-              }
-            }
-          });
-    } catch (RuntimeException e) {
-      if (!uploadedImages.isEmpty()) {
-        log.debug("Comment update failed. Deleting uploaded storage files.");
-        storageService.deleteUploadedImagesBestEffort(uploadedImages);
-      }
-      throw e;
-    }
+  private List<AdoptionCommentImage> toCommentImages(List<FileUploadDto> confirmedImages) {
+    return confirmedImages.stream()
+        .map(
+            image ->
+                AdoptionCommentImage.builder()
+                    .storedFileName(image.getStoredFileName())
+                    .originalFileName(image.getOriginalFileName())
+                    .build())
+        .collect(Collectors.toList());
   }
 
   private AdoptionComment getUpdatableComment(Long postId, Long commentId, Long userId) {

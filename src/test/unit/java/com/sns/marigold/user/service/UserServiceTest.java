@@ -3,7 +3,6 @@ package com.sns.marigold.user.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -20,22 +19,20 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.tsid.TsidCodec;
-import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
+import com.sns.marigold.storage.service.StorageUploadService;
+import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.entity.User;
@@ -50,6 +47,8 @@ class UserServiceTest {
   @Mock private UserRepository userRepository;
 
   @Mock private StorageService storageService;
+
+  @Mock private StorageUploadService storageUploadService;
 
   @Mock private TransactionTemplate transactionTemplate;
 
@@ -245,27 +244,25 @@ class UserServiceTest {
 
     // then
     assertThat(testUser.getNickname()).isEqualTo("newNickname");
-    verify(storageService, never()).uploadImage(any(), any());
+    verifyNoInteractions(storageUploadService);
     verify(eventPublisher, never()).publishEvent(any());
   }
 
   @Test
-  @DisplayName("사용자 프로필 이미지를 새로 업로드한다.")
+  @DisplayName("사용자 프로필 이미지를 새로 등록한다.")
   @SuppressWarnings("null")
   void updateUser_NewImage_Success() {
     // given
     UserUpdateDto dto = new UserUpdateDto();
     dto.setNickname("newNickname");
-    MockMultipartFile file =
-        new MockMultipartFile(
-            "image", "test.jpg", MediaType.IMAGE_JPEG_VALUE, "test image".getBytes());
-    dto.setImage(file);
+    dto.setImageUploadToken("token-1");
 
-    ImageUploadDto imageUploadDto =
-        new ImageUploadDto("user/profile/11111111-1111-1111-1111-111111111111.jpg", "test.jpg");
     given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
-    given(storageService.uploadImage(any(MultipartFile.class), eq(StorageDirectory.USER_PROFILE)))
-        .willReturn(imageUploadDto);
+    given(storageUploadService.confirm(1L, UploadPurpose.USER_PROFILE_IMAGE, List.of("token-1")))
+        .willReturn(
+            List.of(
+                confirmedImage(
+                    "user/profile/11111111-1111-1111-1111-111111111111.jpg", "test.jpg")));
 
     // when
     userService.updateUser(1L, dto);
@@ -276,10 +273,8 @@ class UserServiceTest {
     assertThat(testUser.getImage().getStoredFileName())
         .isEqualTo("user/profile/11111111-1111-1111-1111-111111111111.jpg");
 
-    verify(storageService, times(1))
-        .uploadImage(any(MultipartFile.class), eq(StorageDirectory.USER_PROFILE));
     verify(eventPublisher, never()).publishEvent(any(DeleteOldStorageFilesEvent.class));
-    verify(storageService, never()).deleteUploadedImagesBestEffort(any());
+    verifyNoInteractions(storageService);
   }
 
   @Test
@@ -296,16 +291,14 @@ class UserServiceTest {
 
     UserUpdateDto dto = new UserUpdateDto();
     dto.setNickname("newNickname");
-    MockMultipartFile file =
-        new MockMultipartFile(
-            "image", "test.jpg", MediaType.IMAGE_JPEG_VALUE, "test image".getBytes());
-    dto.setImage(file);
+    dto.setImageUploadToken("token-1");
 
-    ImageUploadDto imageUploadDto =
-        new ImageUploadDto("user/profile/33333333-3333-3333-3333-333333333333.jpg", "test.jpg");
     given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
-    given(storageService.uploadImage(any(MultipartFile.class), eq(StorageDirectory.USER_PROFILE)))
-        .willReturn(imageUploadDto);
+    given(storageUploadService.confirm(1L, UploadPurpose.USER_PROFILE_IMAGE, List.of("token-1")))
+        .willReturn(
+            List.of(
+                confirmedImage(
+                    "user/profile/33333333-3333-3333-3333-333333333333.jpg", "test.jpg")));
 
     // when
     userService.updateUser(1L, dto);
@@ -314,9 +307,6 @@ class UserServiceTest {
     assertThat(testUser.getNickname()).isEqualTo("newNickname");
     assertThat(testUser.getImage().getStoredFileName())
         .isEqualTo("user/profile/33333333-3333-3333-3333-333333333333.jpg");
-
-    verify(storageService, times(1))
-        .uploadImage(any(MultipartFile.class), eq(StorageDirectory.USER_PROFILE));
 
     ArgumentCaptor<DeleteOldStorageFilesEvent> eventCaptor =
         ArgumentCaptor.forClass(DeleteOldStorageFilesEvent.class);
@@ -350,7 +340,7 @@ class UserServiceTest {
     assertThat(testUser.getNickname()).isEqualTo("newNickname");
     assertThat(testUser.getImage()).isNull();
 
-    verify(storageService, never()).uploadImage(any(), any());
+    verifyNoInteractions(storageUploadService);
 
     ArgumentCaptor<DeleteOldStorageFilesEvent> eventCaptor =
         ArgumentCaptor.forClass(DeleteOldStorageFilesEvent.class);
@@ -360,24 +350,22 @@ class UserServiceTest {
   }
 
   @Test
-  @DisplayName("프로필 삭제와 이미지가 함께 입력되면 업로드 없이 기존 이미지를 삭제한다.")
-  void updateUser_RemoveImageWithUpload_SkipsUpload() {
+  @DisplayName("프로필 삭제와 새 이미지가 함께 입력되면 확정 없이 기존 이미지를 삭제한다.")
+  void updateUser_RemoveImageWithUpload_SkipsConfirm() {
     String oldFile = "user/profile/22222222-2222-2222-2222-222222222222.jpg";
     testUser.update(
         "tester", UserImage.builder().storedFileName(oldFile).originalFileName("old.jpg").build());
     UserUpdateDto dto = new UserUpdateDto();
     dto.setNickname("newNickname");
     dto.setRemoveImage(true);
-    dto.setImage(
-        new MockMultipartFile(
-            "image", "new.jpg", MediaType.IMAGE_JPEG_VALUE, "new image".getBytes()));
+    dto.setImageUploadToken("token-1");
     given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
 
     userService.updateUser(1L, dto);
 
     assertThat(testUser.getImage()).isNull();
     assertThat(testUser.getNickname()).isEqualTo("newNickname");
-    verifyNoInteractions(storageService);
+    verifyNoInteractions(storageService, storageUploadService);
     verify(eventPublisher).publishEvent(new DeleteOldStorageFilesEvent(List.of(oldFile)));
   }
 
@@ -413,5 +401,14 @@ class UserServiceTest {
         .publishEvent(
             new DeleteOldStorageFilesEvent(
                 List.of("user/profile/22222222-2222-2222-2222-222222222222.jpg")));
+  }
+
+  private static FileUploadDto confirmedImage(String storedFileName, String originalFileName) {
+    return FileUploadDto.builder()
+        .storedFileName(storedFileName)
+        .originalFileName(originalFileName)
+        .contentType("image/jpeg")
+        .fileSize(1L)
+        .build();
   }
 }

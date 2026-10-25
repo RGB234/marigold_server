@@ -2,8 +2,6 @@ package com.sns.marigold.adoption.dto;
 
 import java.util.List;
 
-import org.springframework.web.multipart.MultipartFile;
-
 import com.sns.marigold.adoption.entity.AdoptionPost;
 import com.sns.marigold.adoption.enums.Neutering;
 import com.sns.marigold.adoption.enums.Sex;
@@ -75,8 +73,8 @@ public class AdoptionPostCreateDto {
       message = "20자 이상 500자 이하여야 합니다.")
   private String features;
 
-  @Schema(description = "업로드할 이미지 파일 목록", type = "string", format = "binary")
-  private List<MultipartFile> images;
+  @Schema(description = "업로드 URL 발급 때 받은 이미지 업로드 토큰 목록. 파일을 PUT한 뒤 보냅니다.")
+  private List<String> uploadTokens;
 
   /*
   이미지는 Entity에서 setter 메서드로 설정

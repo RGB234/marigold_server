@@ -3,17 +3,16 @@ package com.sns.marigold.adoption.controller;
 import java.net.URI;
 import java.util.List;
 
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -47,7 +46,7 @@ public class AdoptionCommentController {
 
   @Operation(
       summary = "댓글 생성",
-      description = "입양 게시글에 댓글과 이미지를 multipart/form-data로 생성합니다.",
+      description = "입양 게시글에 댓글을 생성합니다. 이미지는 업로드 토큰으로 보냅니다.",
       security = {
         @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
@@ -60,10 +59,10 @@ public class AdoptionCommentController {
     @ApiResponse(responseCode = "404", description = "게시글 없음")
   })
   @PreAuthorize("isAuthenticated()")
-  @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PostMapping("")
   public ResponseEntity<IdResponseDto> createComment(
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("postId") Long postId,
-      @Parameter(description = "생성할 댓글 정보") @ModelAttribute @Validated({Default.class})
+      @Parameter(description = "생성할 댓글 정보") @RequestBody @Validated({Default.class})
           AdoptionCommentCreateDto dto,
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal) {
     Long userId = principal.getUserId();
@@ -79,7 +78,7 @@ public class AdoptionCommentController {
 
   @Operation(
       summary = "댓글 수정",
-      description = "작성자가 댓글 내용과 이미지를 multipart/form-data로 수정합니다.",
+      description = "작성자가 댓글 내용과 이미지를 수정합니다. 새 이미지는 업로드 토큰으로 보냅니다.",
       security = {
         @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
         @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
@@ -92,11 +91,11 @@ public class AdoptionCommentController {
     @ApiResponse(responseCode = "404", description = "게시글 또는 댓글 없음")
   })
   @PreAuthorize("isAuthenticated()")
-  @PatchMapping(value = "/{commentId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PatchMapping("/{commentId}")
   public ResponseEntity<Void> updateComment(
       @Parameter(description = "입양 게시글 ID", required = true) @PathVariable("postId") Long postId,
       @Parameter(description = "댓글 ID", required = true) @PathVariable("commentId") Long commentId,
-      @Parameter(description = "수정할 댓글 정보") @ModelAttribute @Validated({Default.class})
+      @Parameter(description = "수정할 댓글 정보") @RequestBody @Validated({Default.class})
           AdoptionCommentUpdateDto dto,
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal) {
     Long userId = principal.getUserId();

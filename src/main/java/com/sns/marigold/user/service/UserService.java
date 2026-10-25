@@ -14,10 +14,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
-import com.sns.marigold.storage.dto.ImageUploadDto;
+import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
-import com.sns.marigold.storage.service.StorageDirectory;
 import com.sns.marigold.storage.service.StorageService;
+import com.sns.marigold.storage.service.StorageUploadService;
+import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.dto.response.UserInfoDto;
 import com.sns.marigold.user.dto.response.UserSecurityInfoDto;
 import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
@@ -29,15 +30,14 @@ import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class UserService {
 
   private final UserRepository userRepository;
   private final StorageService storageService;
+  private final StorageUploadService storageUploadService;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
   private final PasswordEncoder passwordEncoder;
@@ -117,57 +117,47 @@ public class UserService {
     auditLogger.info("event=local_credentials_registered userId={}", user.getId());
   }
 
-  // 업로드 동안 DB 커넥션을 점유하지 않도록 트랜잭션은 TransactionTemplate 구간으로 한정
+  // 업로드 확정 동안 DB 커넥션을 점유하지 않도록 트랜잭션은 TransactionTemplate 구간으로 한정
   public void updateUser(Long uid, UserUpdateDto dto) {
-    // 1. 이미지 업로드
-    ImageUploadDto uploadedImageDto = null;
-    if (!dto.isRemoveImage() && dto.getImage() != null && !dto.getImage().isEmpty()) {
-      uploadedImageDto = storageService.uploadImage(dto.getImage(), StorageDirectory.USER_PROFILE);
-    }
+    // 1. 이미지 확정. 이후 저장이 실패해도 확정된 파일은 고아 정리가 지운다
+    final FileUploadDto newImageUploadDto =
+        !dto.isRemoveImage() && dto.getImageUploadToken() != null
+            ? storageUploadService
+                .confirm(uid, UploadPurpose.USER_PROFILE_IMAGE, List.of(dto.getImageUploadToken()))
+                .get(0)
+            : null;
 
-    try {
-      final ImageUploadDto newImageUploadDto = uploadedImageDto;
+    // 2. DB 트랜잭션 (데이터 변경)
+    transactionTemplate.executeWithoutResult(
+        status -> {
+          User user = findEntityById(uid);
+          UserImage previousImage = user.getImage();
+          String fileToDelete = null;
 
-      // 2. DB 트랜잭션 (데이터 변경)
-      transactionTemplate.executeWithoutResult(
-          status -> {
-            User user = findEntityById(uid);
-            UserImage previousImage = user.getImage();
-            String fileToDelete = null;
+          // 사용자가 기본 프로필 사진 사용을 선택
+          if (dto.isRemoveImage()) {
+            fileToDelete = previousImage != null ? previousImage.getStoredFileName() : null;
+            user.update(dto.getNickname(), null); // DB에서 이미지 삭제 (CASCADE)
+          } else if (newImageUploadDto != null) {
+            // 새 이미지로 교체
+            fileToDelete = previousImage != null ? previousImage.getStoredFileName() : null;
 
-            // 사용자가 기본 프로필 사진 사용을 선택
-            if (dto.isRemoveImage()) {
-              fileToDelete = previousImage != null ? previousImage.getStoredFileName() : null;
-              user.update(dto.getNickname(), null); // DB에서 이미지 삭제 (CASCADE)
-            } else if (newImageUploadDto != null) {
-              // 새 이미지로 교체
-              fileToDelete = previousImage != null ? previousImage.getStoredFileName() : null;
+            UserImage newImage =
+                UserImage.builder()
+                    .storedFileName(newImageUploadDto.getStoredFileName())
+                    .originalFileName(newImageUploadDto.getOriginalFileName())
+                    .build();
+            user.update(dto.getNickname(), newImage);
+          } else {
+            // 닉네임만 변경 (이미지는 유지)
+            user.update(dto.getNickname());
+          }
 
-              UserImage newImage =
-                  UserImage.builder()
-                      .storedFileName(newImageUploadDto.getStoredFileName())
-                      .originalFileName(newImageUploadDto.getOriginalFileName())
-                      .build();
-              user.update(dto.getNickname(), newImage);
-            } else {
-              // 닉네임만 변경 (이미지는 유지)
-              user.update(dto.getNickname());
-            }
-
-            // 3. 트랜잭션 성공 시: 삭제해야 할 기존 이미지(프로필 제거 또는 교체 시)가 있다면 이벤트 발행
-            if (fileToDelete != null) {
-              eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(List.of(fileToDelete)));
-            }
-          });
-
-    } catch (RuntimeException e) {
-      // 4. 실패 시 보상 트랜잭션: 새로 업로드한 파일 삭제
-      if (uploadedImageDto != null) {
-        log.debug("Update user failed. Deleting uploaded storage file.");
-        storageService.deleteUploadedImagesBestEffort(List.of(uploadedImageDto));
-      }
-      throw e;
-    }
+          // 3. 트랜잭션 성공 시: 삭제해야 할 기존 이미지(프로필 제거 또는 교체 시)가 있다면 이벤트 발행
+          if (fileToDelete != null) {
+            eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(List.of(fileToDelete)));
+          }
+        });
   }
 
   // soft delete And PII scrubbing
