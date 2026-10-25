@@ -48,6 +48,9 @@ app:
       view-url-ttl-minutes: 60
       download-url-ttl-minutes: 10
 
+    upload:
+      token-secret: local-dev-upload-token-secret
+
 url:
   frontend:
     origin: ${FRONTEND_ORIGIN:http://localhost:8000}

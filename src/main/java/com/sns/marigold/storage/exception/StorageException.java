@@ -78,4 +78,29 @@ public class StorageException extends ApplicationException {
   public static StorageException forFileUploadFailed(Throwable cause) {
     return new StorageException(StorageError.FILE_UPLOAD_FAILED, "the file upload failed", cause);
   }
+
+  public static StorageException forInvalidUploadToken(String reason) {
+    return new StorageException(
+        StorageError.UPLOAD_TOKEN_INVALID, "invalid upload token: reason=" + reason, null);
+  }
+
+  public static StorageException forUploadIncomplete(String storedFileName) {
+    return new StorageException(
+        StorageError.UPLOAD_INCOMPLETE,
+        "uploaded file is missing: storedFileName=" + storedFileName,
+        null);
+  }
+
+  public static StorageException forUploadSizeMismatch(
+      String storedFileName, long expected, long actual) {
+    return new StorageException(
+        StorageError.UPLOAD_INCOMPLETE,
+        "uploaded file size mismatch: storedFileName="
+            + storedFileName
+            + ", expected="
+            + expected
+            + ", actual="
+            + actual,
+        null);
+  }
 }

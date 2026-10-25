@@ -1,5 +1,6 @@
 package com.sns.marigold.storage.controller;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -11,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,6 +23,7 @@ import com.sns.marigold.storage.service.LocalStorageService;
 import com.sns.marigold.storage.service.LocalStorageService.LocalStoredFile;
 import com.sns.marigold.storage.service.LocalStorageUrlSigner;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -30,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 public class LocalStorageController {
 
   private static final String GET = "GET";
+  private static final String PUT = "PUT";
 
   private final LocalStorageService localStorageService;
   private final LocalStorageUrlSigner localStorageUrlSigner;
@@ -74,12 +78,35 @@ public class LocalStorageController {
         .body(file.resource());
   }
 
+  // S3 presigned PUT과 같은 역할. 인증 대신 발급 시 서명한 URL로만 쓸 수 있다.
+  @PutMapping("/files/{domain}/{type}/{fileName:.+}")
+  public ResponseEntity<Void> uploadFile(
+      @PathVariable("domain") @NonNull String domain,
+      @PathVariable("type") @NonNull String type,
+      @PathVariable("fileName") @NonNull String fileName,
+      @RequestParam(name = "expires", required = false) Long expires,
+      @RequestParam(name = "signature", required = false) String signature,
+      HttpServletRequest request)
+      throws IOException {
+    String storedFileName = toStoredFileName(domain, type, fileName);
+    validateSignature(PUT, toViewPath(storedFileName), expires, null, signature);
+
+    localStorageService.storeUploadedFile(
+        storedFileName, request.getInputStream(), request.getContentLengthLong());
+    return ResponseEntity.ok().build();
+  }
+
   private String toStoredFileName(String domain, String type, String fileName) {
     return domain + "/" + type + "/" + fileName;
   }
 
   private void validateSignature(String path, Long expires, String filename, String signature) {
-    if (!localStorageUrlSigner.isValid(GET, path, expires, filename, signature)) {
+    validateSignature(GET, path, expires, filename, signature);
+  }
+
+  private void validateSignature(
+      String method, String path, Long expires, String filename, String signature) {
+    if (!localStorageUrlSigner.isValid(method, path, expires, filename, signature)) {
       throw AuthException.forAccessDenied();
     }
   }

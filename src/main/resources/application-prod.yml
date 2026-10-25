@@ -45,6 +45,10 @@ app:
     s3:
       bucket: ${AWS_S3_BUCKET}
 
+    # url-ttl(기본 15m) <= token-ttl(기본 1h) < cleanup.minimum-age 를 지켜야 기동된다
+    upload:
+      token-secret: ${UPLOAD_TOKEN_SECRET}
+
 url:
   frontend:
     origin: ${FRONTEND_ORIGIN}

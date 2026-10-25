@@ -20,10 +20,15 @@ import io.awspring.cloud.s3.S3Exception;
 import io.awspring.cloud.s3.S3Template;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 @Service
 @ConditionalOnProperty(name = "app.storage.type", havingValue = "s3")
@@ -33,6 +38,7 @@ public class S3StorageService extends AbstractStorageService {
 
   private final S3Template s3Template;
   private final S3Presigner s3Presigner;
+  private final S3Client s3Client;
   private final S3Properties s3Properties;
 
   @Override
@@ -116,6 +122,60 @@ public class S3StorageService extends AbstractStorageService {
 
     PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
     return presignedRequest.url().toString();
+  }
+
+  @Override
+  public String createUploadUrl(
+      String storedFileName, String contentType, long size, Duration ttl) {
+    validateStoredFileName(storedFileName);
+    // Content-Type과 Content-Length를 서명에 넣어, 신고와 다른 파일은 S3가 거부하게 한다
+    PutObjectRequest objectRequest =
+        PutObjectRequest.builder()
+            .bucket(bucketName())
+            .key(storedFileName)
+            .contentType(contentType)
+            .contentLength(size)
+            .build();
+
+    PutObjectPresignRequest presignRequest =
+        PutObjectPresignRequest.builder()
+            .signatureDuration(ttl)
+            .putObjectRequest(objectRequest)
+            .build();
+
+    return s3Presigner.presignPutObject(presignRequest).url().toString();
+  }
+
+  @Override
+  public StoredFileHead readFileHead(String storedFileName, int maxBytes) {
+    validateStoredFileName(storedFileName);
+    try {
+      long size =
+          s3Client
+              .headObject(
+                  HeadObjectRequest.builder().bucket(bucketName()).key(storedFileName).build())
+              .contentLength();
+      if (size == 0) {
+        return new StoredFileHead(0, new byte[0]);
+      }
+      byte[] head =
+          s3Client
+              .getObjectAsBytes(
+                  GetObjectRequest.builder()
+                      .bucket(bucketName())
+                      .key(storedFileName)
+                      .range("bytes=0-" + (Math.min(size, maxBytes) - 1))
+                      .build())
+              .asByteArray();
+      return new StoredFileHead(size, head);
+    } catch (software.amazon.awssdk.services.s3.model.S3Exception e) {
+      if (e.statusCode() == 404) {
+        throw StorageException.forUploadIncomplete(storedFileName);
+      }
+      throw StorageException.forFileReadFailed(storedFileName, e);
+    } catch (SdkException e) {
+      throw StorageException.forFileReadFailed(storedFileName, e);
+    }
   }
 
   private String bucketName() {

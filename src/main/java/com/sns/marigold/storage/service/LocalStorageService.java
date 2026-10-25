@@ -2,9 +2,12 @@ package com.sns.marigold.storage.service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.Objects;
 
@@ -30,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 public class LocalStorageService extends AbstractStorageService {
 
   private static final String GET = "GET";
+  private static final String PUT = "PUT";
 
   private final LocalStorageProperties localStorageProperties;
   private final LocalStorageUrlSigner localStorageUrlSigner;
@@ -102,6 +106,66 @@ public class LocalStorageService extends AbstractStorageService {
         .build()
         .encode(StandardCharsets.UTF_8)
         .toUriString();
+  }
+
+  // 로컬은 개발용이라 Content-Type과 크기를 서명에 넣지 않는다. 크기는 PUT 수신 시 용도별 상한으로, 형식은 확정 단계에서 검사한다.
+  @Override
+  public String createUploadUrl(
+      String storedFileName, String contentType, long size, Duration ttl) {
+    validateStoredFileName(storedFileName);
+    String path = toViewPath(storedFileName);
+    long expiresAt = localStorageUrlSigner.expiresAt(ttl);
+    return UriComponentsBuilder.fromUriString(publicBaseUrl())
+        .path(path)
+        .queryParam("expires", expiresAt)
+        .queryParam("signature", localStorageUrlSigner.sign(PUT, path, expiresAt, null))
+        .build()
+        .encode(StandardCharsets.UTF_8)
+        .toUriString();
+  }
+
+  @Override
+  public StoredFileHead readFileHead(String storedFileName, int maxBytes) {
+    Path filePath = resolveStoredFile(storedFileName);
+    if (!Files.isRegularFile(filePath)) {
+      throw StorageException.forUploadIncomplete(storedFileName);
+    }
+    try (InputStream inputStream = Files.newInputStream(filePath)) {
+      return new StoredFileHead(Files.size(filePath), inputStream.readNBytes(maxBytes));
+    } catch (IOException e) {
+      throw StorageException.forFileReadFailed(storedFileName, e);
+    }
+  }
+
+  public void storeUploadedFile(
+      String storedFileName, InputStream inputStream, long contentLength) {
+    Path targetPath = resolveStoredFile(storedFileName);
+    long maxSize =
+        UploadPurpose.ofStoredFileName(storedFileName)
+            .map(UploadPurpose::maxSizeBytes)
+            .orElseThrow(StorageException::forFileNotFound);
+    if (contentLength <= 0 || contentLength > maxSize) {
+      throw StorageException.forFileSizeExceeded(storedFileName, contentLength, maxSize);
+    }
+
+    try {
+      Files.createDirectories(targetPath.getParent());
+      // 같은 URL로 확정된 파일을 덮어쓰지 못하게 새 파일로만 쓴다
+      try (OutputStream outputStream =
+          Files.newOutputStream(targetPath, StandardOpenOption.CREATE_NEW)) {
+        long copied = inputStream.transferTo(outputStream);
+        if (copied != contentLength) {
+          throw new IOException(
+              "body size mismatch: expected=" + contentLength + ", actual=" + copied);
+        }
+      }
+    } catch (FileAlreadyExistsException e) {
+      throw StorageException.forFileUploadFailed(e);
+    } catch (IOException e) {
+      deletePartialFile(targetPath);
+      log.error("Local storage upload failed", e);
+      throw StorageException.forFileUploadFailed(e);
+    }
   }
 
   public LocalStoredFile readFile(String storedFileName) {

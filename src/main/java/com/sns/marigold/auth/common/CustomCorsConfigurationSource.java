@@ -19,7 +19,8 @@ import jakarta.servlet.http.HttpServletRequest;
 public class CustomCorsConfigurationSource implements CorsConfigurationSource {
 
   private final String ALLOWED_ORIGIN;
-  private final List<String> ALLOWED_METHODS = List.of("GET", "POST", "PATCH", "OPTIONS", "DELETE");
+  private final List<String> ALLOWED_METHODS =
+      List.of("GET", "POST", "PUT", "PATCH", "OPTIONS", "DELETE");
 
   public CustomCorsConfigurationSource(UrlProperties urlProperties) {
     URI frontendUri = URI.create(urlProperties.frontend().origin());

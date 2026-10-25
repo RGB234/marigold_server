@@ -1,5 +1,6 @@
 package com.sns.marigold.storage.service;
 
+import java.time.Duration;
 import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
@@ -27,4 +28,10 @@ public interface StorageService {
   String getViewUrlOrNull(String storedFileName);
 
   String getDownloadUrl(String storedFileName, String originalFileName);
+
+  /** 클라이언트가 파일을 직접 PUT할 URL을 만듭니다. */
+  String createUploadUrl(String storedFileName, String contentType, long size, Duration ttl);
+
+  /** 파일이 없으면 {@code UPLOAD_INCOMPLETE}로 실패합니다. */
+  StoredFileHead readFileHead(String storedFileName, int maxBytes);
 }
