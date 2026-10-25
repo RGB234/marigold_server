@@ -15,12 +15,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.storage.config.LocalStorageProperties;
-import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.exception.StorageException;
 
 import lombok.RequiredArgsConstructor;
@@ -37,29 +35,6 @@ public class LocalStorageService extends AbstractStorageService {
 
   private final LocalStorageProperties localStorageProperties;
   private final LocalStorageUrlSigner localStorageUrlSigner;
-
-  @Override
-  protected FileUploadDto uploadFileWithMetadata(
-      MultipartFile file, StorageDirectory storageDirectory, String contentTypeOverride) {
-    StorageFileInfo fileInfo = prepareFile(file, storageDirectory, contentTypeOverride);
-    Path targetPath = resolveStoredFile(fileInfo.storedFileName());
-
-    try (InputStream inputStream = file.getInputStream()) {
-      Files.createDirectories(targetPath.getParent());
-      Files.copy(inputStream, targetPath);
-    } catch (IOException e) {
-      deletePartialFile(targetPath);
-      log.error("Local storage upload failed", e);
-      throw StorageException.forFileUploadFailed(e);
-    }
-
-    return FileUploadDto.builder()
-        .storedFileName(fileInfo.storedFileName())
-        .originalFileName(fileInfo.originalFileName())
-        .contentType(fileInfo.contentType())
-        .fileSize(fileInfo.fileSize())
-        .build();
-  }
 
   @Override
   protected void deleteStoredFile(String storedFileName) throws IOException {

@@ -9,18 +9,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.http.HttpHeaders;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -29,7 +29,6 @@ import com.sns.marigold.global.error.FailureReporter;
 import com.sns.marigold.global.error.GlobalExceptionHandler;
 import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.storage.config.LocalStorageProperties;
-import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.service.LocalStorageService;
 import com.sns.marigold.storage.service.LocalStorageUrlSigner;
 import com.sns.marigold.storage.service.StorageDirectory;
@@ -179,10 +178,10 @@ class LocalStorageControllerTest {
   }
 
   private String uploadTextFile(StorageDirectory storageDirectory) {
-    MockMultipartFile file =
-        new MockMultipartFile(
-            "file", "memo.txt", "text/plain", "hello".getBytes(StandardCharsets.UTF_8));
-    FileUploadDto uploadedFile = storageService.uploadFiles(List.of(file), storageDirectory).get(0);
-    return uploadedFile.getStoredFileName();
+    String storedFileName = storageDirectory.path() + "/" + UUID.randomUUID() + ".txt";
+    byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
+    storageService.storeUploadedFile(
+        storedFileName, new ByteArrayInputStream(content), content.length);
+    return storedFileName;
   }
 }

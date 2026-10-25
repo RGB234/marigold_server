@@ -3,42 +3,27 @@ package com.sns.marigold.storage.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.time.Duration;
 import java.util.Base64;
-import java.util.List;
-import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.web.multipart.MultipartFile;
 
-import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.storage.config.S3Properties;
-import com.sns.marigold.storage.dto.ImageUploadDto;
 import com.sns.marigold.storage.exception.StorageError;
 import com.sns.marigold.storage.exception.StorageException;
 
-import io.awspring.cloud.s3.ObjectMetadata;
 import io.awspring.cloud.s3.S3Template;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -73,102 +58,6 @@ class S3StorageServiceTest {
   void setUp() {
     storageService =
         new S3StorageService(s3Template, s3Presigner, s3Client, new S3Properties("test-bucket"));
-  }
-
-  @Test
-  @DisplayName("파일 업로드 성공 시 ImageUploadDto를 반환한다")
-  void uploadImage_Success() {
-    MockMultipartFile mockFile =
-        new MockMultipartFile("file", "test-image.png", "text/plain", PNG_BYTES);
-
-    given(
-            s3Template.upload(
-                eq("test-bucket"), any(String.class), any(ByteArrayInputStream.class), any()))
-        .willReturn(null);
-
-    ImageUploadDto result = storageService.uploadImage(mockFile, StorageDirectory.ADOPTION_POST);
-
-    assertThat(result.getOriginalFileName()).isEqualTo("test-image.png");
-    assertThat(result.getStoredFileName()).startsWith("adoption/post/");
-    assertThat(result.getStoredFileName()).endsWith(".png");
-
-    ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-    ArgumentCaptor<ObjectMetadata> metadataCaptor = ArgumentCaptor.forClass(ObjectMetadata.class);
-    verify(s3Template, times(1))
-        .upload(eq("test-bucket"), keyCaptor.capture(), any(), metadataCaptor.capture());
-    assertThat(keyCaptor.getValue()).isEqualTo(result.getStoredFileName());
-    assertThat(metadataCaptor.getValue()).extracting("contentType").isEqualTo("image/png");
-  }
-
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("invalidImageFiles")
-  void uploadImage_InvalidFile(String caseName, MultipartFile file) {
-    assertThatThrownBy(() -> storageService.uploadImage(file, StorageDirectory.ADOPTION_POST))
-        .as(caseName)
-        .isInstanceOf(StorageException.class);
-    verify(s3Template, never()).upload(any(), any(), any(), any());
-  }
-
-  private static Stream<Arguments> invalidImageFiles() {
-    return Stream.of(
-        Arguments.of("빈 파일", new MockMultipartFile("file", new byte[0])),
-        Arguments.of("확장자 없음", new MockMultipartFile("file", "test-image", "image/png", PNG_BYTES)),
-        Arguments.of(
-            "실제 이미지가 아님",
-            new MockMultipartFile("file", "not-image.png", "image/png", "plain text".getBytes())),
-        Arguments.of(
-            "지원하지 않는 확장자", new MockMultipartFile("file", "test-image.gif", "image/gif", PNG_BYTES)),
-        Arguments.of(
-            "확장자와 실제 MIME 불일치",
-            new MockMultipartFile("file", "test-image.jpg", "image/jpeg", PNG_BYTES)));
-  }
-
-  @Test
-  @DisplayName("이미지 크기 제한을 초과하면 업로드하지 않는다")
-  void uploadImage_SizeExceeded() {
-    byte[] oversizedImage = new byte[(int) ValidationPolicy.Image.MAX_SIZE_BYTES + 1];
-    MockMultipartFile file =
-        new MockMultipartFile("file", "large.png", "image/png", oversizedImage);
-
-    assertThatThrownBy(() -> storageService.uploadImage(file, StorageDirectory.ADOPTION_POST))
-        .isInstanceOf(StorageException.class);
-    verify(s3Template, never()).upload(any(), any(), any(), any());
-  }
-
-  @Test
-  @DisplayName("복수 이미지 중 하나라도 잘못되면 업로드를 시작하지 않는다")
-  void uploadImages_ValidatesAllFilesBeforeUpload() {
-    MockMultipartFile validFile =
-        new MockMultipartFile("images", "valid.png", "image/png", PNG_BYTES);
-    MockMultipartFile invalidFile =
-        new MockMultipartFile("images", "invalid.png", "image/png", "plain text".getBytes());
-
-    assertThatThrownBy(
-            () ->
-                storageService.uploadImages(
-                    List.of(validFile, invalidFile), StorageDirectory.ADOPTION_POST))
-        .isInstanceOf(StorageException.class);
-    verify(s3Template, never()).upload(any(), any(), any(), any());
-  }
-
-  @Test
-  @DisplayName("이미지 읽기 실패는 서버 파일 읽기 오류로 유지한다")
-  void uploadImage_ReadFailed() {
-    MultipartFile unreadableFile =
-        new MockMultipartFile("file", "test-image.png", "image/png", PNG_BYTES) {
-          @Override
-          public InputStream getInputStream() throws IOException {
-            throw new IOException("cannot read");
-          }
-        };
-
-    assertThatThrownBy(
-            () -> storageService.uploadImage(unreadableFile, StorageDirectory.ADOPTION_POST))
-        .isInstanceOfSatisfying(
-            StorageException.class,
-            exception ->
-                assertThat(exception.getErrorSpec()).isEqualTo(StorageError.FILE_READ_FAILED));
-    verify(s3Template, never()).upload(any(), any(), any(), any());
   }
 
   @Test

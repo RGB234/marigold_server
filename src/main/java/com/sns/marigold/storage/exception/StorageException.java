@@ -11,10 +11,6 @@ public class StorageException extends ApplicationException {
     super(error, diagnosticMessage, cause);
   }
 
-  public static StorageException forEmptyFile() {
-    return new StorageException(StorageError.FILE_INVALID, "file is empty", null);
-  }
-
   public static StorageException forFileCountExceeded(int count, int max) {
     return new StorageException(
         StorageError.FILE_INVALID, "file count exceeded: count=" + count + ", max=" + max, null);
@@ -24,13 +20,6 @@ public class StorageException extends ApplicationException {
     return new StorageException(
         StorageError.FILE_INVALID,
         "file size exceeded: filename=" + fileName + ", size=" + size + ", max=" + max,
-        null);
-  }
-
-  public static StorageException forTotalFileSizeExceeded(long totalSize, long max) {
-    return new StorageException(
-        StorageError.FILE_INVALID,
-        "total file size exceeded: totalSize=" + totalSize + ", max=" + max,
         null);
   }
 
