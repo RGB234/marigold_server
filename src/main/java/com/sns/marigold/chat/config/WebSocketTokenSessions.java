@@ -3,6 +3,7 @@ package com.sns.marigold.chat.config;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -16,10 +17,13 @@ import org.springframework.web.socket.WebSocketSession;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 
-/** 인증 토큰 만료 시 수신 전용 연결까지 종료하고 종료 예약을 정리합니다. */
+/** 인증 토큰 만료 시 또는 방을 나갔을 때 수신 전용 연결까지 종료하고 종료 예약을 정리합니다. */
 @Component
 @Slf4j
 public class WebSocketTokenSessions {
+  private static final CloseStatus JWT_EXPIRED = new CloseStatus(4001, "JWT expired");
+  private static final CloseStatus LEFT_ROOM = new CloseStatus(4003, "Left chat room");
+
   private final Map<String, Session> sessions = new ConcurrentHashMap<>();
   private final ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1);
 
@@ -45,13 +49,37 @@ public class WebSocketTokenSessions {
     }
   }
 
+  /** 방 구독을 기록합니다. 참여 확인보다 먼저 기록해야, 확인과 나가기 커밋이 겹쳐도 {@link #closeRoom}이 이 세션을 찾습니다. */
+  void subscribe(String sessionId, Long userId, Long roomId) {
+    Session session = sessions.get(sessionId);
+    if (session == null) {
+      throw new AccessDeniedException("WebSocket session is closed");
+    }
+    session.userId = userId;
+    session.roomIds.add(roomId);
+  }
+
+  /** 방을 나간 사용자의 그 방 구독 연결을 끊습니다. 다시 연결하면 구독 검사에서 거부됩니다. 나가기 커밋 후 호출합니다. */
+  public void closeRoom(Long userId, Long roomId) {
+    sessions.forEach(
+        (sessionId, session) -> {
+          if (userId.equals(session.userId) && session.roomIds.contains(roomId)) {
+            close(sessionId, LEFT_ROOM);
+          }
+        });
+  }
+
   void close(String sessionId) {
+    close(sessionId, JWT_EXPIRED);
+  }
+
+  private void close(String sessionId, CloseStatus status) {
     Session session = sessions.get(sessionId);
     if (session == null) return;
     try {
-      session.socket.close(new CloseStatus(4001, "JWT expired"));
+      session.socket.close(status);
     } catch (IOException e) {
-      log.warn("Failed to close expired WebSocket session {}", sessionId, e);
+      log.warn("Failed to close WebSocket session {} with {}", sessionId, status, e);
     } finally {
       remove(sessionId);
     }
@@ -74,6 +102,8 @@ public class WebSocketTokenSessions {
 
   private static class Session {
     private final WebSocketSession socket;
+    private final Set<Long> roomIds = ConcurrentHashMap.newKeySet();
+    private volatile Long userId;
     private ScheduledFuture<?> expiration;
 
     private Session(WebSocketSession socket) {

@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.chat.ChatDestinations;
+import com.sns.marigold.chat.config.WebSocketTokenSessions;
 import com.sns.marigold.chat.dto.ChatFileMessageRequestDto;
 import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.dto.ChatRoomDto;
@@ -53,6 +54,7 @@ public class ChatController {
 
   private final ChatService chatService;
   private final SimpMessagingTemplate messagingTemplate;
+  private final WebSocketTokenSessions tokenSessions;
 
   @Operation(
       summary = "채팅방 조회 또는 생성",
@@ -220,7 +222,10 @@ public class ChatController {
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
       @Parameter(description = "TSID 형식 채팅방 ID", required = true) @PathVariable("roomId") @NonNull
           TsidValue roomId) {
-    chatService.leaveRoom(roomId.value(), Objects.requireNonNull(principal.getUserId()));
+    Long userId = Objects.requireNonNull(principal.getUserId());
+    chatService.leaveRoom(roomId.value(), userId);
+    // 서비스 트랜잭션 커밋 후에 끊어야 재연결한 구독 검사가 나간 상태를 본다.
+    tokenSessions.closeRoom(userId, roomId.value());
     return ResponseEntity.noContent().build();
   }
 }

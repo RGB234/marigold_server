@@ -261,6 +261,7 @@ class WebSocketConfigTest {
     // when & then
     assertThatCode(() -> webSocketConfig.authorizeSubscription(accessor))
         .doesNotThrowAnyException();
+    verify(tokenSessions).subscribe("session", 1L, 100L);
   }
 
   @Test
@@ -315,6 +316,7 @@ class WebSocketConfigTest {
 
   private StompHeaderAccessor chatRoomSubscribeAccessor(Long roomId, Long userId) {
     StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+    accessor.setSessionId("session");
     accessor.setDestination("/sub/chat/room/" + TsidCodec.encode(roomId));
     accessor.setUser(authentication(userId));
     return accessor;

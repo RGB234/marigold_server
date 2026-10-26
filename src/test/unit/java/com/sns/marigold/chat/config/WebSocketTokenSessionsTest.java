@@ -26,6 +26,34 @@ class WebSocketTokenSessionsTest {
   }
 
   @Test
+  void leavingRoomClosesOnlyThatUsersSubscriptionsToTheRoom() throws Exception {
+    WebSocketTokenSessions sessions = new WebSocketTokenSessions();
+    try {
+      WebSocketSession left = register(sessions, "left");
+      WebSocketSession otherRoom = register(sessions, "other-room");
+      WebSocketSession otherUser = register(sessions, "other-user");
+      sessions.subscribe("left", 1L, 100L);
+      sessions.subscribe("other-room", 1L, 200L);
+      sessions.subscribe("other-user", 2L, 100L);
+
+      sessions.closeRoom(1L, 100L);
+
+      verify(left).close(new CloseStatus(4003, "Left chat room"));
+      verify(otherRoom, never()).close(any());
+      verify(otherUser, never()).close(any());
+    } finally {
+      sessions.shutdown();
+    }
+  }
+
+  private WebSocketSession register(WebSocketTokenSessions sessions, String id) {
+    WebSocketSession socket = mock(WebSocketSession.class);
+    when(socket.getId()).thenReturn(id);
+    sessions.register(socket);
+    return socket;
+  }
+
+  @Test
   void disconnectedSessionCancelsExpiry() throws Exception {
     WebSocketTokenSessions sessions = new WebSocketTokenSessions();
     try {

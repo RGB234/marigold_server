@@ -325,6 +325,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 
     Long userId = getAuthenticatedUserId(accessor.getUser());
+    tokenSessions.subscribe(Objects.requireNonNull(accessor.getSessionId()), userId, roomId);
     if (!participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(roomId, userId)) {
       throw new AccessDeniedException("User is not a participant of chat room: " + roomId);
     }
