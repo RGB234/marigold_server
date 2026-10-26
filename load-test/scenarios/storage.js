@@ -11,98 +11,138 @@ import { authHeaders, getAuthContext } from './auth-context.js';
 
 const TEST_IMAGE_BYTES = open(STORAGE_IMAGE_PATH, 'b');
 
-function testImage(index) {
-  return http.file(TEST_IMAGE_BYTES, `load-test-${index}.jpg`, 'image/jpeg');
-}
-
-function imageField(imageCount) {
-  const count = Math.max(1, imageCount);
-  if (count === 1) {
-    return testImage(1);
-  }
-
-  const images = [];
-  for (let i = 1; i <= count; i++) {
-    images.push(testImage(i));
-  }
-  return images;
-}
+// 파일 PUT은 서명된 URL로만 인증한다. 우리 서버 쿠키가 붙으면 CSRF 검사 대상이 되거나 S3 서명이 깨지므로 빈 jar를 쓴다.
+let uploadJar = null;
 
 function shortTitle(prefix) {
   return `${prefix}${__VU}-${__ITER}`.slice(0, 16);
 }
 
-function adoptionPostBody(titlePrefix, imageCount) {
+function adoptionPostBody(titlePrefix, uploadTokens) {
   return {
     species: 'DOG',
     title: shortTitle(titlePrefix),
-    age: '2',
+    age: 2,
     sex: 'MALE',
     area: 'Seoul',
-    weight: '5.0',
+    weight: 5.0,
     neutering: 'YES',
     features: 'Load test adoption feature text.',
-    images: imageField(imageCount),
+    uploadTokens,
   };
 }
 
-function extractCreatedId(response) {
-  if (!response || !response.body) {
+function jsonHeaders(context) {
+  return authHeaders(context, { 'Content-Type': 'application/json' });
+}
+
+// 업로드 URL 발급 → 파일별 PUT 순서로 올리고 도메인 API에 보낼 업로드 토큰을 돌려준다. 실패하면 null.
+function uploadImages(context, metricPrefix, imageCount = STORAGE_IMAGE_COUNT) {
+  if (!context) {
     return null;
   }
-  const match = response.body.match(/"id"\s*:\s*"?([^",}]+)"?/);
-  return match ? match[1] : null;
+
+  const count = Math.max(1, imageCount);
+  const files = [];
+  for (let i = 1; i <= count; i++) {
+    files.push({ fileName: `load-test-${i}.jpg`, size: TEST_IMAGE_BYTES.byteLength });
+  }
+
+  const issueRes = http.post(
+    `${BASE_URL}${API_VERSION}/storage/uploads`,
+    JSON.stringify({ purpose: 'ADOPTION_POST_IMAGE', files }),
+    {
+      headers: jsonHeaders(context),
+      tags: { name: `${metricPrefix}_upload_issue` },
+    }
+  );
+
+  const isIssued = check(issueRes, {
+    [`${metricPrefix}_upload_issue status is 200`]: (r) => r.status === 200,
+    [`${metricPrefix}_upload_issue returns every file`]: (r) =>
+      r.status === 200 && Boolean(r.body) && Array.isArray(r.json()) && r.json().length === count,
+  });
+  if (!isIssued) {
+    return null;
+  }
+
+  uploadJar = uploadJar || new http.CookieJar();
+  const uploadTokens = [];
+  for (const upload of issueRes.json()) {
+    const putRes = http.put(upload.uploadUrl, TEST_IMAGE_BYTES, {
+      headers: { 'Content-Type': upload.contentType },
+      jar: uploadJar,
+      tags: { name: `${metricPrefix}_upload_put` },
+    });
+
+    const isUploaded = check(putRes, {
+      [`${metricPrefix}_upload_put status is 200`]: (r) => r.status === 200,
+    });
+    if (!isUploaded) {
+      return null;
+    }
+    uploadTokens.push(upload.uploadToken);
+  }
+
+  return uploadTokens;
 }
 
 export function createAdoptionPostWithImages(
   context,
   metricName = 'storage_post_create',
+  metricPrefix = 'storage',
   imageCount = STORAGE_IMAGE_COUNT
 ) {
-  if (!context) {
+  const uploadTokens = uploadImages(context, metricPrefix, imageCount);
+  if (!uploadTokens) {
     return null;
   }
 
-  const res = http.post(`${BASE_URL}${API_VERSION}/adoption`, adoptionPostBody('LT', imageCount), {
-    headers: authHeaders(context),
-    tags: { name: metricName },
-  });
+  const res = http.post(
+    `${BASE_URL}${API_VERSION}/adoption`,
+    JSON.stringify(adoptionPostBody('LT', uploadTokens)),
+    {
+      headers: jsonHeaders(context),
+      tags: { name: metricName },
+    }
+  );
 
   const isSuccessful = check(res, {
     [`${metricName} status is 201`]: (r) => r.status === 201,
-    [`${metricName} success is true`]: (r) => r.status === 201 && Boolean(r.body) && r.json('success') === true,
-  });
-  const postId = isSuccessful ? extractCreatedId(res) : null;
-
-  const hasCreatedId = check(res, {
-    [`${metricName} created id exists`]: () => !isSuccessful || Boolean(postId),
+    [`${metricName} created id exists`]: (r) => r.status === 201 && Boolean(r.body) && Boolean(r.json('id')),
   });
 
-  return isSuccessful && hasCreatedId ? postId : null;
+  return isSuccessful ? res.json('id') : null;
 }
 
 export function updateAdoptionPostWithImages(
   context,
   postId,
   metricName = 'storage_post_update',
+  metricPrefix = 'storage',
   imageCount = STORAGE_IMAGE_COUNT
 ) {
   if (!context || !postId) {
     return false;
   }
 
+  const uploadTokens = uploadImages(context, metricPrefix, imageCount);
+  if (!uploadTokens) {
+    return false;
+  }
+
+  // 기존 이미지는 모두 새 이미지로 교체한다.
   const res = http.patch(
     `${BASE_URL}${API_VERSION}/adoption/${postId}`,
-    adoptionPostBody('LU', imageCount),
+    JSON.stringify({ ...adoptionPostBody('LU', uploadTokens), imagesToKeep: [] }),
     {
-      headers: authHeaders(context),
+      headers: jsonHeaders(context),
       tags: { name: metricName },
     }
   );
 
   return check(res, {
-    [`${metricName} status is 200`]: (r) => r.status === 200,
-    [`${metricName} success is true`]: (r) => r.status === 200 && Boolean(r.body) && r.json('success') === true,
+    [`${metricName} status is 204`]: (r) => r.status === 204,
   });
 }
 
@@ -117,14 +157,13 @@ export function deleteAdoptionPost(context, postId, metricName = 'storage_post_d
   });
 
   return check(res, {
-    [`${metricName} status is 200`]: (r) => r.status === 200,
-    [`${metricName} success is true`]: (r) => r.status === 200 && Boolean(r.body) && r.json('success') === true,
+    [`${metricName} status is 204`]: (r) => r.status === 204,
   });
 }
 
 export function storageUploadScenario() {
   const context = getAuthContext('storage_auth_login');
-  const postId = createAdoptionPostWithImages(context, 'storage_post_create');
+  const postId = createAdoptionPostWithImages(context, 'storage_post_create', 'storage');
 
   if (STORAGE_DELETE_CREATED) {
     deleteAdoptionPost(context, postId, 'storage_post_delete');
@@ -133,12 +172,12 @@ export function storageUploadScenario() {
 
 export function storageMixedScenario() {
   const context = getAuthContext('storage_mixed_auth_login');
-  const postId = createAdoptionPostWithImages(context, 'storage_mixed_post_create');
+  const postId = createAdoptionPostWithImages(context, 'storage_mixed_post_create', 'storage_mixed');
 
   if (!postId) {
     return;
   }
 
-  updateAdoptionPostWithImages(context, postId, 'storage_mixed_post_update');
+  updateAdoptionPostWithImages(context, postId, 'storage_mixed_post_update', 'storage_mixed');
   deleteAdoptionPost(context, postId, 'storage_mixed_post_delete');
 }

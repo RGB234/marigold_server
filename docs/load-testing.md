@@ -88,6 +88,9 @@ Prometheus는 `host.docker.internal:8080/actuator/prometheus`에서 애플리케
 
 DB profile은 데이터베이스에 직접 쿼리하지 않고 애플리케이션 API를 호출해 DB 부하를 발생시킵니다. VU 비율은 동시 사용자 배분이며 실제 요청 비율과 같지 않습니다. 특히 채팅 시나리오는 기본 60초 동안 WebSocket 연결을 유지합니다.
 
+저장소 profile은 게시글을 만들거나 수정할 때마다 [업로드 절차](contracts/uploads.md)대로 업로드 URL 발급(`*_upload_issue`), 파일 PUT(`*_upload_put`),
+게시글 API 순서로 요청합니다. S3 대상에서는 파일 PUT이 애플리케이션을 거치지 않으므로, 애플리케이션 부하는 `*_upload_put`을 뺀 지표로 봅니다.
+
 ## 5. 실행
 
 기본 smoke test는 다음과 같이 실행합니다.
