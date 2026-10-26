@@ -35,6 +35,8 @@ import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.sns.marigold.adoption.entity.AdoptionPost;
+import com.sns.marigold.adoption.enums.AdoptionPostStatus;
+import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.dto.ChatMessageDto;
@@ -271,6 +273,26 @@ class ChatServiceTest {
     assertThat(result.getId()).isEqualTo(100L);
     verify(chatRoomRepository, times(1)).save(any(ChatRoom.class));
     verify(participantRepository, times(2)).save(any(RoomParticipant.class)); // 2명 생성
+  }
+
+  @Test
+  @DisplayName("입양 완료된 게시글에는 새 채팅방을 만들 수 없다.")
+  void getOrCreateChatRoom_CompletedPostRejectsNewRoom() {
+    // given
+    given(userRepository.findById(1L)).willReturn(Optional.of(user1));
+    given(userRepository.findById(2L)).willReturn(Optional.of(user2));
+    given(adoptionPostRepository.findById(10L)).willReturn(Optional.of(post));
+    given(post.getStatus()).willReturn(AdoptionPostStatus.COMPLETED);
+
+    given(chatRoomRepository.findByUsersAndAdoptionPost(user1, user2, post))
+        .willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> chatService.getOrCreateChatRoom(1L, 2L, 10L))
+        .isInstanceOf(AdoptionPostException.class)
+        .hasMessageContaining(AdoptionPostException.forAdoptionPostAlreadyCompleted().getMessage());
+    verify(chatRoomRepository, never()).save(any(ChatRoom.class));
+    verify(participantRepository, never()).save(any(RoomParticipant.class));
   }
 
   @Test

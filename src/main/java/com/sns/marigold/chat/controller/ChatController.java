@@ -68,7 +68,8 @@ public class ChatController {
     @ApiResponse(responseCode = "400", description = "요청값 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "403", description = "CSRF token 누락 또는 불일치"),
-    @ApiResponse(responseCode = "404", description = "입양 게시글 또는 사용자 없음")
+    @ApiResponse(responseCode = "404", description = "입양 게시글 또는 사용자 없음"),
+    @ApiResponse(responseCode = "409", description = "입양 완료된 게시글에는 새 채팅방을 만들 수 없음")
   })
   @PreAuthorize("isAuthenticated()")
   @PostMapping("")

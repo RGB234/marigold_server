@@ -16,6 +16,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import com.sns.marigold.adoption.entity.AdoptionPost;
+import com.sns.marigold.adoption.enums.AdoptionPostStatus;
 import com.sns.marigold.adoption.exception.AdoptionPostException;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.exception.AuthException;
@@ -84,6 +85,10 @@ public class ChatService {
             .findByUsersAndAdoptionPost(user1, user2, adoptionPost)
             .orElseGet(
                 () -> {
+                  // 입양 완료된 게시글은 기존 방만 계속 쓰고 새 방은 만들지 않는다
+                  if (adoptionPost.getStatus() == AdoptionPostStatus.COMPLETED) {
+                    throw AdoptionPostException.forAdoptionPostAlreadyCompleted();
+                  }
                   // 없으면 생성
                   ChatRoom newRoom = ChatRoom.create(adoptionPost);
                   return chatRoomRepository.save(Objects.requireNonNull(newRoom));
