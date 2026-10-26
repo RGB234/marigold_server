@@ -9,13 +9,13 @@ export function getAdoptionPosts(metricName = 'adoption_list') {
 
   const isSuccessful = check(res, {
     'adoption list status is 200': (r) => r.status === 200,
-    'adoption list success is true': (r) => r.status === 200 && Boolean(r.body) && r.json('success') === true,
+    'adoption list has content': (r) => r.status === 200 && Boolean(r.body) && Array.isArray(r.json('content')),
   });
 
   let posts = [];
   if (isSuccessful) {
     try {
-      posts = res.json('data.content') || [];
+      posts = res.json('content') || [];
     } catch (e) {
       // JSON Parse fail
       throw new Error('Failed to parse JSON response');
@@ -32,7 +32,6 @@ export function getAdoptionPostDetail(postId, metricName = 'adoption_detail') {
 
   check(res, {
     'adoption detail status is 200': (r) => r.status === 200,
-    'adoption detail success is true': (r) => r.status === 200 && Boolean(r.body) && r.json('success') === true,
   });
 }
 
@@ -44,7 +43,6 @@ export function getAdoptionComments(postId, metricName = 'db_read_comments') {
 
   check(res, {
     'adoption comments status is 200': (r) => r.status === 200,
-    'adoption comments success is true': (r) => r.status === 200 && Boolean(r.body) && r.json('success') === true,
   });
 }
 
@@ -56,7 +54,7 @@ export function getAdoptionPostsByWriter(userId, metricName = 'db_read_writer_po
 
   const isSuccessful = check(res, {
     'writer adoption posts status is 200': (r) => r.status === 200,
-    'writer adoption posts success is true': (r) => r.status === 200 && Boolean(r.body) && r.json('success') === true,
+    'writer adoption posts has content': (r) => r.status === 200 && Boolean(r.body) && Array.isArray(r.json('content')),
   });
 
   if (!isSuccessful) {
@@ -64,7 +62,7 @@ export function getAdoptionPostsByWriter(userId, metricName = 'db_read_writer_po
   }
 
   try {
-    return res.json('data.content') || [];
+    return res.json('content') || [];
   } catch (e) {
     throw new Error('Failed to parse writer adoption posts response');
   }

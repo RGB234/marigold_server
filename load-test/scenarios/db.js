@@ -40,8 +40,7 @@ export function updateAdoptionPostStatus(context, postId, status, metricName) {
   });
 
   return check(res, {
-    [`${metricName} status is 200`]: (r) => r.status === 200,
-    [`${metricName} success is true`]: (r) => r.status === 200 && Boolean(r.body) && r.json('success') === true,
+    [`${metricName} status is 204`]: (r) => r.status === 204,
   });
 }
 
@@ -52,7 +51,8 @@ export function dbWriteScenario() {
   }
 
   const posts = getAdoptionPostsByWriter(context.user.id, 'db_write_writer_posts');
-  const post = randomItem(posts);
+  // 입양 완료된 게시글은 상태를 바꿀 수 없다(409 ADOPTION_POST_ALREADY_COMPLETED).
+  const post = randomItem(posts.filter((item) => item.status !== 'COMPLETED'));
   if (!post) {
     return;
   }

@@ -99,13 +99,37 @@ function addPositiveIntToDecimalString(value, addend) {
   return result.replace(/^0+(?=\d)/, '');
 }
 
+const TSID_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+const TSID_LENGTH = 13;
+
+// 사용자·채팅방 ID는 API에서 13자리 Crockford Base32 TSID 문자열이다(TsidCodec).
+// JS number로는 18자리 정수를 정확히 담을 수 없어 10진 문자열을 32로 나눠 가며 변환한다.
+function decimalStringToTsid(value) {
+  let digits = value;
+  let encoded = '';
+
+  while (digits !== '0') {
+    let remainder = 0;
+    let quotient = '';
+    for (let i = 0; i < digits.length; i++) {
+      const current = remainder * 10 + (digits.charCodeAt(i) - 48);
+      quotient += String(Math.floor(current / 32));
+      remainder = current % 32;
+    }
+    encoded = TSID_ALPHABET[remainder] + encoded;
+    digits = quotient.replace(/^0+(?=\d)/, '');
+  }
+
+  return '0'.repeat(Math.max(0, TSID_LENGTH - encoded.length)) + encoded;
+}
+
 function createSeedUser(userNumber) {
   if (!LOGIN_PASSWORD) {
     throw new Error("LOAD_TEST_LOGIN_PASSWORD is required for seeded user login.");
   }
 
   return {
-    id: addPositiveIntToDecimalString(SEED_USER_ID_BASE, userNumber),
+    id: decimalStringToTsid(addPositiveIntToDecimalString(SEED_USER_ID_BASE, userNumber)),
     number: userNumber,
     email: `${SEED_EMAIL_PREFIX}${leftPadNumber(userNumber, 6)}@${SEED_EMAIL_DOMAIN}`,
     password: LOGIN_PASSWORD,
@@ -120,7 +144,7 @@ export function getRandomUser() {
 export function getRandomChatRoom() {
   const roomNumber = 1 + Math.floor(Math.random() * SEED_CHAT_ROOM_COUNT);
   return {
-    id: addPositiveIntToDecimalString(SEED_CHAT_ROOM_ID_BASE, roomNumber),
+    id: decimalStringToTsid(addPositiveIntToDecimalString(SEED_CHAT_ROOM_ID_BASE, roomNumber)),
     number: roomNumber,
   };
 }
