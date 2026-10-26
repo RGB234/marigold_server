@@ -75,8 +75,21 @@ Copy-Item .env.example ..\secrets\back\.env.local
 
 ## 문서
 
-- [아키텍처](docs/architecture.md): 시스템 경계, 패키지 책임과 핵심 데이터 흐름
-- [인터페이스](docs/interfaces.md): REST, 인증, 오류와 WebSocket 계약
-- [실행과 운영](docs/operations.md): 프로필, 환경변수, 배포와 관측
+| 문서 | 내용 |
+| --- | --- |
+| [아키텍처](docs/architecture.md) | 시스템 경계, 패키지 책임, 데이터 모델, 주요 흐름과 현재 제약 |
+| [파일 저장](docs/storage.md) | 파일 상태, 업로드 확정과 연결, 트랜잭션 경계, 고아 정리 |
+| [실행과 운영](docs/operations.md) | 프로필, 환경변수, Docker·배포, S3 설정, 수동 스키마 변경, 관측 |
+| [부하 테스트와 관측](docs/load-testing.md) | k6 시나리오, 테스트 데이터와 로컬 Prometheus/Grafana |
 
-상세 REST 계약의 기준은 로컬 프로필의 Swagger/OpenAPI입니다. 검증 규칙과 세부 동작은 코드와 테스트를 기준으로 합니다.
+프론트엔드와 함께 지키는 계약은 `docs/contracts/`에 있습니다. 프론트엔드 문서도 이 파일들을 기준으로 삼습니다.
+
+| 계약 | 내용 |
+| --- | --- |
+| [HTTP](docs/contracts/http.md) | REST 영역, 성공 응답, Problem Details 오류 |
+| [인증](docs/contracts/auth.md) | 토큰·쿠키·CSRF, 인증 상태 복원, 유효시간, OAuth2 redirect |
+| [업로드](docs/contracts/uploads.md) | 저장소 직접 업로드 절차와 업로드 오류 |
+| [실시간](docs/contracts/realtime.md) | STOMP 경로, 단계별 검사, 오류 형식, 연결 종료와 재연결 |
+
+수동으로 적용해야 하는 DB 변경은 `docs/migrations/`에 한 건당 한 파일로 둡니다. 상세 REST 계약의 기준은 로컬 프로필의 Swagger/OpenAPI입니다. 검증
+규칙과 세부 동작은 코드와 테스트를 기준으로 합니다.

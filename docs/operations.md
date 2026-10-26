@@ -20,13 +20,15 @@ net stop MySQL84
 
 
 > [!WARNING]
-> `local`의 `spring.jpa.hibernate.ddl-auto`는 `update`입니다. 스키마가 자동으로 변경될 수 있으므로 개발 전용 DB를 사용하세요. `prod`는 `none`이므로 스키마 변경은 배포 과정에서 별도로 적용해야 합니다.
+> `local`의 `spring.jpa.hibernate.ddl-auto`는 `update`입니다. 스키마가 자동으로 변경될 수 있으므로 개발 전용 DB를 사용하세요. `prod`는 `none`이므로 스키마 변경은 배포 과정에서 별도로 적용해야 합니다([수동 스키마 변경](#수동-스키마-변경)).
 
 ## 환경 설정
 
 공통 설정은 `application.yml`, 환경별 차이는 `application-local.yml`, `application-prod.yml`, `application-integration-test.yaml`에 있습니다. OAuth 설정은 모든 실행 프로필에 포함됩니다.
 
 `.env.example`은 환경변수 템플릿이며 실제 사용하는 환경변수 값을 노출시키지 않기 위한 용도로 실제 사용하는 환경파일은 저장소에 없습니다. `.env.example` 파일의 필드값들을 적절하게 설정하여 `local` 프로필에서는 `.env.local` 파일을, `prod` 프로필에서는 `.env.prod` 파일을 준비해야 합니다. 환경변수 파일 경로는 각각 `application-local.yml`, `application-prod.yml`으로 설정합니다.
+
+변수 목록의 원본은 `.env.example`입니다. 변수를 추가하거나 지우면 `.env.example`과 아래 표를 함께 고칩니다.
 
 ### 공통 인증과 OAuth2
 
@@ -68,42 +70,21 @@ net stop MySQL84
 
 ## 실행과 빌드
 
-아래 Gradle 명령은 `back/` 디렉터리에서 실행하며 JDK 17이 필요합니다.
+로컬 실행과 테스트 명령은 [README](../README.md)에 있습니다. 실행 JAR는 `back/` 디렉터리에서 다음 명령으로 만듭니다(JDK 17 필요).
 
 ```powershell
-# 로컬 실행
-.\gradlew.bat bootRun --args='--spring.profiles.active=local'
-
-# 단위 테스트
-.\gradlew.bat test
-
-# 컴포넌트 테스트
-.\gradlew.bat componentTest
-
-# 통합 테스트(Docker 필요)
-.\gradlew.bat integrationTest
-
-# 단위 테스트 + 컴포넌트 테스트 + 통합 테스트
-.\gradlew.bat check
-
-# 포맷 검사
-.\gradlew.bat spotlessCheck
-
-# 실행 JAR
 .\gradlew.bat clean bootJar
 ```
 
-테스트 코드는 `src/test/unit/java`, `src/test/component/java`, `src/test/integration/java`로 구분합니다. 각각 `test`, `componentTest`, `integrationTest`로 실행하며 `check`는 세 종류의 테스트와 포맷 검사를 모두 실행합니다.
-
-`integrationTest`는 Testcontainers로 MySQL 8 컨테이너를 시작하므로 Docker가 필요합니다. 전용 설정은 `src/test/integration/resources/application-integration-test.yaml`에서 읽습니다.
-
 ## Docker 실행
 
-아래 명령은 `back/` 디렉터리에서 실행합니다. `.env.example`을 참고해 `.env`를 준비하고 공통 인증·OAuth2, DB, frontend, S3의 운영 필수값을 채워야 합니다. `.env`는 커밋하지 않습니다.
+아래 명령은 `back/` 디렉터리에서 실행합니다. `.env.example`을 참고해 `.env.prod`를 준비하고 공통 인증·OAuth2, DB, frontend, S3의 운영 필수값을 채워야 합니다. `.env.prod`는 커밋하지 않습니다.
+
+`application-prod.yml`은 `spring.config.import`에 적힌 경로의 환경파일을 `optional:` 없이 읽으므로, 그 파일이 없으면 기동에 실패합니다. `--env-file`로 값을 넘기는 것만으로는 부족하며, 컨테이너 안의 같은 경로에 파일을 마운트해야 합니다.
 
 ```powershell
 docker build -t marigold-backend .
-docker run --rm -p 8080:8080 --env-file .env marigold-backend --spring.profiles.active=prod
+docker run --rm -p 8080:8080 -v <호스트의 .env.prod 경로>:<application-prod.yml의 import 경로>:ro marigold-backend --spring.profiles.active=prod
 ```
 
 Docker image는 Java 17에서 애플리케이션을 빌드하고 8080 port를 노출합니다. Image 자체에는 기본 활성 프로필이나 health check가 없으므로 실행 환경에서 지정해야 합니다.
@@ -115,131 +96,6 @@ Docker image는 Java 17에서 애플리케이션을 빌드하고 8080 port를 �
 `deploy.sh`는 이 저장소에 없으므로 컨테이너 교체, 환경변수 주입과 rollback 방식은 EC2 배포 스크립트에서 별도로 관리됩니다. 현재 workflow에는 테스트나 포맷 검사 단계가 없습니다.
 
 ***중요 - 현재는 배포가 중단된 상태입니다. Github actions와 EC2, S3 모두 비활성화되었습니다. (update 2026.10.19)***
-
-### 파일 테이블 마이그레이션 (storage_file)
-
-`prod`는 `ddl-auto: none`이므로 직접 적용해야 합니다. `local`도 `ddl-auto: update`가 기존 NOT NULL 컬럼(`stored_file_name` 등)을 지우지
-못해 저장이 실패하므로 같은 SQL을 실행하거나 개발 DB를 새로 만듭니다. 새 코드로 앱을 띄우기 전에 실행합니다. 먼저 띄웠다면 `update`가 만든
-`storage_file` 테이블과 `storage_file_id` 컬럼을 지우고 실행합니다.
-
-> [!WARNING]
-> 고아 정리의 저장소 스캔은 `storage_file` 행이 없는 파일을 고아로 봅니다. `local`은 시작할 때 `dry-run=false`로 정리를 실행하므로, 백필 전에
-> 새 코드로 앱을 띄우면 하루 넘게 지난 로컬 파일이 **모두 삭제됩니다**. 마이그레이션을 먼저 실행하고, 불안하면 첫 기동만 `dry-run: true`로
-> 후보 로그를 확인합니다.
-
-이 SQL은 다음을 합니다.
-
-1. `storage_file`을 만듭니다.
-2. 4개 파일 테이블의 행을 백필합니다. 상태는 `ATTACHED`이고, 소프트 삭제된 게시글의 이미지는 저장소에서 이미 지웠으므로 `DELETED`입니다.
-   이미지 테이블에는 형식과 크기가 없어 `content_type`은 확장자로 정하고 `file_size`는 0으로 둡니다.
-3. 각 테이블에 `storage_file_id`를 채운 뒤 NOT NULL로 바꾸고, `uk_*_stored_file`을 같은 이름으로 `storage_file_id`에 다시 만들고, FK를
-   추가하고, 기존 파일 컬럼을 지웁니다.
-
-`uk_*_stored_file`을 아직 적용하지 않은 DB라면 각 `DROP INDEX` 줄을 뺍니다. 제약 이름은 `UniqueConflictPolicy`가 `409 UPLOAD_ALREADY_USED`로
-변환하는 기준이므로 바꾸지 않습니다.
-
-```sql
--- 1. 파일 테이블
-CREATE TABLE storage_file (
-  id BIGINT NOT NULL AUTO_INCREMENT,
-  stored_file_name VARCHAR(255) NOT NULL,
-  original_file_name VARCHAR(255) NOT NULL,
-  content_type VARCHAR(255) NOT NULL,
-  file_size BIGINT NOT NULL,
-  status VARCHAR(16) NOT NULL,
-  created_at DATETIME(6) NOT NULL,
-  status_changed_at DATETIME(6) NOT NULL,
-  PRIMARY KEY (id),
-  CONSTRAINT uk_storage_file_name UNIQUE (stored_file_name),
-  INDEX idx_storage_file_status_created (status, created_at)
-);
-
--- 2. 기존 행 백필. 이미지 테이블에는 형식·크기가 없어 형식은 확장자로 정하고 크기는 0으로 둔다
-INSERT INTO storage_file
-  (stored_file_name, original_file_name, content_type, file_size, status, created_at, status_changed_at)
-SELECT t.stored_file_name, t.original_file_name,
-       CASE LOWER(SUBSTRING_INDEX(t.stored_file_name, '.', -1))
-         WHEN 'jpg' THEN 'image/jpeg' WHEN 'jpeg' THEN 'image/jpeg'
-         WHEN 'png' THEN 'image/png' WHEN 'webp' THEN 'image/webp'
-         ELSE 'application/octet-stream' END,
-       0, 'ATTACHED', t.created_at, t.created_at
-FROM user_image t;
-
--- 소프트 삭제된 게시글의 이미지는 저장소에서 이미 지웠으므로 DELETED
-INSERT INTO storage_file
-  (stored_file_name, original_file_name, content_type, file_size, status, created_at, status_changed_at)
-SELECT t.stored_file_name, t.original_file_name,
-       CASE LOWER(SUBSTRING_INDEX(t.stored_file_name, '.', -1))
-         WHEN 'jpg' THEN 'image/jpeg' WHEN 'jpeg' THEN 'image/jpeg'
-         WHEN 'png' THEN 'image/png' WHEN 'webp' THEN 'image/webp'
-         ELSE 'application/octet-stream' END,
-       0, IF(p.deleted_at IS NULL, 'ATTACHED', 'DELETED'), t.created_at, t.created_at
-FROM adoption_post_image t
-JOIN adoption_post p ON p.id = t.adoption_post_id;
-
-INSERT INTO storage_file
-  (stored_file_name, original_file_name, content_type, file_size, status, created_at, status_changed_at)
-SELECT t.stored_file_name, t.original_file_name,
-       CASE LOWER(SUBSTRING_INDEX(t.stored_file_name, '.', -1))
-         WHEN 'jpg' THEN 'image/jpeg' WHEN 'jpeg' THEN 'image/jpeg'
-         WHEN 'png' THEN 'image/png' WHEN 'webp' THEN 'image/webp'
-         ELSE 'application/octet-stream' END,
-       0, 'ATTACHED', t.created_at, t.created_at
-FROM adoption_comment_image t;
-
-INSERT INTO storage_file
-  (stored_file_name, original_file_name, content_type, file_size, status, created_at, status_changed_at)
-SELECT t.stored_file_name, t.original_file_name, t.content_type, t.file_size,
-       'ATTACHED', t.created_at, t.created_at
-FROM chat_message_attachments t;
-
--- 3. 도메인 테이블을 storage_file_id 참조로 바꾼다 (테이블마다 같은 순서)
-ALTER TABLE user_image ADD COLUMN storage_file_id BIGINT NULL;
-UPDATE user_image t JOIN storage_file f ON f.stored_file_name = t.stored_file_name
-SET t.storage_file_id = f.id;
-ALTER TABLE user_image DROP INDEX uk_user_image_stored_file;
-ALTER TABLE user_image
-  MODIFY storage_file_id BIGINT NOT NULL,
-  ADD CONSTRAINT uk_user_image_stored_file UNIQUE (storage_file_id),
-  ADD CONSTRAINT fk_user_image_storage_file FOREIGN KEY (storage_file_id) REFERENCES storage_file (id),
-  DROP COLUMN stored_file_name,
-  DROP COLUMN original_file_name;
-
-ALTER TABLE adoption_post_image ADD COLUMN storage_file_id BIGINT NULL;
-UPDATE adoption_post_image t JOIN storage_file f ON f.stored_file_name = t.stored_file_name
-SET t.storage_file_id = f.id;
-ALTER TABLE adoption_post_image DROP INDEX uk_adoption_post_image_stored_file;
-ALTER TABLE adoption_post_image
-  MODIFY storage_file_id BIGINT NOT NULL,
-  ADD CONSTRAINT uk_adoption_post_image_stored_file UNIQUE (storage_file_id),
-  ADD CONSTRAINT fk_adoption_post_image_storage_file FOREIGN KEY (storage_file_id) REFERENCES storage_file (id),
-  DROP COLUMN stored_file_name,
-  DROP COLUMN original_file_name;
-
-ALTER TABLE adoption_comment_image ADD COLUMN storage_file_id BIGINT NULL;
-UPDATE adoption_comment_image t JOIN storage_file f ON f.stored_file_name = t.stored_file_name
-SET t.storage_file_id = f.id;
-ALTER TABLE adoption_comment_image DROP INDEX uk_adoption_comment_image_stored_file;
-ALTER TABLE adoption_comment_image
-  MODIFY storage_file_id BIGINT NOT NULL,
-  ADD CONSTRAINT uk_adoption_comment_image_stored_file UNIQUE (storage_file_id),
-  ADD CONSTRAINT fk_adoption_comment_image_storage_file FOREIGN KEY (storage_file_id) REFERENCES storage_file (id),
-  DROP COLUMN stored_file_name,
-  DROP COLUMN original_file_name;
-
-ALTER TABLE chat_message_attachments ADD COLUMN storage_file_id BIGINT NULL;
-UPDATE chat_message_attachments t JOIN storage_file f ON f.stored_file_name = t.stored_file_name
-SET t.storage_file_id = f.id;
-ALTER TABLE chat_message_attachments DROP INDEX uk_chat_message_attachments_stored_file;
-ALTER TABLE chat_message_attachments
-  MODIFY storage_file_id BIGINT NOT NULL,
-  ADD CONSTRAINT uk_chat_message_attachments_stored_file UNIQUE (storage_file_id),
-  ADD CONSTRAINT fk_chat_message_attachments_storage_file FOREIGN KEY (storage_file_id) REFERENCES storage_file (id),
-  DROP COLUMN stored_file_name,
-  DROP COLUMN original_file_name,
-  DROP COLUMN content_type,
-  DROP COLUMN file_size;
-```
 
 ### S3 임시 영역 (pending/)
 
@@ -270,6 +126,15 @@ aws s3api put-bucket-lifecycle-configuration --bucket <버킷> --lifecycle-confi
 Lifecycle 규칙은 안전망입니다. 규칙이 없어도 고아 정리의 만료 PENDING 단계가 같은 파일을 지웁니다. 복사를 위해 애플리케이션의 AWS 자격 증명에는 같은
 버킷 객체에 대한 `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` 권한이 필요하며, 저장소 스캔에는 `s3:ListBucket`이 필요합니다.
 
+## 수동 스키마 변경
+
+`prod`는 `ddl-auto: none`이므로 엔티티 스키마를 바꾸는 배포마다 SQL을 직접 적용해야 합니다. 변경 한 건당 [migrations](migrations/)에 파일 하나를
+두고, 각 파일에 prod 적용 기록을 남깁니다. 아래 순서대로 적용합니다.
+
+| 날짜 | 변경 | 문서 |
+| --- | --- | --- |
+| 2026-10-24 | 게시글·댓글 `version` 컬럼 | [2026-10-24-adoption-version-columns](migrations/2026-10-24-adoption-version-columns.md) |
+| 2026-10-25 | `storage_file` 테이블 도입과 파일 테이블 전환 | [2026-10-25-storage-file](migrations/2026-10-25-storage-file.md) |
 
 ## 관측
 

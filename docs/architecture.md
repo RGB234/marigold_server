@@ -1,7 +1,7 @@
 # 아키텍처
 
-이 문서는 처음 참여하는 백엔드 개발자가 시스템 경계, 코드 책임, 데이터 흐름과 현재 구현의 제약을 파악하기 위한 안내입니다. 코드와 설정을 기준으로 설명하며, API 상세
-계약은 [인터페이스](interfaces.md), 실행·배포 절차와 운영 상태는 [실행과 운영](operations.md)을 참고합니다.
+프론트엔드와 함께 지키는 계약은 [contracts](contracts/http.md), 파일 저장의 세부는 [파일 저장](storage.md), 실행·배포 절차와 운영 상태는
+[실행과 운영](operations.md)을 참고합니다.
 
 ## 시스템 개요
 
@@ -34,8 +34,10 @@ flowchart LR
 REST는 데이터 조회·변경과 업로드 URL 발급을, STOMP는 실시간 텍스트 메시지 송수신을 담당합니다. 파일 본문은 클라이언트가 저장소에 직접 올리고, DB의
 `storage_file` 테이블이 저장 파일명, 원본 파일명 등의 메타데이터와 파일 상태를 보관합니다.
 
-저장소 구현은 `app.storage.type`으로 선택합니다. 저장소에 포함된 `local` 프로필은 로컬 파일시스템을, `prod` 프로필은 S3를 사용합니다. 위 그림은
-코드의 연결 구조이며 실제 서비스의 가동 상태를 의미하지 않습니다.
+저장소 구현은 `app.storage.type`으로 선택합니다. 저장소에 포함된 `local` 프로필은 로컬 파일시스템을, `prod` 프로필은 S3를 사용합니다.
+
+위 그림은 코드상 연결 가능한 구성 요소를 모두 보여줍니다. 실제로 어떤 구성이 켜져 있는지는 프로필과 설정에 따라 다르며, [실행과 운영](operations.md)을
+기준으로 합니다.
 
 ## 코드 구조
 
@@ -51,39 +53,6 @@ REST는 데이터 조회·변경과 업로드 URL 발급을, STOMP는 실시간 
 
 기준 경로는 [`com.sns.marigold`](../src/main/java/com/sns/marigold)입니다. 도메인별 패키지 안에 `controller`,
 `service`, `repository`, `entity`, `dto` 등을 배치합니다.
-
-### 계층과 의존 관계
-
-일반적인 요청은 보안 필터, Controller, Service, Repository 순서로 처리합니다. Controller는 요청 바인딩·검증과 응답을, Service는
-권한·업무 규칙과 트랜잭션을, Repository는 데이터 접근을 담당합니다. Entity에는 상태 변경과 이미지 개수 같은 객체 규칙도 있습니다.
-
-패키지 간에는 다른 도메인의 Service뿐 아니라 Repository와 Entity를 직접 참조하는 관계가 있습니다. 다음은 주요 의존 관계이며 전체 클래스 의존도는 아닙니다.
-
-```mermaid
-flowchart LR
-    Auth["AuthService"] --> UR["UserRepository"]
-    Adoption["AdoptionPostService"] --> User["UserService"]
-    Adoption --> Chat["ChatService"]
-    Adoption --> CR["ChatRoom / RoomParticipant Repository"]
-    User -. "UserDeletedEvent" .-> AdoptionListener["AdoptionUserDeletedListener"]
-    User -. "UserDeletedEvent" .-> ChatListener["ChatUserDeletedListener"]
-    AdoptionListener --> Adoption
-    ChatListener --> Chat
-    Chat --> AR["Adoption Repository"]
-    Chat --> UR
-    Adoption --> Storage["StorageService"]
-    User --> Storage
-    Chat --> Storage
-```
-
-예를 들어 게시글 삭제는 댓글 정리와 채팅방 종료를 함께 수행하고, 회원 탈퇴는 작성 게시글과 참여 채팅방에도 영향을 줍니다. 따라서 한 도메인의 변경을 검토할 때 호출하는 다른
-도메인의 트랜잭션과 조회 조건도 확인해야 합니다.
-
-회원 탈퇴는 `user`가 다른 도메인을 직접 호출하지 않고 `UserDeletedEvent`를 발행합니다. 각 도메인의 리스너는 동기 `@EventListener`로 탈퇴 트랜잭션
-안에서 실행되므로 하나라도 실패하면 탈퇴 전체가 롤백됩니다. 탈퇴 시 정리할 도메인이 늘어나면 해당 도메인에 리스너를 추가합니다. 실패해도 되는 부수 효과(스토리지 삭제
-등)만 `AFTER_COMMIT` 비동기 리스너로 처리합니다.
-
-근거: [AdoptionPostService](../src/main/java/com/sns/marigold/adoption/service/AdoptionPostService.java), [UserService](../src/main/java/com/sns/marigold/user/service/UserService.java), [ChatService](../src/main/java/com/sns/marigold/chat/service/ChatService.java).
 
 ## 핵심 데이터 모델
 
@@ -112,9 +81,8 @@ erDiagram
     STORAGE_FILE ||--o| CHAT_MESSAGE_ATTACHMENT : stores
 ```
 
-- 게시글은 작성자와 연결되고 이미지·댓글을 가집니다. 댓글은 선택적으로 부모 댓글을 참조하며, 댓글 생성 시 부모가 같은 게시글에 속하는지 검사합니다.
-- `AdoptionAdopter`의 `adoption_post_id`에는 유일 제약을 선언합니다. 게시글별 입양자는 최대 한 명이며, 완료 상태와 입양자 관계를 함께 변경하는
-  규칙은 Service가 담당합니다.
+- 게시글은 작성자와 연결되고 이미지·댓글을 가집니다. 댓글은 선택적으로 부모 댓글을 참조하며 (대댓글), 대댓글 생성 시 부모가 같은 게시글에 속하는지 검사합니다.
+- `AdoptionAdopter`의 `adoption_post_id`에는 유일 제약을 선언합니다. 게시글별 입양자는 최대 한 명입니다
 - `RoomParticipant`의 `(chat_room_id, user_id)`에는 유일 제약을 선언합니다. 서비스는 방을 만들 때 두 사용자를 등록하고 응답 변환 시 참여자
   수가 2명인지 확인하지만, DB 관계 자체가 2명을 강제하지는 않습니다.
 - 참여자의 나가기는 행 삭제 대신 `leavedAt`을 기록하고, 재참여 시 이를 지웁니다. 방 종료 상태 `CLOSED`와 개별 사용자의 나가기 상태는 별개입니다.
@@ -127,8 +95,8 @@ erDiagram
 - `AdoptionPost`와 `AdoptionComment`는 `version` 컬럼으로 낙관적 락을 사용합니다. 동시 수정으로 나중 커밋이 실패하면 `409 CONCURRENT_MODIFICATION`을
   반환합니다. JPQL bulk update는 `version`을 올리지 않습니다.
 
-유일 제약과 `version` 컬럼은 소스의 선언 기준입니다. `prod`의 `ddl-auto=none`에서는 실제 DB에 적용되었는지 스키마 관리 과정에서 확인해야 합니다.
-(`version`: `ALTER TABLE adoption_post ADD COLUMN version BIGINT NOT NULL DEFAULT 0;`, `adoption_comment`도 동일)
+유일 제약과 `version` 컬럼은 소스의 선언 기준입니다. `prod`의 `ddl-auto=none`에서는 실제 DB에 적용되었는지
+[수동 스키마 변경](operations.md#수동-스키마-변경) 기록으로 확인해야 합니다.
 
 근거: [AdoptionAdopter](../src/main/java/com/sns/marigold/adoption/entity/AdoptionAdopter.java), [RoomParticipant](../src/main/java/com/sns/marigold/chat/entity/RoomParticipant.java), [AdoptionCommentService](../src/main/java/com/sns/marigold/adoption/service/AdoptionCommentService.java).
 
@@ -146,15 +114,13 @@ HTTP 세션 기반 인증을 사용하지 않습니다.
    명시적으로 설정해야 합니다.
 3. Refresh 요청은 refresh token을 검증하고 DB에서 현재 사용자 상태와 권한을 다시 읽은 뒤 access·refresh·CSRF token을 재발급합니다.
 4. OAuth2 로그인·가입 성공 시 refresh·CSRF·최근 인증 쿠키를 발급하고 프론트엔드로 redirect합니다. 프론트엔드는 refresh API로 access
-   token을 얻습니다. 계정 연결 성공은 별도의 상태이며 새 로그인 토큰을 발급하지 않습니다.
+   token을 얻습니다.
 5. 자격 증명 등록과 회원 탈퇴 같은 민감 작업은 `RecentAuthService`로 최근 인증도 검사합니다.
 
-`JwtAuthenticationService`는 access token을 검사할 때 DB를 조회하지 않습니다. 따라서 JWT 기반 인증에서는 사용자 상태·권한 변경의 반영이 토큰
-만료까지 지연될 수 있습니다. 기본 access TTL은 [application.yml](../src/main/resources/application.yml)의 600초이며 외부
-설정으로 바뀔 수 있습니다.
+`JwtAuthenticationService`는 access token을 검사할 때 DB를 조회하지 않습니다. 그 결과 생기는 권한 변경의 반영 지연, 헤더·쿠키와 CSRF 적용
+조건, 기본 유효시간은 [인증 계약](contracts/auth.md)에 있습니다.
 
 근거: [CommonSecurityConfig](../src/main/java/com/sns/marigold/auth/common/CommonSecurityConfig.java), [AuthService](../src/main/java/com/sns/marigold/auth/common/service/AuthService.java), [JwtAuthenticationService](../src/main/java/com/sns/marigold/auth/common/service/JwtAuthenticationService.java), [OAuth2SuccessHandler](../src/main/java/com/sns/marigold/auth/oauth2/handler/OAuth2SuccessHandler.java).
-헤더·쿠키와 CSRF 적용 조건은 [인터페이스](interfaces.md)를 참고합니다.
 
 ### 입양 완료와 취소
 
@@ -162,11 +128,12 @@ HTTP 세션 기반 인증을 사용하지 않습니다.
 작업을 거쳐야 합니다.
 
 `completeAdoption`은 삭제 여부, 요청자의 작성자 여부, 이미 완료되었는지를 확인하고 입양 대상 사용자를 조회합니다. 이후 게시글을 `COMPLETED`로 변경하고
-`AdoptionAdopter`를 같은 `@Transactional` 범위에서 저장합니다. 취소는 완료 상태에서만 가능하며 관계를 삭제하고 `PROCEEDING`으로 되돌립니다.
-완료 직전의 모집 상태를 복원하지는 않습니다.
+`AdoptionAdopter`를 같은 `@Transactional` 범위에서 저장합니다. 취소는 삭제되지 않은 글이며 완료 상태에서 작성자만 가능하며 관계를 삭제하고 `PROCEEDING`으로 되돌립니다.
 
-후보 조회는 게시글에 연결된 채팅 참여자를 기반으로 하지만, 현재 완료 메서드는 전달받은 입양자가 그 후보에 포함되는지 재검증하지 않습니다. 또한 입양 완료 자체는 채팅방을
-종료하지 않습니다.
+후보는 게시글에 연결된 채팅방의 참여자 중 작성자를 제외한 사용자이며, 방을 나간 참여자도 포함합니다. 완료 메서드는 전달받은 입양자가 이 후보에 포함되는지
+쓰기 트랜잭션 안에서 다시 확인합니다.
+
+입양 완료는 채팅방을 종료하지 않습니다. 기존 방은 계속 사용할 수 있고, 완료된 게시글에 새 채팅방을 만드는 요청만 거부합니다.
 
 근거: [AdoptionPostService](../src/main/java/com/sns/marigold/adoption/service/AdoptionPostService.java)
 의 `updateRecruitmentStatus`, `getCandidates`, `completeAdoption`, `cancelAdoption`.
@@ -196,8 +163,9 @@ sequenceDiagram
     Broker-->>Client: 구독자에게 메시지 전달
 ```
 
-CONNECT에서 CSRF와 JWT를 검증하고, SUBSCRIBE에서 방의 활성 참여자인지 검사합니다. SEND에서도 세션 만료와 경로를 검사하며, `ChatService`가
-나가지 않은 참여자인지와 방이 닫히지 않았는지를 다시 확인합니다. 연결에 사용한 access token 만료 시 서버가 연결을 종료합니다.
+단계별 검사(핸드셰이크·CONNECT·SUBSCRIBE·SEND)와 연결 종료 코드는 [실시간 계약](contracts/realtime.md)에 있습니다. 서버 쪽에서는
+`WebSocketConfig`의 인바운드 인터셉터가 검사를 맡고, `WebSocketTokenSessions`가 세션별 토큰 만료 종료와 방 나가기 후 연결 종료를 맡습니다.
+방 나가기는 `ChatController`가 서비스 트랜잭션 커밋 뒤에 연결을 끊어, 다시 연결한 클라이언트의 구독 검사가 나간 상태를 보게 합니다.
 
 파일 메시지는 REST Controller가 `saveFileMessage`를 호출합니다. 이 메서드는 트랜잭션 밖에서 업로드 토큰을 확정한 뒤 `TransactionTemplate`으로
 메시지·첨부 메타데이터를 저장합니다. 서비스 트랜잭션 커밋 후 Controller가 STOMP로 발행하고 HTTP `201`을 반환합니다.
@@ -205,104 +173,20 @@ CONNECT에서 CSRF와 JWT를 검증하고, SUBSCRIBE에서 방의 활성 참여�
 DB 커밋과 STOMP 발행은 원자적이지 않습니다. 현재 발행 경로에는 영속 발행 대기열이나 재시도 처리가 없으므로 커밋 뒤 발행이 실패하면 메시지는 DB에 남지만 실시간 전달은
 누락될 수 있습니다. 저장된 내용은 REST 이력 조회로 확인할 수 있습니다.
 
-근거: [WebSocketConfig](../src/main/java/com/sns/marigold/chat/config/WebSocketConfig.java), [ChatWebSocketController](../src/main/java/com/sns/marigold/chat/controller/ChatWebSocketController.java), [ChatController](../src/main/java/com/sns/marigold/chat/controller/ChatController.java), [ChatService](../src/main/java/com/sns/marigold/chat/service/ChatService.java).
+근거: [WebSocketConfig](../src/main/java/com/sns/marigold/chat/config/WebSocketConfig.java), [WebSocketTokenSessions](../src/main/java/com/sns/marigold/chat/config/WebSocketTokenSessions.java), [ChatWebSocketController](../src/main/java/com/sns/marigold/chat/controller/ChatWebSocketController.java), [ChatController](../src/main/java/com/sns/marigold/chat/controller/ChatController.java), [ChatService](../src/main/java/com/sns/marigold/chat/service/ChatService.java).
 
-## 파일 저장과 정합성
+### 파일 저장
 
-### 파일 상태와 저장 위치
-
-파일 본문은 서버를 거치지 않습니다. 파일마다 `storage_file` 행이 하나 있고, 상태에 따라 저장 위치가 다릅니다.
-
-| 상태 | 언제 | 저장 위치 |
-|------|------|-----------|
-| `PENDING` | `POST /storage/uploads`로 URL을 발급할 때 | 클라이언트가 `pending/{저장 파일명}`에 직접 `PUT` |
-| `ATTACHED` | 도메인 저장 트랜잭션이 행을 참조할 때 | 확정 단계가 정식 키 `{저장 파일명}`으로 옮김 |
-| `DELETED` | 교체·삭제로 더 참조하지 않을 때 | 커밋 후 저장소에서 삭제. 행은 이력으로 남음 |
-
-`pending/`은 확정 전 파일만 두는 임시 영역입니다. 운영 S3는 이 prefix에 Lifecycle 만료 규칙을 걸어, 등록되지 않은 업로드를 저장소가 직접
-지우게 합니다. 규칙은 [실행과 운영](operations.md)에 있습니다. 로컬 저장소는 같은 경로 구조를 쓰고 고아 정리가 지웁니다.
-
-### 저장소 계약과 트랜잭션 경계
-
-도메인 서비스는 다음 순서로 파일을 연결합니다.
-
-1. **확정 (트랜잭션 밖)**: `StorageUploadService.confirm`이 토큰을 검증하고, `pending/` 파일의 실제 크기와 앞 64KB로 감지한 형식을 검사한 뒤
-   정식 키로 옮깁니다. 하나라도 검사에 실패하면 아무것도 옮기지 않습니다.
-2. **연결 (트랜잭션 안)**: `StorageFileService.attach`가 `PENDING → ATTACHED`로 바꾸고, 도메인 행은 그 `StorageFile`을 FK로 참조합니다.
-   이미 쓴 업로드가 섞여 있으면 `409 UPLOAD_ALREADY_USED`로 트랜잭션 전체가 롤백됩니다.
-
-업로드 토큰은 저장 파일명, 업로더, 용도, 크기, 만료 시각을 HMAC으로 서명한 값입니다. 다른 사용자의 파일이나 임의의 저장 키를 도메인에 연결하지 못하게
-하는 것이 토큰의 역할입니다.
-
-파일 저장소는 MySQL 트랜잭션에 참여하지 않습니다. 그래서 확정을 DB 트랜잭션보다 먼저 실행하고, 이후 어느 단계에서 실패해도 행이 `PENDING`으로
-남게 합니다. 서비스는 새 파일을 직접 지우지 않고 고아 정리에 맡깁니다. DB가 없는 파일을 가리키는 상태는 생기지 않습니다. 확정 뒤 저장이 실패하면
-`pending/` 파일은 이미 옮겨졌으므로, 같은 토큰으로 다시 보내면 `UPLOAD_INCOMPLETE`입니다. 클라이언트는 파일을 다시 올려야 합니다.
-
-| 호출 경로                   | 확정과 DB 트랜잭션                                                                         |
-|-------------------------|-------------------------------------------------------------------------------------|
-| 게시글 생성·수정, 댓글 생성·수정    | 트랜잭션 밖에서 확정 후 `TransactionTemplate` 안에서 `attach`와 DB 변경                                  |
-| 프로필 변경 `updateUser`     | 트랜잭션 밖에서 확정 후 `TransactionTemplate` 안에서 `attach`와 DB 변경                                  |
-| 채팅 첨부 `saveFileMessage` | 클래스 기본 트랜잭션을 `NOT_SUPPORTED`로 끄고, 권한 사전 검사 → 확정 → `TransactionTemplate` 안에서 `attach`와 메시지 저장 |
-
-확정은 파일마다 저장소에 요청을 보내므로, 그동안 DB 커넥션을 점유하지 않도록 트랜잭션 밖에서 실행합니다. 이를 위해 OSIV(`spring.jpa.open-in-view`)를 꺼서
-커넥션을 트랜잭션 동안만 사용합니다. 트랜잭션 밖에서 읽은 엔티티는 지연 로딩할 수 없으므로 사전 검사도 트랜잭션 안에서 하고, 저장 트랜잭션에서 다시 조회해
-확정하는 동안 생긴 변경(예: 게시글 삭제)을 다시 검사합니다. 파일 테이블의 `getStoredFileName()` 등은 지연 로딩되는 `storage_file`을 읽으므로
-역시 트랜잭션 안에서만 호출합니다.
-
-업로드 토큰 유효시간(`app.storage.upload.token-ttl`, 기본 1시간)은 고아 정리 `minimum-age`보다 짧아야 합니다. 어긋나면 고아 정리가 아직 쓸 수
-있는 토큰의 `PENDING`을 만료시켜 파일을 지운 뒤, 그 파일을 가리키는 행이 커밋될 수 있어 앱이 기동 시 이 관계를 검사하고 시작을 거부합니다.
-
-### 커밋·롤백 이후 파일 삭제
-
-- 확정했지만 커밋되지 않은 새 파일은 삭제하지 않고 고아 정리에 맡깁니다. 사용자가 파일을 올린 뒤 등록하지 않은 경우도 같습니다.
-- 교체·제거한 기존 파일은 `DeleteOldStorageFilesEvent`를 등록합니다. 동기 리스너가 같은 트랜잭션에서 행을 `ATTACHED → DELETED`로 바꾸고,
-  `AFTER_COMMIT` 리스너가 저장소 삭제를 시도합니다. 도메인 서비스는 이벤트만 발행하면 됩니다.
-
-삭제 리스너는 `storageTaskExecutor`를 사용하는 비동기 작업입니다. 다만 실행기와 큐가 포화되면 `CallerRunsPolicy`에 따라 호출 스레드에서
-실행될 수 있습니다.
-
-삭제는 `best-effort`입니다. 삭제 실패는 로그로 남기며 이미 커밋된 DB 변경을 되돌리지 않습니다. 이벤트와 실행기 큐는 영속 저장되지 않지만, 행이
-`DELETED`로 남으므로 남은 파일은 고아 정리의 저장소 스캔이 지웁니다.
-
-근거: [StorageUploadService](../src/main/java/com/sns/marigold/storage/service/StorageUploadService.java), [StorageFileService](../src/main/java/com/sns/marigold/storage/service/StorageFileService.java), [UploadTokenCodec](../src/main/java/com/sns/marigold/storage/service/UploadTokenCodec.java), [StorageEventListener](../src/main/java/com/sns/marigold/storage/event/StorageEventListener.java), [StorageTaskExecutorConfig](../src/main/java/com/sns/marigold/storage/config/StorageTaskExecutorConfig.java).
-
-### 고아 파일 정리
-
-`StorageOrphanCleanupService`는 한 번 실행할 때 두 단계를 거칩니다.
-
-1. **만료된 PENDING 정리 (주 경로)**: `created_at`이 `minimumAge`보다 오래된 `PENDING` 행을 1,000개씩 읽어, `pending/`과 정식 키의
-   파일을 지우고 `DELETED`로 바꿉니다. 토큰 TTL이 `minimumAge`보다 짧으므로 이 행들은 더 확정될 수 없습니다. 파일을 먼저 지우므로 상태 변경이
-   실패해도 다음 실행이 다시 처리합니다.
-2. **저장소 스캔 (안전망)**: 저장소 목록을 1,000개 이하의 페이지로 받아, `PENDING`·`ATTACHED` 행이 없고 마지막 수정 시각이 `minimumAge`보다
-   오래된 파일을 지웁니다. 커밋 후 삭제에 실패한 `DELETED` 파일이 여기서 지워집니다. `pending/` 키는 저장 파일명 형식이 아니라서 스캔에서
-   빠집니다.
-
-참조 여부는 `storage_file` 한 테이블만 봅니다. 파일을 저장하는 도메인 테이블을 추가해도 `storage_file`을 FK로 참조하면 정리 쿼리는 바꾸지
-않습니다. 메모리에는 한 페이지와 로그 샘플만 남으므로 사용량이 전체 파일 수와 무관합니다. 실행 중 실패하면 앞 페이지의 후보는 이미 삭제됐을 수
-있습니다.
-
-실행 방식은 `off`, `startup`, `scheduled`, `both`이며 `dryRun=true`이면 두 단계 모두 후보만 기록합니다. 코드 기본값은 `mode=off`, `dry-run=true`이고,
-현재 프로필 설정은 다음과 같습니다.
-
-- `local`: 시작 시 실행, `minimum-age=24h`, `dry-run=false`
-- `prod`: 매일 04:00(Asia/Seoul) 예약 실행, `minimum-age=24h`, `dry-run=false`
- 클라이언트 직접 업로드에서는 이 작업이 로컬 저장소의 새 파일을 지우는 유일한 수단이고, 운영에서는 `pending/`
-Lifecycle 규칙과 함께 동작합니다.
-
-이 작업은 `ATTACHED` 파일을 정리하지 않습니다. 실행 중복 방지는 프로세스 내부 `AtomicBoolean`으로만 이루어집니다.
-
-> [!WARNING]
-> `storage_file` 행이 없는 파일은 저장소 스캔이 고아로 봅니다. 기존 데이터가 있는 DB는 [실행과 운영](operations.md)의 마이그레이션으로 행을
-> 백필한 뒤에 정리 작업을 켜야 합니다.
-
-근거: [StorageOrphanCleanupService](../src/main/java/com/sns/marigold/storage/cleanup/StorageOrphanCleanupService.java), [StorageFileReferenceRepository](../src/main/java/com/sns/marigold/storage/cleanup/StorageFileReferenceRepository.java), [StorageCleanupProperties](../src/main/java/com/sns/marigold/storage/cleanup/StorageCleanupProperties.java).
+파일 본문은 서버를 거치지 않고, 파일마다 `storage_file` 행이 `PENDING → ATTACHED → DELETED`로 상태를 바꿉니다. 저장소는 DB 트랜잭션에
+참여하지 않으므로 업로드 확정은 트랜잭션 밖에서, 도메인 행 연결은 트랜잭션 안에서 하고, 남은 파일은 고아 정리가 지웁니다. 상태 전이, 트랜잭션 경계,
+삭제와 정리의 세부는 [파일 저장](storage.md)에 있습니다.
 
 ## 공통 정책과 현재 제약
 
 ### 오류, 검증과 식별자
 
 - HTTP 오류는 MVC의 `GlobalExceptionHandler`와 보안 경계의 처리기를 통해 공통 오류 정책과 Problem Details로 변환합니다. STOMP는
-  별도의 오류 처리기를 사용합니다. 구체적인 응답과 예외 범위는 [인터페이스](interfaces.md)를 기준으로 합니다.
+  별도의 오류 처리기를 사용합니다. 구체적인 응답 형식은 [HTTP 계약](contracts/http.md)과 [실시간 계약](contracts/realtime.md)을 기준으로 합니다.
 - 검증
   상수는 [ValidationPolicy](../src/main/java/com/sns/marigold/global/validation/ValidationPolicy.java)를
   기준으로 관리합니다. DTO·Entity·파일 검증에서 사용하며, JSON 생성·검증 절차는 [README](../README.md)에 있습니다.
@@ -319,6 +203,9 @@ Lifecycle 규칙과 함께 동작합니다.
 
 - 내장 STOMP Simple Broker와 WebSocket 세션은 서버 간 공유되지 않습니다. 다중 서버에서는 한 서버의 발행이 다른 서버의 구독자에게 전달되도록 별도 구성이
   필요합니다.
+- [WebSocketTokenSessions](../src/main/java/com/sns/marigold/chat/config/WebSocketTokenSessions.java)의 세션 목록과
+  만료 종료 예약도 인스턴스마다 따로 있습니다. 방 나가기는 요청을 받은 서버의 연결만 끊으므로, 다른 서버에 붙은 연결은 access token 만료로 끊길
+  때까지 그 방의 메시지를 계속 받습니다.
 - [InMemoryRecentAuthStore](../src/main/java/com/sns/marigold/auth/common/recent/InMemoryRecentAuthStore.java)
   의 최근 인증 정보는 재시작하면 사라집니다. 다른 인스턴스에도 공유되지 않아 해당 인스턴스가 발급한 최근 인증을 다른 서버가 확인할 수 없습니다.
 - 파일 삭제 이벤트·비동기 큐는 재시작 후 재생되지 않고, 고아 파일 정리의 실행 잠금도 인스턴스 간 조율을 제공하지 않습니다.
@@ -331,15 +218,11 @@ Lifecycle 규칙과 함께 동작합니다.
 
 - [AdoptionPostServiceTest](../src/test/unit/java/com/sns/marigold/adoption/service/AdoptionPostServiceTest.java):
   작성자 권한, 일반 상태 변경의 완료 전환 거부, 입양 취소, 업로드 확정 실패와 저장 실패 시 처리.
-- [StorageUploadServiceTest](../src/test/unit/java/com/sns/marigold/storage/service/StorageUploadServiceTest.java):
-  토큰 위조·만료·업로더·용도 불일치, 크기와 형식 검사.
-- [StorageFileServiceTest](../src/test/unit/java/com/sns/marigold/storage/service/StorageFileServiceTest.java):
-  PENDING이 아닌 업로드를 연결하면 `UPLOAD_ALREADY_USED`, 상태 전이 조건.
-- [StorageEventListenerTest](../src/test/component/java/com/sns/marigold/storage/event/StorageEventListenerTest.java):
-  커밋·롤백, 외부 트랜잭션 롤백과 커밋 직전 실패에 따른 파일 정리.
-- [StorageOrphanCleanupServiceTest](../src/test/unit/java/com/sns/marigold/storage/cleanup/StorageOrphanCleanupServiceTest.java):
-  만료된 PENDING 정리, 참조 여부·파일 나이·dry-run에 따른 정리 대상, 페이지 단위 조회와 삭제.
+- [WebSocketConfigTest](../src/test/unit/java/com/sns/marigold/chat/config/WebSocketConfigTest.java),
+  [WebSocketTokenSessionsTest](../src/test/unit/java/com/sns/marigold/chat/config/WebSocketTokenSessionsTest.java):
+  STOMP 단계별 검사, 토큰 만료와 방 나가기에 따른 연결 종료.
 - [ChatIntegrationTest](../src/test/integration/java/com/sns/marigold/chat/api/ChatIntegrationTest.java):
   실제 애플리케이션과 DB를 사용하는 채팅 동작.
 
-테스트 실행 명령과 종류별 범위는 [README](../README.md)의 검사 항목을 참고합니다.
+파일 저장 관련 테스트는 [파일 저장](storage.md#변경-시-확인할-테스트)에 있습니다. 테스트 실행 명령과 종류별 범위는 [README](../README.md)의 검사
+항목을 참고합니다.
