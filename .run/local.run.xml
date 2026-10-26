@@ -3,6 +3,7 @@
     <option name="ACTIVE_PROFILES" value="local" />
     <module name="com.sns.marigold.main" />
     <option name="SPRING_BOOT_MAIN_CLASS" value="com.sns.marigold.MarigoldApplication" />
+    <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$/back" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>
