@@ -604,10 +604,8 @@ class ChatServiceTest {
   void closeChatRoom_Success() {
     // given
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
-    given(userRepository.findById(1L)).willReturn(Optional.of(user1));
-    RoomParticipant participant = createParticipant(chatRoom, user1);
-    given(participantRepository.findByChatRoomAndUser(chatRoom, user1))
-        .willReturn(Optional.of(participant));
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(true);
 
     // when
     chatService.closeChatRoom(100L, 1L);
@@ -617,13 +615,12 @@ class ChatServiceTest {
   }
 
   @Test
-  @DisplayName("참여자가 아니라면 채팅방을 종료할 수 없다.")
-  void closeChatRoom_NotParticipant() {
+  @DisplayName("참여 중이 아니라면(나간 참여자 포함) 채팅방을 종료할 수 없다.")
+  void closeChatRoom_NotActiveParticipant() {
     // given
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
-    given(userRepository.findById(1L)).willReturn(Optional.of(user1));
-    given(participantRepository.findByChatRoomAndUser(chatRoom, user1))
-        .willReturn(Optional.empty());
+    given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
+        .willReturn(false);
 
     // when & then
     assertThatThrownBy(() -> chatService.closeChatRoom(100L, 1L))

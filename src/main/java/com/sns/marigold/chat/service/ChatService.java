@@ -108,12 +108,8 @@ public class ChatService {
   public void closeChatRoom(@NonNull Long roomId, @NonNull Long currentUserId) {
     ChatRoom chatRoom = findChatRoom(roomId);
 
-    User user = userRepository.findById(currentUserId).orElseThrow(UserException::forUserNotFound);
-
-    // 권한 체크
-    participantRepository
-        .findByChatRoomAndUser(chatRoom, user)
-        .orElseThrow(AuthException::forAccessDenied);
+    // 권한 체크: 나간 참여자는 종료할 수 없다
+    validateActiveParticipant(chatRoom, currentUserId);
 
     chatRoom.close();
   }
