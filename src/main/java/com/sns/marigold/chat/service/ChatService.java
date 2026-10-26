@@ -314,6 +314,7 @@ public class ChatService {
             .collect(Collectors.toList());
 
     return ChatMessageDto.builder()
+        .id(message.getId())
         .roomId(message.getChatRoom().getId())
         .senderId(message.getSender().getId())
         .senderNickname(message.getSender().getDisplayNickname())

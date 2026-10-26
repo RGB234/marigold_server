@@ -23,6 +23,10 @@ import lombok.ToString;
 @ToString
 public class ChatMessageDto {
 
+  @Schema(description = "TSID 형식 메시지 ID", type = "string", example = "01JABCDEH9012")
+  @TsidId
+  private Long id;
+
   @Schema(description = "TSID 형식 채팅방 ID", type = "string", example = "01JABCDEF1234")
   @TsidId
   private Long roomId;

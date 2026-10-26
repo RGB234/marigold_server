@@ -343,6 +343,7 @@ class ChatServiceTest {
         .willReturn(true);
 
     ChatMessage msg = mock(ChatMessage.class);
+    given(msg.getId()).willReturn(500L);
     given(msg.getChatRoom()).willReturn(chatRoom);
     given(msg.getSender()).willReturn(user1);
     given(msg.getMessage()).willReturn("Hello");
@@ -356,6 +357,7 @@ class ChatServiceTest {
 
     // then
     assertThat(result).hasSize(1);
+    assertThat(result.get(0).getId()).isEqualTo(500L);
     assertThat(result.get(0).getMessage()).isEqualTo("Hello");
     assertThat(result.get(0).getSenderId()).isEqualTo(1L);
   }
