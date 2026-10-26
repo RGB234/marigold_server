@@ -157,6 +157,30 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
   }
 
   @Test
+  @DisplayName("상대가 메시지를 보내면 나간 사용자는 다시 참여해 답장할 수 있다.")
+  void sendingMessageRejoinsLeftParticipant() {
+    RoomParticipant participant =
+        participantRepository.findByChatRoomAndUser(chatRoom, user1).orElseThrow();
+    participant.leave();
+    participantRepository.saveAndFlush(participant);
+
+    chatService.saveMessage(
+        ChatMessageRequestDto.builder().roomId(chatRoom.getId()).message("still there?").build(),
+        user2.getId());
+
+    assertThat(
+            participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(
+                chatRoom.getId(), user1.getId()))
+        .isTrue();
+    chatService.saveMessage(
+        ChatMessageRequestDto.builder().roomId(chatRoom.getId()).message("yes").build(),
+        user1.getId());
+    assertThat(chatService.getRoomMessages(chatRoom.getId(), user1.getId()))
+        .extracting(ChatMessageDto::getMessage)
+        .containsExactly("still there?", "yes");
+  }
+
+  @Test
   @DisplayName("나간 사용자는 이전 대화를 조회할 수 없고 재참여하면 전체 이력을 조회할 수 있다.")
   void leavingBlocksHistoryUntilRejoining() {
     chatMessageRepository.saveAndFlush(

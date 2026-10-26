@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,6 +21,15 @@ public interface RoomParticipantRepository extends JpaRepository<RoomParticipant
   boolean existsByChatRoom_AdoptionPost_IdAndUser_Id(Long adoptionPostId, Long userId);
 
   List<RoomParticipant> findAllByChatRoom(ChatRoom chatRoom);
+
+  @Modifying
+  @Query(
+      """
+      UPDATE RoomParticipant rp
+      SET rp.leavedAt = NULL
+      WHERE rp.chatRoom = :chatRoom AND rp.leavedAt IS NOT NULL
+      """)
+  void rejoinAllLeftByChatRoom(@Param("chatRoom") ChatRoom chatRoom);
 
   @Query(
       """

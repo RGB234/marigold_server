@@ -450,6 +450,7 @@ class ChatServiceTest {
     assertThat(result.getMessage()).isEqualTo("Test Msg");
     assertThat(result.getSenderId()).isEqualTo(1L);
     verify(chatMessageRepository, times(1)).save(any(ChatMessage.class));
+    verify(participantRepository, times(1)).rejoinAllLeftByChatRoom(chatRoom);
     verify(participantRepository, never()).findAllByChatRoom(chatRoom);
   }
 
@@ -499,6 +500,7 @@ class ChatServiceTest {
     assertThat(result.getAttachments().get(0).getOriginalFileName()).isEqualTo("note.txt");
     assertThat(result.getAttachments().get(1).getViewUrl()).isEqualTo("https://file/2");
     verify(chatMessageRepository, times(1)).saveAndFlush(any(ChatMessage.class));
+    verify(participantRepository, times(1)).rejoinAllLeftByChatRoom(chatRoom);
     verify(participantRepository, never()).findAllByChatRoom(chatRoom);
   }
 
@@ -575,6 +577,7 @@ class ChatServiceTest {
         .isInstanceOf(AuthException.class)
         .hasMessageContaining(AuthException.forAccessDenied().getMessage());
     verify(chatMessageRepository, times(0)).save(any(ChatMessage.class));
+    verify(participantRepository, never()).rejoinAllLeftByChatRoom(any());
   }
 
   @Test
@@ -597,6 +600,7 @@ class ChatServiceTest {
             exception ->
                 assertThat(((ChatException) exception).getErrorSpec())
                     .isEqualTo(ChatError.ROOM_CLOSED));
+    verify(participantRepository, never()).rejoinAllLeftByChatRoom(any());
   }
 
   @Test

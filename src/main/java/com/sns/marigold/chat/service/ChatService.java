@@ -166,6 +166,8 @@ public class ChatService {
     ChatRoom chatRoom = findChatRoom(Objects.requireNonNull(messageDto.getRoomId()));
     User sender = findSender(currentUserId);
     validateCanSendMessage(chatRoom, sender);
+    // 나간 상대도 메시지를 받으면 다시 참여해 답장할 수 있다
+    participantRepository.rejoinAllLeftByChatRoom(chatRoom);
 
     ChatMessage chatMessage =
         ChatMessage.builder()
@@ -206,6 +208,7 @@ public class ChatService {
           ChatRoom chatRoom = findChatRoom(roomId);
           User sender = findSender(currentUserId);
           validateCanSendMessage(chatRoom, sender);
+          participantRepository.rejoinAllLeftByChatRoom(chatRoom);
 
           ChatMessage chatMessage =
               ChatMessage.builder()
