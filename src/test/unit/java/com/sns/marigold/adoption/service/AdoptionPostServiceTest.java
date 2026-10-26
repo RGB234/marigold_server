@@ -573,6 +573,53 @@ class AdoptionPostServiceTest {
   }
 
   @Test
+  @DisplayName("채팅 참여자인 후보를 입양자로 지정하면 게시글을 입양 완료로 바꾸고 입양자를 저장한다.")
+  void completeAdoption_Success() {
+    // given
+    User adopter = User.builder().id(2L).nickname("adopter").role(Role.ROLE_PERSON).build();
+    given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
+    given(participantRepository.existsByChatRoom_AdoptionPost_IdAndUser_Id(100L, 2L))
+        .willReturn(true);
+    given(userService.findEntityById(2L)).willReturn(adopter);
+
+    // when
+    adoptionPostService.completeAdoption(100L, 2L, 1L);
+
+    // then
+    assertThat(testPost.getStatus()).isEqualTo(AdoptionPostStatus.COMPLETED);
+    verify(adoptionAdopterRepository, times(1)).save(any());
+  }
+
+  @Test
+  @DisplayName("게시글 채팅 참여자가 아닌 사용자는 입양자로 지정할 수 없다.")
+  void completeAdoption_NotCandidate() {
+    // given
+    given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
+    given(participantRepository.existsByChatRoom_AdoptionPost_IdAndUser_Id(100L, 3L))
+        .willReturn(false);
+
+    // when & then
+    assertThatThrownBy(() -> adoptionPostService.completeAdoption(100L, 3L, 1L))
+        .isInstanceOf(AdoptionPostException.class)
+        .hasMessageContaining(AdoptionPostException.forAdopterNotCandidate().getMessage());
+    assertThat(testPost.getStatus()).isEqualTo(AdoptionPostStatus.PROCEEDING);
+    verify(adoptionAdopterRepository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("작성자 본인은 입양자로 지정할 수 없다.")
+  void completeAdoption_WriterAsAdopter() {
+    // given
+    given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
+
+    // when & then
+    assertThatThrownBy(() -> adoptionPostService.completeAdoption(100L, 1L, 1L))
+        .isInstanceOf(AdoptionPostException.class)
+        .hasMessageContaining(AdoptionPostException.forAdopterNotCandidate().getMessage());
+    verify(adoptionAdopterRepository, never()).save(any());
+  }
+
+  @Test
   @DisplayName("입양 확정 취소 시 입양자 엔터티를 삭제하고 게시글 상태를 진행 중으로 되돌린다.")
   void cancelAdoption_Success() {
     // given

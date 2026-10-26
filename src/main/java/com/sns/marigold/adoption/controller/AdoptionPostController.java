@@ -290,7 +290,7 @@ public class AdoptionPostController {
       })
   @ApiResponses({
     @ApiResponse(responseCode = "204", description = "입양 완료 성공"),
-    @ApiResponse(responseCode = "400", description = "요청값 또는 상태 오류"),
+    @ApiResponse(responseCode = "400", description = "요청값 오류 또는 입양 후보가 아닌 사용자"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
     @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
     @ApiResponse(responseCode = "404", description = "게시글 또는 후보자 없음")

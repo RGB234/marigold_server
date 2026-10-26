@@ -12,6 +12,8 @@ public enum AdoptionError implements ErrorSpec {
   POST_ALREADY_COMPLETED(
       "ADOPTION_POST_ALREADY_COMPLETED", "이미 입양 완료된 게시글입니다.", FailureKind.CONFLICT),
   POST_NOT_COMPLETED("ADOPTION_POST_NOT_COMPLETED", "입양 완료 상태가 아닙니다.", FailureKind.CONFLICT),
+  ADOPTER_NOT_CANDIDATE(
+      "ADOPTION_ADOPTER_NOT_CANDIDATE", "입양 후보가 아닌 사용자입니다.", FailureKind.INVALID_INPUT),
   POST_DELETED("ADOPTION_POST_DELETED", "삭제된 게시글입니다.", FailureKind.GONE),
   POST_IMAGE_INVALID(
       "ADOPTION_POST_IMAGE_INVALID", "입양 게시글 이미지 정보가 올바르지 않습니다.", FailureKind.INVALID_INPUT),

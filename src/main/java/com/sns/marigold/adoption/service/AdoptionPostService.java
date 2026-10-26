@@ -411,6 +411,12 @@ public class AdoptionPostService {
       throw AdoptionPostException.forAdoptionPostAlreadyCompleted();
     }
 
+    // getCandidates와 같은 기준: 이 게시글 채팅방의 참여자 중 작성자 본인 제외
+    if (Objects.equals(adopterId, userId)
+        || !participantRepository.existsByChatRoom_AdoptionPost_IdAndUser_Id(id, adopterId)) {
+      throw AdoptionPostException.forAdopterNotCandidate();
+    }
+
     User adopter = userService.findEntityById(adopterId);
 
     info.updateStatus(AdoptionPostStatus.COMPLETED);
