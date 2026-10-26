@@ -61,7 +61,6 @@ INSERT INTO users (
   password,
   role,
   nickname,
-  image_id,
   status,
   deleted_at
 )
@@ -73,7 +72,6 @@ SELECT
   @load_test_password_hash,
   'ROLE_PERSON',
   CONCAT(@load_test_nickname_prefix, LPAD(n, 6, '0')),
-  NULL,
   'ACTIVE',
   NULL
 FROM load_test_numbers
@@ -132,7 +130,8 @@ SELECT
   CONCAT('Load test adoption post fixture number ', n, '. This row is generated for staging performance tests.'),
   MOD(n, 10),
   ROUND(1 + MOD(n, 250) / 10, 1),
-  CASE MOD(n, 10)
+  -- 작성자가 MOD(n - 1, 사용자 수)로 정해지므로, 상태는 작성자별 몇 번째 글인지로 정해야 작성자마다 상태가 섞인다.
+  CASE MOD(FLOOR((n - 1) / @load_test_user_count), 10)
     WHEN 0 THEN 'RESERVED'
     WHEN 1 THEN 'COMPLETED'
     ELSE 'PROCEEDING'
