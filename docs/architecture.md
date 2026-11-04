@@ -56,38 +56,20 @@ REST는 데이터 조회·변경과 업로드 URL 발급을, STOMP는 실시간 
 
 ## 핵심 데이터 모델
 
-아래 이름은 엔티티 관계를 표현한 논리 이름입니다. 실제 테이블·컬럼명은 각 Entity의 JPA 매핑을 기준으로 합니다.
-
-```mermaid
-erDiagram
-    USER ||--o| USER_IMAGE : has
-    USER ||--o{ ADOPTION_POST : writes
-    USER ||--o{ ADOPTION_COMMENT : writes
-    ADOPTION_POST ||--o{ ADOPTION_POST_IMAGE : has
-    ADOPTION_POST ||--o{ ADOPTION_COMMENT : has
-    ADOPTION_COMMENT |o--o{ ADOPTION_COMMENT : replies
-    ADOPTION_COMMENT ||--o{ ADOPTION_COMMENT_IMAGE : has
-    ADOPTION_POST ||--o| ADOPTION_ADOPTER : completes
-    USER ||--o{ ADOPTION_ADOPTER : selected
-    ADOPTION_POST ||--o{ CHAT_ROOM : opens
-    CHAT_ROOM ||--o{ ROOM_PARTICIPANT : has
-    USER ||--o{ ROOM_PARTICIPANT : joins
-    CHAT_ROOM ||--o{ CHAT_MESSAGE : contains
-    USER ||--o{ CHAT_MESSAGE : sends
-    CHAT_MESSAGE ||--o{ CHAT_MESSAGE_ATTACHMENT : has
-    STORAGE_FILE ||--o| USER_IMAGE : stores
-    STORAGE_FILE ||--o| ADOPTION_POST_IMAGE : stores
-    STORAGE_FILE ||--o| ADOPTION_COMMENT_IMAGE : stores
-    STORAGE_FILE ||--o| CHAT_MESSAGE_ATTACHMENT : stores
-```
+[Adoption](./erd/adoption.mmd)
 
 - 게시글은 작성자와 연결되고 이미지·댓글을 가집니다. 댓글은 선택적으로 부모 댓글을 참조하며 (대댓글), 대댓글 생성 시 부모가 같은 게시글에 속하는지 검사합니다.
 - `AdoptionAdopter`의 `adoption_post_id`에는 유일 제약을 선언합니다. 게시글별 입양자는 최대 한 명입니다
+- 게시글 삭제는 `deletedAt`을 기록하는 논리 삭제입니다. 관련 댓글 정리, 채팅방 종료와 파일 삭제 이벤트가 함께 수행되며, 모든 연관 데이터의 물리 삭제를 뜻하지
+    않습니다.
+
+[Chat](./erd/chat.mmd)
+
 - `RoomParticipant`의 `(chat_room_id, user_id)`에는 유일 제약을 선언합니다. 서비스는 방을 만들 때 두 사용자를 등록하고 응답 변환 시 참여자
   수가 2명인지 확인하지만, DB 관계 자체가 2명을 강제하지는 않습니다.
 - 참여자의 나가기는 행 삭제 대신 `leavedAt`을 기록하고, 재참여 시 이를 지웁니다. 방 종료 상태 `CLOSED`와 개별 사용자의 나가기 상태는 별개입니다.
-- 게시글 삭제는 `deletedAt`을 기록하는 논리 삭제입니다. 관련 댓글 정리, 채팅방 종료와 파일 삭제 이벤트가 함께 수행되며, 모든 연관 데이터의 물리 삭제를 뜻하지
-  않습니다.
+
+[Storage](./erd/storage.mmd)
 
 - 파일 메타데이터는 `storage_file`에만 있습니다. 4개 파일 테이블(`user_image`, `adoption_post_image`, `adoption_comment_image`,
   `chat_message_attachments`)은 `storage_file_id`로 참조하며, `uk_*_stored_file` 유일 제약이 한 파일을 두 행이 공유하지 못하게 합니다.
@@ -95,10 +77,8 @@ erDiagram
 - `AdoptionPost`와 `AdoptionComment`는 `version` 컬럼으로 낙관적 락을 사용합니다. 동시 수정으로 나중 커밋이 실패하면 `409 CONCURRENT_MODIFICATION`을
   반환합니다. JPQL bulk update는 `version`을 올리지 않습니다.
 
-유일 제약과 `version` 컬럼은 소스의 선언 기준입니다. `prod`의 `ddl-auto=none`에서는 실제 DB에 적용되었는지
-[수동 스키마 변경](operations.md#수동-스키마-변경) 기록으로 확인해야 합니다.
+[User](./erd/user.mmd)
 
-근거: [AdoptionAdopter](../src/main/java/com/sns/marigold/adoption/entity/AdoptionAdopter.java), [RoomParticipant](../src/main/java/com/sns/marigold/chat/entity/RoomParticipant.java), [AdoptionCommentService](../src/main/java/com/sns/marigold/adoption/service/AdoptionCommentService.java).
 
 ## 주요 처리 흐름
 

@@ -1,0 +1,53 @@
+%% 다른 도메인 테이블은 PK만 작성함. 전체 컬럼은 해당 도메인 ERD에 있다
+erDiagram
+
+    chat_rooms {
+        bigint id PK "TSID"
+        bigint adoption_post_id FK
+        datetime(6) created_at
+        enum status "ACTIVE|CLOSED"
+    }
+
+    room_participants {
+        bigint id PK "AUTO_INCREMENT"
+        bigint chat_room_id FK,UK "uk_room_participant_room_user(chat_room_id, user_id)"
+        bigint user_id FK,UK "uk_room_participant_room_user, idx_user"
+        datetime(6) joined_at
+        datetime(6) leaved_at "나가기, 재참여 시 NULL"
+    }
+
+    chat_messages {
+        bigint id PK "TSID"
+        bigint chat_room_id FK
+        bigint sender_id FK
+        text message
+        datetime(6) created_at
+    }
+
+    chat_message_attachments {
+        bigint id PK "AUTO_INCREMENT"
+        bigint chat_message_id FK
+        bigint storage_file_id FK,UK "uk_chat_message_attachments_stored_file"
+        datetime(6) created_at
+    }
+
+    adoption_post {
+        bigint id PK "adoption 도메인"
+    }
+
+    users {
+        bigint id PK "user 도메인"
+    }
+
+    storage_file {
+        bigint id PK "storage 도메인"
+    }
+
+    chat_rooms ||--o{ room_participants : "chat_room_id"
+    chat_rooms ||--o{ chat_messages : "chat_room_id"
+    chat_messages ||--o{ chat_message_attachments : "chat_message_id"
+
+    adoption_post ||--o{ chat_rooms : "adoption_post_id"
+    users ||--o{ room_participants : "user_id"
+    users ||--o{ chat_messages : "sender_id"
+    storage_file ||--o| chat_message_attachments : "storage_file_id"

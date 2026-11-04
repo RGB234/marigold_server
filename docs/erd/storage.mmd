@@ -1,0 +1,38 @@
+%% 파일을 참조하는 다른 도메인 테이블은 PK와 storage_file_id만 작성함. 전체 컬럼은 해당 도메인 ERD에 있다
+erDiagram
+
+    storage_file {
+        bigint id PK "AUTO_INCREMENT"
+        varchar(255) stored_file_name UK "uk_storage_file_name"
+        varchar(255) original_file_name
+        varchar(255) content_type
+        bigint file_size
+        varchar(16) status "PENDING|ATTACHED|DELETED, idx_storage_file_status_created(status, created_at)"
+        datetime(6) created_at
+        datetime(6) status_changed_at
+    }
+
+    user_image {
+        bigint id PK "user 도메인"
+        bigint storage_file_id FK,UK "uk_user_image_stored_file"
+    }
+
+    adoption_post_image {
+        bigint id PK "adoption 도메인"
+        bigint storage_file_id FK,UK "uk_adoption_post_image_stored_file"
+    }
+
+    adoption_comment_image {
+        bigint id PK "adoption 도메인"
+        bigint storage_file_id FK,UK "uk_adoption_comment_image_stored_file"
+    }
+
+    chat_message_attachments {
+        bigint id PK "chat 도메인"
+        bigint storage_file_id FK,UK "uk_chat_message_attachments_stored_file"
+    }
+
+    storage_file ||--o| user_image : "storage_file_id"
+    storage_file ||--o| adoption_post_image : "storage_file_id"
+    storage_file ||--o| adoption_comment_image : "storage_file_id"
+    storage_file ||--o| chat_message_attachments : "storage_file_id"

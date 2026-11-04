@@ -1,0 +1,28 @@
+%% 다른 도메인 테이블은 PK만 작성함. 전체 컬럼은 해당 도메인 ERD에 있다
+erDiagram
+
+    users {
+        bigint id PK "TSID"
+        enum provider_info UK "KAKAO|NAVER, uk_users_provider(provider_info, provider_id)"
+        varchar(255) provider_id UK "uk_users_provider"
+        varchar(255) email UK "uk_users_email, nullable"
+        varchar(255) password "nullable (OAuth2 전용 계정)"
+        enum role "ROLE_PERSON|ROLE_ADMIN"
+        varchar(50) nickname UK "uk_users_nickname"
+        enum status "ACTIVE|DELETED|BANNED|SLEEP"
+        datetime(6) deleted_at "논리 삭제"
+    }
+
+    user_image {
+        bigint id PK "AUTO_INCREMENT"
+        datetime(6) created_at
+        bigint storage_file_id FK,UK "uk_user_image_stored_file"
+        bigint user_id FK,UK "uk_user_image_user"
+    }
+
+    storage_file {
+        bigint id PK "storage 도메인"
+    }
+
+    users ||--o| user_image : "user_id"
+    storage_file ||--o| user_image : "storage_file_id"
