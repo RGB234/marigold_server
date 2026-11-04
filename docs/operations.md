@@ -91,9 +91,9 @@ Docker image는 Java 17에서 애플리케이션을 빌드하고 8080 port를 �
 
 ## 배포
 
-저장소의 workflow는 `main` branch push 시 GitHub Actions가 Docker image를 빌드해 ECR의 `marigold/server`에 `latest`와 commit SHA tag로 올리도록 설정되어 있습니다. 이후 SSH로 EC2의 `/home/ec2-user/app/deploy.sh`를 실행하는 구성입니다.
+저장소의 workflow는 `main` branch push 시 GitHub Actions가 먼저 `./gradlew check`(단위·컴포넌트·통합 테스트와 Spotless 포맷 검사)를 실행하고, 통과한 경우에만 Docker image를 빌드해 ECR의 `marigold/server`에 `latest`와 commit SHA tag로 올리도록 설정되어 있습니다. 이후 SSH로 EC2의 `/home/ec2-user/app/deploy.sh`를 실행하는 구성입니다.
 
-`deploy.sh`는 이 저장소에 없으므로 컨테이너 교체, 환경변수 주입과 rollback 방식은 EC2 배포 스크립트에서 별도로 관리됩니다. 현재 workflow에는 테스트나 포맷 검사 단계가 없습니다.
+`deploy.sh`는 이 저장소에 없으므로 컨테이너 교체, 환경변수 주입과 rollback 방식은 EC2 배포 스크립트에서 별도로 관리됩니다.
 
 ***중요 - 현재는 배포가 중단된 상태입니다. Github actions와 EC2, S3 모두 비활성화되었습니다. (update 2026.10.19)***
 
