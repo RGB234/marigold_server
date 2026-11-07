@@ -42,8 +42,8 @@ import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.storage.StorageFileFixtures;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.service.StorageFileService;
-import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.entity.User;
@@ -60,7 +60,7 @@ class AdoptionCommentServiceTest {
 
   @Mock private UserService userService;
 
-  @Mock private StorageService storageService;
+  @Mock private ObjectStorage objectStorage;
 
   @Mock private StorageUploadService storageUploadService;
 
@@ -89,7 +89,7 @@ class AdoptionCommentServiceTest {
             adoptionPostRepository,
             adoptionAdopterRepository,
             userService,
-            storageService,
+            objectStorage,
             storageUploadService,
             storageFileService,
             transactionTemplate,
@@ -159,7 +159,7 @@ class AdoptionCommentServiceTest {
     assertThat(commentCaptor.getValue().getImages())
         .extracting(AdoptionCommentImage::getStoredFileName)
         .containsExactly(storedFileName);
-    verifyNoInteractions(eventPublisher, storageService);
+    verifyNoInteractions(eventPublisher, objectStorage);
   }
 
   @Test

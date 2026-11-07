@@ -6,8 +6,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.service.StorageFileService;
-import com.sns.marigold.storage.service.StorageService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 public class StorageEventListener {
-  private final StorageService storageService;
+  private final ObjectStorage objectStorage;
   private final StorageFileService storageFileService;
 
   // 발행한 트랜잭션 안에서 동기로 실행되어 도메인 행 변경과 함께 커밋·롤백된다
@@ -34,6 +34,6 @@ public class StorageEventListener {
     if (event.fileNames() == null || event.fileNames().isEmpty()) return;
 
     log.debug("Deleting old files from storage. count={}", event.fileNames().size());
-    storageService.deleteFilesBestEffort(event.fileNames());
+    objectStorage.deleteFilesBestEffort(event.fileNames());
   }
 }

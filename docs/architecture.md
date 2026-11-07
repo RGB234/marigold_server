@@ -16,7 +16,7 @@ flowchart LR
         WS["SockJS / STOMP"]
         Services["도메인 서비스"]
         Broker["내장 Simple Broker"]
-        Storage["StorageService"]
+        Storage["ObjectStorage"]
         HTTP --> Services
         WS --> Services
         WS --> Broker
@@ -47,7 +47,8 @@ REST는 데이터 조회·변경과 업로드 URL 발급을, STOMP는 실시간 
 - `user`: 사용자, 프로필 이미지, 자격 증명 연결과 계정 관리
 - `adoption`: 입양 게시글, 이미지, 댓글과 답글, 입양자 확정
 - `chat`: 게시글 기반 채팅방, 참여자, 메시지와 첨부파일
-- `storage`: 공통 저장 계약, 로컬 파일시스템/S3 구현, 파일 행(`storage_file`)의 상태 관리, 트랜잭션 이후 파일 삭제와 고아 파일 정리
+- `storage`: 파일 본문을 읽고 쓰는 `ObjectStorage`와 로컬 파일시스템/S3 구현(`objectstore`), 업로드 발급·확정과 파일 행(`storage_file`)의
+  상태 관리(`service`), 트랜잭션 이후 파일 삭제와 고아 파일 정리(`cleanup`)
 - `global`: 공통 설정, 검증 정책, 오류 응답과 TSID 변환
 - `audit`: 인증, 권한, 삭제 등 주요 행위의 감사 로그
 

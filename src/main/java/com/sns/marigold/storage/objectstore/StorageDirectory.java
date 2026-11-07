@@ -1,4 +1,4 @@
-package com.sns.marigold.storage.service;
+package com.sns.marigold.storage.objectstore;
 
 import java.util.regex.Pattern;
 

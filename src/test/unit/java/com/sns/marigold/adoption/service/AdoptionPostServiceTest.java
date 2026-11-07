@@ -59,8 +59,8 @@ import com.sns.marigold.storage.StorageFileFixtures;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.service.StorageFileService;
-import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.entity.User;
@@ -72,7 +72,7 @@ class AdoptionPostServiceTest {
 
   @Mock private UserService userService;
 
-  @Mock private StorageService storageService;
+  @Mock private ObjectStorage objectStorage;
 
   @Mock private StorageUploadService storageUploadService;
 
@@ -217,7 +217,7 @@ class AdoptionPostServiceTest {
     assertThat(capturedPost.getImages().get(0).getOriginalFileName()).isEqualTo("original.jpg");
     assertThat(capturedPost.getImages().get(0).getStoredFileName())
         .isEqualTo("adoption/post/33333333-3333-3333-3333-333333333333.jpg");
-    verifyNoInteractions(eventPublisher, storageService);
+    verifyNoInteractions(eventPublisher, objectStorage);
   }
 
   @Test
@@ -275,7 +275,7 @@ class AdoptionPostServiceTest {
 
     assertThatThrownBy(() -> adoptionPostService.create(dto, 1L)).isSameAs(failure);
 
-    verifyNoInteractions(storageService);
+    verifyNoInteractions(objectStorage);
     verify(eventPublisher, never()).publishEvent(any());
   }
 
@@ -405,7 +405,7 @@ class AdoptionPostServiceTest {
     String storedFileName = testImages.get(0).getStoredFileName();
     given(adoptionPostRepository.findAll(any(Specification.class), eq(pageable)))
         .willReturn(new PageImpl<>(List.of(testPost), pageable, 1));
-    given(storageService.getViewUrlOrNull(storedFileName))
+    given(objectStorage.getViewUrlOrNull(storedFileName))
         .willThrow(StorageException.forFileNotFound());
 
     // when
@@ -424,9 +424,9 @@ class AdoptionPostServiceTest {
     String missingStoredFileName = testImages.get(0).getStoredFileName();
     String storedFileName = testImages.get(1).getStoredFileName();
     given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
-    given(storageService.getViewUrlOrNull(missingStoredFileName))
+    given(objectStorage.getViewUrlOrNull(missingStoredFileName))
         .willThrow(StorageException.forFileNotFound());
-    given(storageService.getViewUrlOrNull(storedFileName))
+    given(objectStorage.getViewUrlOrNull(storedFileName))
         .willReturn("http://example.com/image.jpg");
 
     // when

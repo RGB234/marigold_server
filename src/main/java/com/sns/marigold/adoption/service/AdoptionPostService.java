@@ -41,8 +41,8 @@ import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageError;
 import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.service.StorageFileService;
-import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.dto.response.UserInfoDto;
@@ -58,7 +58,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AdoptionPostService {
 
   private final UserService userService;
-  private final StorageService storageService;
+  private final ObjectStorage objectStorage;
   private final StorageUploadService storageUploadService;
   private final StorageFileService storageFileService;
   private final AdoptionCommentService adoptionCommentService;
@@ -183,7 +183,7 @@ public class AdoptionPostService {
     }
 
     try {
-      return storageService.getViewUrlOrNull(storedFileName);
+      return objectStorage.getViewUrlOrNull(storedFileName);
     } catch (StorageException e) {
       if (e.getErrorSpec() == StorageError.FILE_NOT_FOUND) {
         log.warn("event=adoption_image_url_not_found storedFileName={}", storedFileName);

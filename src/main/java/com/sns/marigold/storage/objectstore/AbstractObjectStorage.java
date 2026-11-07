@@ -1,4 +1,4 @@
-package com.sns.marigold.storage.service;
+package com.sns.marigold.storage.objectstore;
 
 import java.io.IOException;
 import java.util.List;
@@ -9,7 +9,7 @@ import com.sns.marigold.storage.exception.StorageException;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public abstract class AbstractStorageService implements StorageService {
+public abstract class AbstractObjectStorage implements ObjectStorage {
 
   @Override
   public void deleteFileBestEffort(String storedFileName) {

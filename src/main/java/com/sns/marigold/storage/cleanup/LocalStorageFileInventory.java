@@ -16,7 +16,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.sns.marigold.storage.config.LocalStorageProperties;
-import com.sns.marigold.storage.service.StorageDirectory;
+import com.sns.marigold.storage.objectstore.StorageDirectory;
 
 import lombok.RequiredArgsConstructor;
 

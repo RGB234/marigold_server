@@ -23,9 +23,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.entity.StorageFileStatus;
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.repository.StorageFileRepository;
 import com.sns.marigold.storage.service.StorageFileService;
-import com.sns.marigold.storage.service.StorageService;
 
 @ExtendWith(MockitoExtension.class)
 class StorageOrphanCleanupServiceTest {
@@ -38,7 +38,7 @@ class StorageOrphanCleanupServiceTest {
   private static final String OTHER_OLD_ORPHAN =
       "adoption/comment/44444444-4444-4444-4444-444444444444.jpg";
 
-  @Mock private StorageService storageService;
+  @Mock private ObjectStorage objectStorage;
   @Mock private StorageFileService storageFileService;
   @Mock private StorageFileRepository storageFileRepository;
   @Mock private StorageFileInventory inventory;
@@ -64,7 +64,7 @@ class StorageOrphanCleanupServiceTest {
 
     cleanupService.cleanup();
 
-    verify(storageService).deleteFilesBestEffort(List.of(OLD_ORPHAN));
+    verify(objectStorage).deleteFilesBestEffort(List.of(OLD_ORPHAN));
   }
 
   @Test
@@ -79,8 +79,8 @@ class StorageOrphanCleanupServiceTest {
 
     cleanupService.cleanup();
 
-    verify(storageService).deleteFilesBestEffort(List.of(OLD_ORPHAN));
-    verify(storageService).deleteFilesBestEffort(List.of(OTHER_OLD_ORPHAN));
+    verify(objectStorage).deleteFilesBestEffort(List.of(OLD_ORPHAN));
+    verify(objectStorage).deleteFilesBestEffort(List.of(OTHER_OLD_ORPHAN));
   }
 
   @Test
@@ -91,7 +91,7 @@ class StorageOrphanCleanupServiceTest {
 
     cleanupService.cleanup();
 
-    verify(storageService, never()).deleteFilesBestEffort(any());
+    verify(objectStorage, never()).deleteFilesBestEffort(any());
   }
 
   @Test
@@ -100,8 +100,8 @@ class StorageOrphanCleanupServiceTest {
 
     cleanupService.cleanup();
 
-    verify(storageService).discardUploadBestEffort(OLD_ORPHAN);
-    verify(storageService).discardUploadBestEffort(OTHER_OLD_ORPHAN);
+    verify(objectStorage).discardUploadBestEffort(OLD_ORPHAN);
+    verify(objectStorage).discardUploadBestEffort(OTHER_OLD_ORPHAN);
     verify(storageFileService).expirePending(List.of(OLD_ORPHAN, OTHER_OLD_ORPHAN));
   }
 
@@ -112,7 +112,7 @@ class StorageOrphanCleanupServiceTest {
 
     cleanupService.cleanup();
 
-    verify(storageService, never()).discardUploadBestEffort(anyString());
+    verify(objectStorage, never()).discardUploadBestEffort(anyString());
     verify(storageFileService, never()).expirePending(any());
   }
 
@@ -137,7 +137,7 @@ class StorageOrphanCleanupServiceTest {
 
   private StorageOrphanCleanupService cleanupService(boolean dryRun) {
     return new StorageOrphanCleanupService(
-        storageService,
+        objectStorage,
         storageFileService,
         storageFileRepository,
         inventory,

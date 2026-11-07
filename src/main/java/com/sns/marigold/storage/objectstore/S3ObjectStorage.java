@@ -1,4 +1,4 @@
-package com.sns.marigold.storage.service;
+package com.sns.marigold.storage.objectstore;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -30,7 +30,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 @ConditionalOnProperty(name = "app.storage.type", havingValue = "s3")
 @RequiredArgsConstructor
 @Slf4j
-public class S3StorageService extends AbstractStorageService {
+public class S3ObjectStorage extends AbstractObjectStorage {
 
   private final S3Template s3Template;
   private final S3Presigner s3Presigner;

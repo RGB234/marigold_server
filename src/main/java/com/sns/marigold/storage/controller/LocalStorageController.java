@@ -19,9 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.global.web.UrlConstants;
-import com.sns.marigold.storage.service.LocalStorageService;
-import com.sns.marigold.storage.service.LocalStorageService.LocalStoredFile;
-import com.sns.marigold.storage.service.LocalStorageUrlSigner;
+import com.sns.marigold.storage.objectstore.LocalObjectStorage;
+import com.sns.marigold.storage.objectstore.LocalObjectStorage.LocalStoredFile;
+import com.sns.marigold.storage.objectstore.LocalStorageUrlSigner;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ public class LocalStorageController {
   private static final String GET = "GET";
   private static final String PUT = "PUT";
 
-  private final LocalStorageService localStorageService;
+  private final LocalObjectStorage localObjectStorage;
   private final LocalStorageUrlSigner localStorageUrlSigner;
 
   @GetMapping("/files/{domain}/{type}/{fileName:.+}")
@@ -48,7 +48,7 @@ public class LocalStorageController {
     String storedFileName = toStoredFileName(domain, type, fileName);
     validateSignature(toViewPath(storedFileName), expires, null, signature);
 
-    LocalStoredFile file = localStorageService.readFile(storedFileName);
+    LocalStoredFile file = localObjectStorage.readFile(storedFileName);
     return ResponseEntity.ok()
         .contentType(parseMediaType(file.contentType()))
         .contentLength(file.contentLength())
@@ -67,7 +67,7 @@ public class LocalStorageController {
     String sanitizedFileName = sanitizeContentDispositionFileName(filename);
     validateSignature(toDownloadPath(storedFileName), expires, sanitizedFileName, signature);
 
-    LocalStoredFile file = localStorageService.readFile(storedFileName);
+    LocalStoredFile file = localObjectStorage.readFile(storedFileName);
     ContentDisposition contentDisposition =
         ContentDisposition.attachment().filename(sanitizedFileName, StandardCharsets.UTF_8).build();
 
@@ -91,7 +91,7 @@ public class LocalStorageController {
     String storedFileName = toStoredFileName(domain, type, fileName);
     validateSignature(PUT, toViewPath(storedFileName), expires, null, signature);
 
-    localStorageService.storeUploadedFile(
+    localObjectStorage.storeUploadedFile(
         storedFileName, request.getInputStream(), request.getContentLengthLong());
     return ResponseEntity.ok().build();
   }

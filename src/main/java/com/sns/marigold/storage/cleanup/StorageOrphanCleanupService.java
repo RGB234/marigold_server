@@ -13,9 +13,9 @@ import org.springframework.stereotype.Service;
 
 import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.entity.StorageFileStatus;
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.repository.StorageFileRepository;
 import com.sns.marigold.storage.service.StorageFileService;
-import com.sns.marigold.storage.service.StorageService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +28,7 @@ public class StorageOrphanCleanupService {
 
   private static final int LOG_SAMPLE_SIZE = 20;
 
-  private final StorageService storageService;
+  private final ObjectStorage objectStorage;
   private final StorageFileService storageFileService;
   private final StorageFileRepository storageFileRepository;
   private final StorageFileInventory inventory;
@@ -104,7 +104,7 @@ public class StorageOrphanCleanupService {
 
       if (!properties.dryRun()) {
         // 파일을 먼저 지운다. 상태 변경이 실패해도 다음 실행이 다시 지우고 바꾼다
-        fileNames.forEach(storageService::discardUploadBestEffort);
+        fileNames.forEach(objectStorage::discardUploadBestEffort);
         storageFileService.expirePending(fileNames);
       }
     } while (page.size() == StorageFileInventory.PAGE_SIZE);
@@ -129,7 +129,7 @@ public class StorageOrphanCleanupService {
         .forEach(stats.candidateSample::add);
 
     if (!properties.dryRun() && !orphanFileNames.isEmpty()) {
-      storageService.deleteFilesBestEffort(orphanFileNames);
+      objectStorage.deleteFilesBestEffort(orphanFileNames);
     }
   }
 

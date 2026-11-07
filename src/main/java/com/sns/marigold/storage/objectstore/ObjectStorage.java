@@ -1,9 +1,9 @@
-package com.sns.marigold.storage.service;
+package com.sns.marigold.storage.objectstore;
 
 import java.time.Duration;
 import java.util.List;
 
-public interface StorageService {
+public interface ObjectStorage {
 
   /** 삭제 실패를 로그로 남기고 호출자에게 전파하지 않습니다. */
   void deleteFileBestEffort(String storedFileName);

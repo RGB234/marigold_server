@@ -9,7 +9,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.MySQLContainer;
 
-import com.sns.marigold.storage.service.StorageService;
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 
 @SpringBootTest
 @ActiveProfiles("integration-test")
@@ -26,7 +26,7 @@ public abstract class BaseIntegrationTest {
     mysql.start();
   }
 
-  @MockitoBean protected StorageService storageService;
+  @MockitoBean protected ObjectStorage objectStorage;
 
   @Autowired private DatabaseCleaner databaseCleaner;
 

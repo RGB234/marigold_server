@@ -16,8 +16,8 @@ import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.service.StorageFileService;
-import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.dto.response.UserInfoDto;
@@ -37,7 +37,7 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
 
   private final UserRepository userRepository;
-  private final StorageService storageService;
+  private final ObjectStorage objectStorage;
   private final StorageUploadService storageUploadService;
   private final StorageFileService storageFileService;
   private final TransactionTemplate transactionTemplate;
@@ -67,7 +67,7 @@ public class UserService {
     User user = findEntityById(uid);
     UserInfoDto dto = UserInfoDto.from(user);
     if (dto.getImageUrl() != null) {
-      dto.setImageUrl(storageService.getViewUrlOrNull(dto.getImageUrl()));
+      dto.setImageUrl(objectStorage.getViewUrlOrNull(dto.getImageUrl()));
     }
     return dto;
   }
@@ -85,7 +85,7 @@ public class UserService {
             user -> {
               UserInfoDto dto = UserInfoDto.from(user);
               if (dto.getImageUrl() != null) {
-                dto.setImageUrl(storageService.getViewUrlOrNull(dto.getImageUrl()));
+                dto.setImageUrl(objectStorage.getViewUrlOrNull(dto.getImageUrl()));
               }
               return dto;
             })

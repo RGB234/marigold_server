@@ -38,8 +38,8 @@ import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.service.StorageFileService;
-import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.entity.User;
@@ -59,7 +59,7 @@ public class ChatService {
   private final UserRepository userRepository;
   private final AdoptionPostRepository adoptionPostRepository;
   private final RoomParticipantRepository participantRepository;
-  private final StorageService storageService;
+  private final ObjectStorage objectStorage;
   private final StorageUploadService storageUploadService;
   private final StorageFileService storageFileService;
   private final TransactionTemplate transactionTemplate;
@@ -237,7 +237,7 @@ public class ChatService {
             .findByIdAndChatMessage_ChatRoom(attachmentId, chatRoom)
             .orElseThrow(StorageException::forFileNotFound);
 
-    return storageService.getDownloadUrl(
+    return objectStorage.getDownloadUrl(
         attachment.getStoredFileName(), attachment.getOriginalFileName());
   }
 
@@ -313,7 +313,7 @@ public class ChatService {
                         .originalFileName(attachment.getOriginalFileName())
                         .contentType(attachment.getContentType())
                         .fileSize(attachment.getFileSize())
-                        .viewUrl(storageService.getViewUrlOrNull(attachment.getStoredFileName()))
+                        .viewUrl(objectStorage.getViewUrlOrNull(attachment.getStoredFileName()))
                         .build())
             .collect(Collectors.toList());
 
@@ -324,8 +324,7 @@ public class ChatService {
         .senderNickname(message.getSender().getDisplayNickname())
         .senderImageUrl(
             message.getSender().getImage() != null
-                ? storageService.getViewUrlOrNull(
-                    message.getSender().getImage().getStoredFileName())
+                ? objectStorage.getViewUrlOrNull(message.getSender().getImage().getStoredFileName())
                 : null)
         .message(message.getMessage())
         .messageType(attachments.isEmpty() ? "TEXT" : "FILE")

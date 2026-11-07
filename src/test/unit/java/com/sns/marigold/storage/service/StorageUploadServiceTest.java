@@ -35,6 +35,9 @@ import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.entity.StorageFileStatus;
 import com.sns.marigold.storage.exception.StorageError;
 import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.objectstore.ObjectStorage;
+import com.sns.marigold.storage.objectstore.StorageDirectory;
+import com.sns.marigold.storage.objectstore.StoredFileHead;
 import com.sns.marigold.storage.repository.StorageFileRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,7 +52,7 @@ class StorageUploadServiceTest {
   private static final StorageUploadProperties PROPERTIES =
       new StorageUploadProperties("test-secret", Duration.ofMinutes(15), Duration.ofHours(1));
 
-  @Mock private StorageService storageService;
+  @Mock private ObjectStorage objectStorage;
   @Mock private StorageFileRepository storageFileRepository;
 
   private UploadTokenCodec uploadTokenCodec;
@@ -60,7 +63,7 @@ class StorageUploadServiceTest {
     uploadTokenCodec = new UploadTokenCodec(PROPERTIES);
     uploadService =
         new StorageUploadService(
-            storageService,
+            objectStorage,
             uploadTokenCodec,
             storageFileRepository,
             PROPERTIES,
@@ -72,7 +75,7 @@ class StorageUploadServiceTest {
     assertThatThrownBy(
             () ->
                 new StorageUploadService(
-                    storageService,
+                    objectStorage,
                     uploadTokenCodec,
                     storageFileRepository,
                     PROPERTIES,
@@ -88,7 +91,7 @@ class StorageUploadServiceTest {
     assertThatThrownBy(
             () ->
                 new StorageUploadService(
-                    storageService,
+                    objectStorage,
                     uploadTokenCodec,
                     storageFileRepository,
                     properties,
@@ -98,7 +101,7 @@ class StorageUploadServiceTest {
 
   @Test
   void issue_Success() {
-    given(storageService.createUploadUrl(anyString(), anyString(), anyLong(), any()))
+    given(objectStorage.createUploadUrl(anyString(), anyString(), anyLong(), any()))
         .willReturn("https://upload.example/url");
 
     List<UploadIssueResponseDto> result =
@@ -115,7 +118,7 @@ class StorageUploadServiceTest {
     assertThat(StorageDirectory.isValidStoredFileName(claims.storedFileName())).isTrue();
     assertThat(claims.originalFileName()).isEqualTo("Cat.JPG");
     assertThat(claims.userId()).isEqualTo(USER_ID);
-    verify(storageService)
+    verify(objectStorage)
         .createUploadUrl(claims.storedFileName(), "image/jpeg", 100L, PROPERTIES.urlTtl());
     verify(storageFileRepository)
         .saveAll(
@@ -131,7 +134,7 @@ class StorageUploadServiceTest {
 
   @Test
   void issue_SavesNothingWhenAnyFileIsInvalid() {
-    given(storageService.createUploadUrl(anyString(), anyString(), anyLong(), any()))
+    given(objectStorage.createUploadUrl(anyString(), anyString(), anyLong(), any()))
         .willReturn("https://upload.example/url");
 
     assertError(
@@ -156,7 +159,7 @@ class StorageUploadServiceTest {
     assertError(
         () -> uploadService.issue(USER_ID, request(UploadPurpose.USER_PROFILE_IMAGE, files)),
         StorageError.FILE_INVALID);
-    verify(storageService, never()).createUploadUrl(anyString(), anyString(), anyLong(), any());
+    verify(objectStorage, never()).createUploadUrl(anyString(), anyString(), anyLong(), any());
   }
 
   @Test
@@ -193,7 +196,7 @@ class StorageUploadServiceTest {
     assertThat(result.get(0).getContentType()).isEqualTo("image/png");
     assertThat(result.get(0).getFileSize()).isEqualTo(PNG_BYTES.length);
     // 검사한 파일의 버전을 넘겨, 그 사이 바뀐 파일은 옮기지 않게 한다
-    verify(storageService).promoteUpload("adoption/post/a.png", VERSION);
+    verify(objectStorage).promoteUpload("adoption/post/a.png", VERSION);
   }
 
   @Test
@@ -201,7 +204,7 @@ class StorageUploadServiceTest {
     String first = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
     String second = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/b.png");
     givenStoredFile("adoption/post/a.png", PNG_BYTES);
-    given(storageService.readFileHead("adoption/post/b.png", StorageUploadService.DETECTION_BYTES))
+    given(objectStorage.readFileHead("adoption/post/b.png", StorageUploadService.DETECTION_BYTES))
         .willThrow(StorageException.forUploadIncomplete("adoption/post/b.png"));
 
     assertError(
@@ -209,13 +212,13 @@ class StorageUploadServiceTest {
             uploadService.confirm(
                 USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, List.of(first, second)),
         StorageError.UPLOAD_INCOMPLETE);
-    verify(storageService, never()).promoteUpload(anyString(), any());
+    verify(objectStorage, never()).promoteUpload(anyString(), any());
   }
 
   @Test
   void confirm_RetryAfterPromoteSkipsPendingFile() {
     String token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
-    given(storageService.isPromoted("adoption/post/a.png")).willReturn(true);
+    given(objectStorage.isPromoted("adoption/post/a.png")).willReturn(true);
 
     List<FileUploadDto> result =
         uploadService.confirm(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, List.of(token));
@@ -224,16 +227,16 @@ class StorageUploadServiceTest {
     assertThat(result.get(0).getStoredFileName()).isEqualTo("adoption/post/a.png");
     assertThat(result.get(0).getFileSize()).isEqualTo(PNG_BYTES.length);
     // pending/에 다시 올린 파일이 있어도 읽거나 정식 키로 옮기지 않는다
-    verify(storageService, never()).readFileHead(anyString(), anyInt());
-    verify(storageService, never()).promoteUpload(anyString(), any());
+    verify(objectStorage, never()).readFileHead(anyString(), anyInt());
+    verify(objectStorage, never()).promoteUpload(anyString(), any());
   }
 
   @Test
   void confirm_PromotesOnlyUnpromotedFiles() {
     String first = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
     String second = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/b.png");
-    given(storageService.isPromoted("adoption/post/a.png")).willReturn(true);
-    given(storageService.isPromoted("adoption/post/b.png")).willReturn(false);
+    given(objectStorage.isPromoted("adoption/post/a.png")).willReturn(true);
+    given(objectStorage.isPromoted("adoption/post/b.png")).willReturn(false);
     givenStoredFile("adoption/post/b.png", PNG_BYTES);
 
     List<FileUploadDto> result =
@@ -242,8 +245,8 @@ class StorageUploadServiceTest {
     assertThat(result)
         .extracting(FileUploadDto::getStoredFileName)
         .containsExactly("adoption/post/a.png", "adoption/post/b.png");
-    verify(storageService).promoteUpload("adoption/post/b.png", VERSION);
-    verify(storageService, never()).promoteUpload(eq("adoption/post/a.png"), any());
+    verify(objectStorage).promoteUpload("adoption/post/b.png", VERSION);
+    verify(objectStorage, never()).promoteUpload(eq("adoption/post/a.png"), any());
   }
 
   @Test
@@ -280,7 +283,7 @@ class StorageUploadServiceTest {
             uploadService.confirm(
                 USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, List.of(token, token)),
         StorageError.UPLOAD_TOKEN_INVALID);
-    verify(storageService, never())
+    verify(objectStorage, never())
         .readFileHead(anyString(), eq(StorageUploadService.DETECTION_BYTES));
   }
 
@@ -299,7 +302,7 @@ class StorageUploadServiceTest {
   @Test
   void confirm_SizeMismatch() {
     String token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
-    given(storageService.readFileHead("adoption/post/a.png", StorageUploadService.DETECTION_BYTES))
+    given(objectStorage.readFileHead("adoption/post/a.png", StorageUploadService.DETECTION_BYTES))
         .willReturn(new StoredFileHead(PNG_BYTES.length + 1L, PNG_BYTES, VERSION));
 
     assertError(
@@ -328,7 +331,7 @@ class StorageUploadServiceTest {
   @Test
   void confirm_FileMissing() {
     String token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
-    given(storageService.readFileHead("adoption/post/a.png", StorageUploadService.DETECTION_BYTES))
+    given(objectStorage.readFileHead("adoption/post/a.png", StorageUploadService.DETECTION_BYTES))
         .willThrow(StorageException.forUploadIncomplete("adoption/post/a.png"));
 
     assertError(
@@ -342,7 +345,7 @@ class StorageUploadServiceTest {
   }
 
   private void givenStoredFile(String storedFileName, byte[] bytes) {
-    given(storageService.readFileHead(storedFileName, StorageUploadService.DETECTION_BYTES))
+    given(objectStorage.readFileHead(storedFileName, StorageUploadService.DETECTION_BYTES))
         .willReturn(new StoredFileHead(bytes.length, bytes, VERSION));
   }
 

@@ -31,8 +31,8 @@ import com.sns.marigold.global.tsid.TsidCodec;
 import com.sns.marigold.storage.StorageFileFixtures;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.service.StorageFileService;
-import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
@@ -48,7 +48,7 @@ class UserServiceTest {
 
   @Mock private UserRepository userRepository;
 
-  @Mock private StorageService storageService;
+  @Mock private ObjectStorage objectStorage;
 
   @Mock private StorageUploadService storageUploadService;
 
@@ -282,7 +282,7 @@ class UserServiceTest {
         .isEqualTo("user/profile/11111111-1111-1111-1111-111111111111.jpg");
 
     verify(eventPublisher, never()).publishEvent(any(DeleteOldStorageFilesEvent.class));
-    verifyNoInteractions(storageService);
+    verifyNoInteractions(objectStorage);
   }
 
   @Test
@@ -376,7 +376,7 @@ class UserServiceTest {
 
     assertThat(testUser.getImage()).isNull();
     assertThat(testUser.getNickname()).isEqualTo("newNickname");
-    verifyNoInteractions(storageService, storageUploadService);
+    verifyNoInteractions(objectStorage, storageUploadService);
     verify(eventPublisher).publishEvent(new DeleteOldStorageFilesEvent(List.of(oldFile)));
   }
 

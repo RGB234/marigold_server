@@ -29,17 +29,17 @@ import com.sns.marigold.global.error.FailureReporter;
 import com.sns.marigold.global.error.GlobalExceptionHandler;
 import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.storage.config.LocalStorageProperties;
-import com.sns.marigold.storage.service.LocalStorageService;
-import com.sns.marigold.storage.service.LocalStorageUrlSigner;
-import com.sns.marigold.storage.service.StorageDirectory;
-import com.sns.marigold.storage.service.StoredFileHead;
+import com.sns.marigold.storage.objectstore.LocalObjectStorage;
+import com.sns.marigold.storage.objectstore.LocalStorageUrlSigner;
+import com.sns.marigold.storage.objectstore.StorageDirectory;
+import com.sns.marigold.storage.objectstore.StoredFileHead;
 import com.sns.marigold.storage.service.UploadPurpose;
 
 class LocalStorageControllerTest {
 
   @TempDir Path tempDir;
 
-  private LocalStorageService storageService;
+  private LocalObjectStorage objectStorage;
   private LocalStorageUrlSigner localStorageUrlSigner;
   private MockMvc mockMvc;
 
@@ -49,10 +49,10 @@ class LocalStorageControllerTest {
         new LocalStorageProperties(
             tempDir.toString(), "http://localhost:8080", "test-signing-secret", 60, 10);
     localStorageUrlSigner = new LocalStorageUrlSigner(properties);
-    storageService = new LocalStorageService(properties, localStorageUrlSigner);
+    objectStorage = new LocalObjectStorage(properties, localStorageUrlSigner);
     mockMvc =
         MockMvcBuilders.standaloneSetup(
-                new LocalStorageController(storageService, localStorageUrlSigner))
+                new LocalStorageController(objectStorage, localStorageUrlSigner))
             .setControllerAdvice(
                 new GlobalExceptionHandler(mock(AuditLogger.class), mock(FailureReporter.class)))
             .build();
@@ -63,7 +63,7 @@ class LocalStorageControllerTest {
     String storedFileName = uploadTextFile(StorageDirectory.ADOPTION_POST);
 
     mockMvc
-        .perform(get(URI.create(storageService.getViewUrlOrNull(storedFileName))))
+        .perform(get(URI.create(objectStorage.getViewUrlOrNull(storedFileName))))
         .andExpect(status().isOk())
         .andExpect(content().string("hello"));
   }
@@ -73,7 +73,7 @@ class LocalStorageControllerTest {
     String storedFileName = uploadTextFile(StorageDirectory.CHAT_ATTACHMENT);
 
     mockMvc
-        .perform(get(URI.create(storageService.getDownloadUrl(storedFileName, "memo.txt"))))
+        .perform(get(URI.create(objectStorage.getDownloadUrl(storedFileName, "memo.txt"))))
         .andExpect(status().isOk())
         .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("memo.txt")));
   }
@@ -104,7 +104,7 @@ class LocalStorageControllerTest {
   @Test
   void viewFile_TamperedPath() throws Exception {
     String storedFileName = uploadTextFile(StorageDirectory.ADOPTION_POST);
-    String signedUrl = storageService.getViewUrlOrNull(storedFileName);
+    String signedUrl = objectStorage.getViewUrlOrNull(storedFileName);
 
     mockMvc
         .perform(get(URI.create(signedUrl.replace("/adoption/post/", "/chat/attachment/"))))
@@ -114,7 +114,7 @@ class LocalStorageControllerTest {
   @Test
   void downloadFile_TamperedFilename() throws Exception {
     String storedFileName = uploadTextFile(StorageDirectory.CHAT_ATTACHMENT);
-    String signedUrl = storageService.getDownloadUrl(storedFileName, "memo.txt");
+    String signedUrl = objectStorage.getDownloadUrl(storedFileName, "memo.txt");
 
     mockMvc
         .perform(get(URI.create(signedUrl.replace("filename=memo.txt", "filename=other.txt"))))
@@ -130,7 +130,7 @@ class LocalStorageControllerTest {
         .perform(put(URI.create(uploadUrl(storedFileName, body.length))).content(body))
         .andExpect(status().isOk());
 
-    StoredFileHead head = storageService.readFileHead(storedFileName, 1024);
+    StoredFileHead head = objectStorage.readFileHead(storedFileName, 1024);
     assertThat(head.size()).isEqualTo(body.length);
     assertThat(head.head()).isEqualTo(body);
   }
@@ -168,7 +168,7 @@ class LocalStorageControllerTest {
 
     mockMvc.perform(put(URI.create(url)).content("other")).andExpect(status().is5xxServerError());
 
-    assertThat(storageService.readFileHead(storedFileName, 1024).head())
+    assertThat(objectStorage.readFileHead(storedFileName, 1024).head())
         .isEqualTo("hello".getBytes(StandardCharsets.UTF_8));
   }
 
@@ -180,7 +180,7 @@ class LocalStorageControllerTest {
         .andExpect(status().isOk());
 
     mockMvc
-        .perform(get(URI.create(storageService.getViewUrlOrNull(storedFileName))))
+        .perform(get(URI.create(objectStorage.getViewUrlOrNull(storedFileName))))
         .andExpect(status().isNotFound());
   }
 
@@ -189,7 +189,7 @@ class LocalStorageControllerTest {
     String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
     String url = uploadUrl(storedFileName, 5);
     mockMvc.perform(put(URI.create(url)).content("hello")).andExpect(status().isOk());
-    storageService.promoteUpload(storedFileName, null);
+    objectStorage.promoteUpload(storedFileName, null);
 
     mockMvc.perform(put(URI.create(url)).content("other")).andExpect(status().is5xxServerError());
 
@@ -197,16 +197,15 @@ class LocalStorageControllerTest {
   }
 
   private String uploadUrl(String storedFileName, long size) {
-    return storageService.createUploadUrl(
-        storedFileName, "image/png", size, Duration.ofMinutes(15));
+    return objectStorage.createUploadUrl(storedFileName, "image/png", size, Duration.ofMinutes(15));
   }
 
   private String uploadTextFile(StorageDirectory storageDirectory) {
     String storedFileName = storageDirectory.path() + "/" + UUID.randomUUID() + ".txt";
     byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
-    storageService.storeUploadedFile(
+    objectStorage.storeUploadedFile(
         storedFileName, new ByteArrayInputStream(content), content.length);
-    storageService.promoteUpload(storedFileName, null);
+    objectStorage.promoteUpload(storedFileName, null);
     return storedFileName;
   }
 }

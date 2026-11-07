@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import com.sns.marigold.global.validation.ValidationPolicy;
+import com.sns.marigold.storage.objectstore.StorageDirectory;
 
 /** 업로드 발급 요청의 용도. 저장 위치와 개수, 크기, 허용 형식을 함께 정한다. */
 public enum UploadPurpose {

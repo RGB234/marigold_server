@@ -57,8 +57,8 @@ import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.storage.StorageFileFixtures;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.service.StorageFileService;
-import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.entity.User;
@@ -79,7 +79,7 @@ class ChatServiceTest {
 
   @Mock private RoomParticipantRepository participantRepository;
 
-  @Mock private StorageService storageService;
+  @Mock private ObjectStorage objectStorage;
 
   @Mock private StorageUploadService storageUploadService;
 
@@ -410,7 +410,7 @@ class ChatServiceTest {
         .isInstanceOf(AuthException.class)
         .hasMessageContaining(AuthException.forAccessDenied().getMessage());
 
-    verifyNoInteractions(chatMessageAttachmentRepository, storageService);
+    verifyNoInteractions(chatMessageAttachmentRepository, objectStorage);
   }
 
   @Test
@@ -424,7 +424,7 @@ class ChatServiceTest {
         .willReturn(Optional.of(attachment));
     given(attachment.getStoredFileName()).willReturn("chat/attachment/stored.txt");
     given(attachment.getOriginalFileName()).willReturn("original.txt");
-    given(storageService.getDownloadUrl("chat/attachment/stored.txt", "original.txt"))
+    given(objectStorage.getDownloadUrl("chat/attachment/stored.txt", "original.txt"))
         .willReturn("https://files/download");
 
     assertThat(chatService.getAttachmentDownloadUrl(100L, 200L, 1L))
@@ -482,11 +482,11 @@ class ChatServiceTest {
     given(chatMessageRepository.saveAndFlush(any(ChatMessage.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
     given(
-            storageService.getViewUrlOrNull(
+            objectStorage.getViewUrlOrNull(
                 "chat/attachment/11111111-1111-1111-1111-111111111111.txt"))
         .willReturn("https://file/1");
     given(
-            storageService.getViewUrlOrNull(
+            objectStorage.getViewUrlOrNull(
                 "chat/attachment/22222222-2222-2222-2222-222222222222.csv"))
         .willReturn("https://file/2");
 
@@ -527,7 +527,7 @@ class ChatServiceTest {
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("save failed");
 
-    verifyNoInteractions(storageService);
+    verifyNoInteractions(objectStorage);
   }
 
   @Test

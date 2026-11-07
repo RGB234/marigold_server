@@ -18,6 +18,8 @@ import com.sns.marigold.storage.dto.UploadIssueResponseDto;
 import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.entity.StorageFileStatus;
 import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.objectstore.ObjectStorage;
+import com.sns.marigold.storage.objectstore.StoredFileHead;
 import com.sns.marigold.storage.repository.StorageFileRepository;
 import com.sns.marigold.storage.service.UploadTokenCodec.UploadClaims;
 
@@ -35,14 +37,14 @@ public class StorageUploadService {
   static final int DETECTION_BYTES = 64 * 1024;
   private static final Tika TIKA = new Tika();
 
-  private final StorageService storageService;
+  private final ObjectStorage objectStorage;
   private final UploadTokenCodec uploadTokenCodec;
   private final StorageFileRepository storageFileRepository;
   private final StorageUploadProperties properties;
 
   /** 유효시간 설정이 정합성 전제를 깨면 앱 기동을 거부한다. */
   public StorageUploadService(
-      StorageService storageService,
+      ObjectStorage objectStorage,
       UploadTokenCodec uploadTokenCodec,
       StorageFileRepository storageFileRepository,
       StorageUploadProperties properties,
@@ -63,7 +65,7 @@ public class StorageUploadService {
               + ", tokenTtl="
               + properties.tokenTtl());
     }
-    this.storageService = storageService;
+    this.objectStorage = objectStorage;
     this.uploadTokenCodec = uploadTokenCodec;
     this.storageFileRepository = storageFileRepository;
     this.properties = properties;
@@ -113,12 +115,12 @@ public class StorageUploadService {
     // 정식 키를 먼저 확인해, 업로드 URL로 pending/에 다시 올린 파일이 확정된 파일을 덮어쓰지 못하게 한다
     List<UploadClaims> unpromoted =
         claimsList.stream()
-            .filter(claims -> !storageService.isPromoted(claims.storedFileName()))
+            .filter(claims -> !objectStorage.isPromoted(claims.storedFileName()))
             .toList();
     // 하나라도 검사에 실패하면 아무것도 옮기지 않는다
     List<InspectedUpload> inspected = unpromoted.stream().map(this::inspectUploadedFile).toList();
     // pending/ 에 저장된 파일을 옮긴다.
-    inspected.forEach(file -> storageService.promoteUpload(file.storedFileName(), file.version()));
+    inspected.forEach(file -> objectStorage.promoteUpload(file.storedFileName(), file.version()));
     return claimsList.stream().map(this::toFileUploadDto).toList();
   }
 
@@ -155,7 +157,7 @@ public class StorageUploadService {
         UploadIssueResponseDto.builder()
             .uploadUrl(
                 // pending/ + storedFileName
-                storageService.createUploadUrl(
+                objectStorage.createUploadUrl(
                     storedFileName, contentType, file.getSize(), properties.urlTtl()))
             .contentType(contentType)
             .uploadToken(
@@ -183,7 +185,7 @@ public class StorageUploadService {
    * @return 검사한 파일의 버전. 옮길 때 그 사이 바뀐 파일을 거부하는 데 쓴다.
    */
   private InspectedUpload inspectUploadedFile(UploadClaims claims) {
-    StoredFileHead fileHead = storageService.readFileHead(claims.storedFileName(), DETECTION_BYTES);
+    StoredFileHead fileHead = objectStorage.readFileHead(claims.storedFileName(), DETECTION_BYTES);
     if (fileHead.size() != claims.size()) {
       throw StorageException.forUploadSizeMismatch(
           claims.storedFileName(), claims.size(), fileHead.size());

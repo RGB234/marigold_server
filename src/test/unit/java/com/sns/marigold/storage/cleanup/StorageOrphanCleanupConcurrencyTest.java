@@ -16,15 +16,15 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.repository.StorageFileRepository;
 import com.sns.marigold.storage.service.StorageFileService;
-import com.sns.marigold.storage.service.StorageService;
 
 class StorageOrphanCleanupConcurrencyTest {
 
   @Test
   void skipsAnOverlappingRun() throws Exception {
-    StorageService storageService = mock(StorageService.class);
+    ObjectStorage objectStorage = mock(ObjectStorage.class);
     StorageFileInventory inventory = mock(StorageFileInventory.class);
     StorageFileReferenceRepository referenceRepository = mock(StorageFileReferenceRepository.class);
     CountDownLatch entered = new CountDownLatch(1);
@@ -39,7 +39,7 @@ class StorageOrphanCleanupConcurrencyTest {
         .forEachPage(any());
     StorageOrphanCleanupService cleanupService =
         new StorageOrphanCleanupService(
-            storageService,
+            objectStorage,
             mock(StorageFileService.class),
             mock(StorageFileRepository.class),
             inventory,

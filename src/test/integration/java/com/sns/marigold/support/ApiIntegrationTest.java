@@ -31,7 +31,7 @@ import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.recent.RecentAuthStore;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.global.web.UrlConstants;
-import com.sns.marigold.storage.service.StoredFileHead;
+import com.sns.marigold.storage.objectstore.StoredFileHead;
 import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
@@ -101,7 +101,7 @@ public abstract class ApiIntegrationTest extends BaseIntegrationTest {
 
   /** 클라이언트가 PUT을 끝낸 상태: 확정 단계가 읽는 파일 앞부분을 JPEG로 돌려준다. */
   protected void givenUploadedJpeg() {
-    given(storageService.readFileHead(anyString(), anyInt()))
+    given(objectStorage.readFileHead(anyString(), anyInt()))
         .willReturn(new StoredFileHead(JPEG_BYTES.length, JPEG_BYTES, "etag"));
   }
 

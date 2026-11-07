@@ -28,8 +28,8 @@ import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.service.StorageFileService;
-import com.sns.marigold.storage.service.StorageService;
 import com.sns.marigold.storage.service.StorageUploadService;
 import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.entity.User;
@@ -45,7 +45,7 @@ public class AdoptionCommentService {
   private final AdoptionPostRepository adoptionPostRepository;
   private final AdoptionAdopterRepository adoptionAdopterRepository;
   private final UserService userService;
-  private final StorageService storageService;
+  private final ObjectStorage objectStorage;
   private final StorageUploadService storageUploadService;
   private final StorageFileService storageFileService;
   private final TransactionTemplate transactionTemplate;
@@ -193,14 +193,14 @@ public class AdoptionCommentService {
     for (AdoptionComment comment : comments) {
       List<String> imageUrls =
           comment.getImages().stream()
-              .map(img -> storageService.getViewUrlOrNull(img.getStoredFileName()))
+              .map(img -> objectStorage.getViewUrlOrNull(img.getStoredFileName()))
               .collect(Collectors.toList());
 
       AdoptionCommentResponseDto dto =
           AdoptionCommentResponseDto.from(comment, imageUrls, new ArrayList<>());
 
       if (dto.getWriter() != null && dto.getWriter().getImageUrl() != null) {
-        dto.getWriter().setImageUrl(storageService.getViewUrlOrNull(dto.getWriter().getImageUrl()));
+        dto.getWriter().setImageUrl(objectStorage.getViewUrlOrNull(dto.getWriter().getImageUrl()));
       }
 
       dtoMap.put(dto.getId(), dto);

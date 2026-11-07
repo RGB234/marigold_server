@@ -32,14 +32,14 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.service.StorageFileService;
-import com.sns.marigold.storage.service.StorageService;
 
 class StorageEventListenerTest {
 
   private final List<String> oldFiles = List.of("user/profile/old.jpg");
   private AnnotationConfigApplicationContext context;
-  private StorageService storageService;
+  private ObjectStorage objectStorage;
   private StorageFileService storageFileService;
   private final List<Boolean> markedInTransaction = new java.util.ArrayList<>();
   private TransactionTemplate transactionTemplate;
@@ -53,7 +53,7 @@ class StorageEventListenerTest {
     DataSourceTransactionManager transactionManager = new DataSourceTransactionManager(dataSource);
     transactionTemplate = new TransactionTemplate(transactionManager);
 
-    storageService = mock(StorageService.class);
+    objectStorage = mock(ObjectStorage.class);
     storageFileService = mock(StorageFileService.class);
     doAnswer(
             invocation -> {
@@ -66,7 +66,7 @@ class StorageEventListenerTest {
     context = new AnnotationConfigApplicationContext();
     context.register(Config.class);
     context.registerBean(PlatformTransactionManager.class, () -> transactionManager);
-    context.registerBean(StorageService.class, () -> storageService);
+    context.registerBean(ObjectStorage.class, () -> objectStorage);
     context.registerBean(StorageFileService.class, () -> storageFileService);
     context.registerBean(StorageEventListener.class);
     context.refresh();
@@ -95,11 +95,11 @@ class StorageEventListenerTest {
     transactionTemplate.executeWithoutResult(
         status -> {
           context.publishEvent(new DeleteOldStorageFilesEvent(oldFiles));
-          verifyNoInteractions(storageService);
+          verifyNoInteractions(objectStorage);
         });
 
-    verify(storageService).deleteFilesBestEffort(oldFiles);
-    verifyNoMoreInteractions(storageService);
+    verify(objectStorage).deleteFilesBestEffort(oldFiles);
+    verifyNoMoreInteractions(objectStorage);
   }
 
   @Test
@@ -114,7 +114,7 @@ class StorageEventListenerTest {
                     }))
         .isInstanceOf(IllegalStateException.class);
 
-    verifyNoInteractions(storageService);
+    verifyNoInteractions(objectStorage);
   }
 
   @Test
@@ -136,7 +136,7 @@ class StorageEventListenerTest {
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("flush failed");
 
-    verifyNoInteractions(storageService);
+    verifyNoInteractions(objectStorage);
   }
 
   @Configuration(proxyBeanMethods = false)

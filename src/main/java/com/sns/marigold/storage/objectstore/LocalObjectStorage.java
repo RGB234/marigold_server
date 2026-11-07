@@ -1,4 +1,4 @@
-package com.sns.marigold.storage.service;
+package com.sns.marigold.storage.objectstore;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,6 +22,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.storage.config.LocalStorageProperties;
 import com.sns.marigold.storage.exception.StorageException;
+import com.sns.marigold.storage.service.UploadPurpose;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 @ConditionalOnProperty(name = "app.storage.type", havingValue = "local")
 @RequiredArgsConstructor
 @Slf4j
-public class LocalStorageService extends AbstractStorageService {
+public class LocalObjectStorage extends AbstractObjectStorage {
 
   private static final String GET = "GET";
   private static final String PUT = "PUT";

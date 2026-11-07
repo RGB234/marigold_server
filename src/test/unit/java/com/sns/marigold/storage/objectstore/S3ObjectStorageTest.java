@@ -1,4 +1,4 @@
-package com.sns.marigold.storage.service;
+package com.sns.marigold.storage.objectstore;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -42,7 +42,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 @ExtendWith(MockitoExtension.class)
-class S3StorageServiceTest {
+class S3ObjectStorageTest {
 
   private static final byte[] PNG_BYTES =
       Base64.getDecoder()
@@ -56,12 +56,12 @@ class S3StorageServiceTest {
 
   @Mock private S3Client s3Client;
 
-  private S3StorageService storageService;
+  private S3ObjectStorage objectStorage;
 
   @BeforeEach
   void setUp() {
-    storageService =
-        new S3StorageService(s3Template, s3Presigner, s3Client, new S3Properties("test-bucket"));
+    objectStorage =
+        new S3ObjectStorage(s3Template, s3Presigner, s3Client, new S3Properties("test-bucket"));
   }
 
   @Test
@@ -76,7 +76,7 @@ class S3StorageServiceTest {
     given(s3Presigner.presignGetObject(any(GetObjectPresignRequest.class)))
         .willReturn(presignedRequest);
 
-    String url = storageService.getViewUrlOrNull(storedFileName);
+    String url = objectStorage.getViewUrlOrNull(storedFileName);
 
     assertThat(url).isEqualTo(fakeUrl.toString());
 
@@ -91,10 +91,10 @@ class S3StorageServiceTest {
   @Test
   @DisplayName("다운로드 URL 발급 시 저장 파일명이 없으면 StorageException이 발생한다")
   void getDownloadUrl_EmptyStoredFileName() {
-    assertThatThrownBy(() -> storageService.getDownloadUrl(null, "original.txt"))
+    assertThatThrownBy(() -> objectStorage.getDownloadUrl(null, "original.txt"))
         .isInstanceOf(StorageException.class);
 
-    assertThatThrownBy(() -> storageService.getDownloadUrl(" ", "original.txt"))
+    assertThatThrownBy(() -> objectStorage.getDownloadUrl(" ", "original.txt"))
         .isInstanceOf(StorageException.class);
   }
 
@@ -109,7 +109,7 @@ class S3StorageServiceTest {
         .willReturn(presignedRequest);
 
     String url =
-        storageService.createUploadUrl(storedFileName, "image/png", 100L, Duration.ofMinutes(15));
+        objectStorage.createUploadUrl(storedFileName, "image/png", 100L, Duration.ofMinutes(15));
 
     assertThat(url).isEqualTo(fakeUrl.toString());
     ArgumentCaptor<PutObjectPresignRequest> captor =
@@ -134,7 +134,7 @@ class S3StorageServiceTest {
     given(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
         .willReturn(ResponseBytes.fromByteArray(GetObjectResponse.builder().build(), PNG_BYTES));
 
-    StoredFileHead head = storageService.readFileHead(storedFileName, 64 * 1024);
+    StoredFileHead head = objectStorage.readFileHead(storedFileName, 64 * 1024);
 
     assertThat(head.size()).isEqualTo(PNG_BYTES.length);
     assertThat(head.head()).isEqualTo(PNG_BYTES);
@@ -159,7 +159,7 @@ class S3StorageServiceTest {
     given(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
         .willThrow(S3Exception.builder().statusCode(412).build());
 
-    assertThatThrownBy(() -> storageService.readFileHead(storedFileName, 64 * 1024))
+    assertThatThrownBy(() -> objectStorage.readFileHead(storedFileName, 64 * 1024))
         .isInstanceOfSatisfying(
             StorageException.class,
             exception ->
@@ -171,7 +171,7 @@ class S3StorageServiceTest {
   void promoteUpload_CopiesThenDeletesPending() {
     String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
 
-    storageService.promoteUpload(storedFileName, VERSION);
+    objectStorage.promoteUpload(storedFileName, VERSION);
 
     ArgumentCaptor<CopyObjectRequest> captor = ArgumentCaptor.forClass(CopyObjectRequest.class);
     verify(s3Client).copyObject(captor.capture());
@@ -188,7 +188,7 @@ class S3StorageServiceTest {
     given(s3Client.copyObject(any(CopyObjectRequest.class)))
         .willThrow(S3Exception.builder().statusCode(412).build());
 
-    assertThatThrownBy(() -> storageService.promoteUpload(storedFileName, VERSION))
+    assertThatThrownBy(() -> objectStorage.promoteUpload(storedFileName, VERSION))
         .isInstanceOfSatisfying(
             StorageException.class,
             exception ->
@@ -203,7 +203,7 @@ class S3StorageServiceTest {
     given(s3Client.copyObject(any(CopyObjectRequest.class)))
         .willThrow(NoSuchKeyException.builder().statusCode(404).build());
 
-    assertThatThrownBy(() -> storageService.promoteUpload(storedFileName, VERSION))
+    assertThatThrownBy(() -> objectStorage.promoteUpload(storedFileName, VERSION))
         .isInstanceOfSatisfying(
             StorageException.class,
             exception ->
@@ -218,7 +218,7 @@ class S3StorageServiceTest {
     given(s3Client.headObject(any(HeadObjectRequest.class)))
         .willReturn(HeadObjectResponse.builder().contentLength(1L).build());
 
-    assertThat(storageService.isPromoted(storedFileName)).isTrue();
+    assertThat(objectStorage.isPromoted(storedFileName)).isTrue();
 
     ArgumentCaptor<HeadObjectRequest> captor = ArgumentCaptor.forClass(HeadObjectRequest.class);
     verify(s3Client).headObject(captor.capture());
@@ -232,7 +232,7 @@ class S3StorageServiceTest {
     given(s3Client.headObject(any(HeadObjectRequest.class)))
         .willThrow(NoSuchKeyException.builder().statusCode(404).build());
 
-    assertThat(storageService.isPromoted(storedFileName)).isFalse();
+    assertThat(objectStorage.isPromoted(storedFileName)).isFalse();
   }
 
   @Test
@@ -240,7 +240,7 @@ class S3StorageServiceTest {
   void discardUpload_DeletesBothKeys() {
     String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
 
-    storageService.discardUploadBestEffort(storedFileName);
+    objectStorage.discardUploadBestEffort(storedFileName);
 
     verify(s3Template).deleteObject("test-bucket", "pending/" + storedFileName);
     verify(s3Template).deleteObject("test-bucket", storedFileName);
@@ -253,7 +253,7 @@ class S3StorageServiceTest {
     given(s3Client.headObject(any(HeadObjectRequest.class)))
         .willThrow(NoSuchKeyException.builder().statusCode(404).build());
 
-    assertThatThrownBy(() -> storageService.readFileHead(storedFileName, 64 * 1024))
+    assertThatThrownBy(() -> objectStorage.readFileHead(storedFileName, 64 * 1024))
         .isInstanceOfSatisfying(
             StorageException.class,
             exception ->

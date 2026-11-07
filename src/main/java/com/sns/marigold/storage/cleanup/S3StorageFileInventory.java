@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.sns.marigold.storage.config.S3Properties;
-import com.sns.marigold.storage.service.StorageDirectory;
+import com.sns.marigold.storage.objectstore.StorageDirectory;
 
 import lombok.RequiredArgsConstructor;
 import software.amazon.awssdk.services.s3.S3Client;
