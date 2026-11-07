@@ -124,7 +124,8 @@ aws s3api put-bucket-lifecycle-configuration --bucket <버킷> --lifecycle-confi
 버킷에 이미 다른 Lifecycle 규칙이 있으면 이 명령이 전체를 덮어쓰므로, 기존 규칙을 조회(`get-bucket-lifecycle-configuration`)해 함께 넣습니다.
 
 Lifecycle 규칙은 안전망입니다. 규칙이 없어도 고아 정리의 만료 PENDING 단계가 같은 파일을 지웁니다. 복사를 위해 애플리케이션의 AWS 자격 증명에는 같은
-버킷 객체에 대한 `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` 권한이 필요하며, 저장소 스캔에는 `s3:ListBucket`이 필요합니다.
+버킷 객체에 대한 `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` 권한이 필요합니다. `s3:ListBucket`은 저장소 스캔에 필요하고,
+확정 단계도 이 권한에 의존합니다. 이 권한이 없으면 S3가 없는 키에 `404` 대신 `403`을 돌려줘 모든 확정이 실패합니다.
 
 ## 수동 스키마 변경
 

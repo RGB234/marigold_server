@@ -171,6 +171,24 @@ public class S3StorageService extends AbstractStorageService {
     }
   }
 
+  // 없는 키에 404를 받으려면 s3:ListBucket 권한이 필요하다. 없으면 S3가 403을 돌려줘 확정이 모두 실패한다
+  @Override
+  public boolean isPromoted(String storedFileName) {
+    validateStoredFileName(storedFileName);
+    try {
+      s3Client.headObject(
+          HeadObjectRequest.builder().bucket(bucketName()).key(storedFileName).build());
+      return true;
+    } catch (software.amazon.awssdk.services.s3.model.S3Exception e) {
+      if (e.statusCode() == 404) {
+        return false;
+      }
+      throw StorageException.forFileReadFailed(storedFileName, e);
+    } catch (SdkException e) {
+      throw StorageException.forFileReadFailed(storedFileName, e);
+    }
+  }
+
   private String bucketName() {
     return Objects.requireNonNull(s3Properties.bucket(), "bucketName must not be null");
   }

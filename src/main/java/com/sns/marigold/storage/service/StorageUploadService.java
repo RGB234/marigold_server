@@ -83,6 +83,9 @@ public class StorageUploadService {
   /**
    * 토큰을 검증하고 실제 업로드된 파일의 크기와 형식을 검사한 뒤 정식 키로 옮긴다. 실패해도 올라간 파일은 지우지 않고 고아 정리에 맡긴다.
    *
+   * <p>이미 정식 키에 있는 파일은 확정을 마친 것으로 보고 건너뛴다. 그래서 확정 뒤 저장이 실패한 요청을 토큰 유효시간 안에 같은 토큰으로 다시 보낼 수 있다. 이미
+   * 연결된 토큰이면 {@link StorageFileService#attach}가 거부한다.
+   *
    * @return 요청한 토큰 순서와 같은 확정 결과
    */
   public List<FileUploadDto> confirm(
@@ -100,10 +103,15 @@ public class StorageUploadService {
     if (distinctCount != claimsList.size()) {
       throw StorageException.forInvalidUploadToken("duplicated");
     }
+    // 정식 키를 먼저 확인해, 업로드 URL로 pending/에 다시 올린 파일이 확정된 파일을 덮어쓰지 못하게 한다
+    List<UploadClaims> unpromoted =
+        claimsList.stream()
+            .filter(claims -> !storageService.isPromoted(claims.storedFileName()))
+            .toList();
     // 하나라도 검사에 실패하면 아무것도 옮기지 않는다
-    List<FileUploadDto> confirmed = claimsList.stream().map(this::inspectUploadedFile).toList();
-    confirmed.forEach(file -> storageService.promoteUpload(file.getStoredFileName()));
-    return confirmed;
+    unpromoted.forEach(this::inspectUploadedFile);
+    unpromoted.forEach(claims -> storageService.promoteUpload(claims.storedFileName()));
+    return claimsList.stream().map(this::toFileUploadDto).toList();
   }
 
   private IssuedUpload issueOne(
@@ -157,7 +165,7 @@ public class StorageUploadService {
     return claims;
   }
 
-  private FileUploadDto inspectUploadedFile(UploadClaims claims) {
+  private void inspectUploadedFile(UploadClaims claims) {
     StoredFileHead fileHead = storageService.readFileHead(claims.storedFileName(), DETECTION_BYTES);
     if (fileHead.size() != claims.size()) {
       throw StorageException.forUploadSizeMismatch(
@@ -171,7 +179,9 @@ public class StorageUploadService {
       throw StorageException.forInvalidMimeType(
           claims.originalFileName(), extension, detectedMimeType);
     }
+  }
 
+  private FileUploadDto toFileUploadDto(UploadClaims claims) {
     return FileUploadDto.builder()
         .storedFileName(claims.storedFileName())
         .originalFileName(claims.originalFileName())

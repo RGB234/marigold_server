@@ -168,6 +168,30 @@ class S3StorageServiceTest {
   }
 
   @Test
+  @DisplayName("확정 여부는 정식 키를 조회해 판단한다")
+  void isPromoted_HeadsStoredKey() {
+    String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
+    given(s3Client.headObject(any(HeadObjectRequest.class)))
+        .willReturn(HeadObjectResponse.builder().contentLength(1L).build());
+
+    assertThat(storageService.isPromoted(storedFileName)).isTrue();
+
+    ArgumentCaptor<HeadObjectRequest> captor = ArgumentCaptor.forClass(HeadObjectRequest.class);
+    verify(s3Client).headObject(captor.capture());
+    assertThat(captor.getValue().key()).isEqualTo(storedFileName);
+  }
+
+  @Test
+  @DisplayName("정식 키가 없으면 확정 전이다")
+  void isPromoted_Missing() {
+    String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
+    given(s3Client.headObject(any(HeadObjectRequest.class)))
+        .willThrow(NoSuchKeyException.builder().statusCode(404).build());
+
+    assertThat(storageService.isPromoted(storedFileName)).isFalse();
+  }
+
+  @Test
   @DisplayName("등록되지 않은 업로드는 pending/과 정식 키를 모두 지운다")
   void discardUpload_DeletesBothKeys() {
     String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";

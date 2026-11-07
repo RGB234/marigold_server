@@ -3,6 +3,7 @@ package com.sns.marigold.storage.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -207,6 +208,40 @@ class StorageUploadServiceTest {
                 USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, List.of(first, second)),
         StorageError.UPLOAD_INCOMPLETE);
     verify(storageService, never()).promoteUpload(anyString());
+  }
+
+  @Test
+  void confirm_RetryAfterPromoteSkipsPendingFile() {
+    String token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
+    given(storageService.isPromoted("adoption/post/a.png")).willReturn(true);
+
+    List<FileUploadDto> result =
+        uploadService.confirm(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, List.of(token));
+
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).getStoredFileName()).isEqualTo("adoption/post/a.png");
+    assertThat(result.get(0).getFileSize()).isEqualTo(PNG_BYTES.length);
+    // pending/에 다시 올린 파일이 있어도 읽거나 정식 키로 옮기지 않는다
+    verify(storageService, never()).readFileHead(anyString(), anyInt());
+    verify(storageService, never()).promoteUpload(anyString());
+  }
+
+  @Test
+  void confirm_PromotesOnlyUnpromotedFiles() {
+    String first = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
+    String second = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/b.png");
+    given(storageService.isPromoted("adoption/post/a.png")).willReturn(true);
+    given(storageService.isPromoted("adoption/post/b.png")).willReturn(false);
+    givenStoredFile("adoption/post/b.png", PNG_BYTES);
+
+    List<FileUploadDto> result =
+        uploadService.confirm(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, List.of(first, second));
+
+    assertThat(result)
+        .extracting(FileUploadDto::getStoredFileName)
+        .containsExactly("adoption/post/a.png", "adoption/post/b.png");
+    verify(storageService).promoteUpload("adoption/post/b.png");
+    verify(storageService, never()).promoteUpload("adoption/post/a.png");
   }
 
   @Test

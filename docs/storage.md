@@ -20,7 +20,8 @@
 도메인 서비스는 다음 순서로 파일을 연결합니다.
 
 1. **확정 (트랜잭션 밖)**: `StorageUploadService.confirm`이 토큰을 검증하고, `pending/` 파일의 실제 크기와 앞 64KB로 감지한 형식을 검사한 뒤
-   정식 키로 옮깁니다. 하나라도 검사에 실패하면 아무것도 옮기지 않습니다.
+   정식 키로 옮깁니다. 하나라도 검사에 실패하면 아무것도 옮기지 않습니다. 정식 키에 이미 있는 파일은 확정을 마친 것으로 보고 검사와 이동을
+   건너뜁니다.
 2. **연결 (트랜잭션 안)**: `StorageFileService.attach`가 `PENDING → ATTACHED`로 바꾸고, 도메인 행은 그 `StorageFile`을 FK로 참조합니다.
    이미 쓴 업로드가 섞여 있으면 `409 UPLOAD_ALREADY_USED`로 트랜잭션 전체가 롤백됩니다.
 
@@ -28,8 +29,9 @@
 하는 것이 토큰의 역할입니다.
 
 파일 저장소는 MySQL 트랜잭션에 참여하지 않습니다. 그래서 확정을 DB 트랜잭션보다 먼저 실행하고, 이후 어느 단계에서 실패해도 행이 `PENDING`으로
-남게 합니다. 서비스는 새 파일을 직접 지우지 않고 고아 정리에 맡깁니다. DB가 없는 파일을 가리키는 상태는 생기지 않습니다. 확정 뒤 저장이 실패하면
-`pending/` 파일은 이미 옮겨졌으므로, 같은 토큰으로 다시 보내면 `UPLOAD_INCOMPLETE`입니다. 클라이언트는 파일을 다시 올려야 합니다.
+남게 합니다. 서비스는 새 파일을 직접 지우지 않고 고아 정리에 맡깁니다. DB가 없는 파일을 가리키는 상태는 생기지 않습니다. 확정 뒤 저장이 실패해도
+토큰이 유효한 동안 같은 토큰으로 다시 보낼 수 있습니다. 확정 단계가 정식 키를 먼저 확인하므로, 업로드 URL로 `pending/`에 다시 올린 파일이
+이미 확정된 파일을 덮어쓰지 못합니다.
 
 | 호출 경로                   | 확정과 DB 트랜잭션                                                                         |
 |-------------------------|-------------------------------------------------------------------------------------|
@@ -94,7 +96,7 @@ Lifecycle 규칙과 함께 동작합니다.
 ## 변경 시 확인할 테스트
 
 - [StorageUploadServiceTest](../src/test/unit/java/com/sns/marigold/storage/service/StorageUploadServiceTest.java):
-  토큰 위조·만료·업로더·용도 불일치, 크기와 형식 검사.
+  토큰 위조·만료·업로더·용도 불일치, 크기와 형식 검사, 이미 확정한 파일을 건너뛰는 재시도.
 - [StorageFileServiceTest](../src/test/unit/java/com/sns/marigold/storage/service/StorageFileServiceTest.java):
   PENDING이 아닌 업로드를 연결하면 `UPLOAD_ALREADY_USED`, 상태 전이 조건.
 - [StorageEventListenerTest](../src/test/component/java/com/sns/marigold/storage/event/StorageEventListenerTest.java):

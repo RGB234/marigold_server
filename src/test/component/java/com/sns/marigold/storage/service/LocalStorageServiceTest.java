@@ -57,6 +57,20 @@ class LocalStorageServiceTest {
   }
 
   @Test
+  @DisplayName("정식 경로로 옮긴 뒤에만 확정된 업로드로 본다")
+  void isPromoted() throws Exception {
+    LocalStorageService storageService = localStorageService();
+    String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
+    byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
+    storageService.storeUploadedFile(
+        storedFileName, new ByteArrayInputStream(content), content.length);
+
+    assertThat(storageService.isPromoted(storedFileName)).isFalse();
+    storageService.promoteUpload(storedFileName);
+    assertThat(storageService.isPromoted(storedFileName)).isTrue();
+  }
+
+  @Test
   @DisplayName("등록되지 않은 업로드는 pending/과 정식 경로 파일을 모두 지운다")
   void discardUpload_DeletesBothPaths() throws Exception {
     LocalStorageService storageService = localStorageService();

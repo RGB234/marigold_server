@@ -128,6 +128,11 @@ public class LocalStorageService extends AbstractStorageService {
     }
   }
 
+  @Override
+  public boolean isPromoted(String storedFileName) {
+    return Files.isRegularFile(resolveStoredFile(storedFileName));
+  }
+
   // 업로드 URL은 정식 경로 그대로 쓰고, 파일은 확정 전까지 pending/ 아래에 둔다
   public void storeUploadedFile(
       String storedFileName, InputStream inputStream, long contentLength) {

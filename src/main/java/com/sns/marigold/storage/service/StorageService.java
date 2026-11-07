@@ -25,6 +25,9 @@ public interface StorageService {
   /** 확정 전 업로드를 정식 키로 옮깁니다. 파일이 없으면 {@code UPLOAD_INCOMPLETE}로 실패합니다. */
   void promoteUpload(String storedFileName);
 
+  /** 정식 키에 파일이 있으면, 즉 확정을 마친 업로드면 true를 반환합니다. */
+  boolean isPromoted(String storedFileName);
+
   /** 등록되지 않은 업로드의 확정 전 파일과 정식 키 파일을 모두 지웁니다. 실패는 로그로만 남깁니다. */
   void discardUploadBestEffort(String storedFileName);
 }
