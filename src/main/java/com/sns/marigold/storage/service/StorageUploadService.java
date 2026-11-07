@@ -24,9 +24,9 @@ import com.sns.marigold.storage.service.UploadTokenCodec.UploadClaims;
 /**
  * 클라이언트 직접 업로드의 발급과 확정.
  *
- * <p>발급하면 파일 행이 PENDING으로 생기고 파일은 pending/ 아래에 올라간다. 확정은 도메인 트랜잭션보다 먼저 호출해 파일을 정식 키로 옮기고, 도메인 트랜잭션이
- * {@link StorageFileService#attach}로 행을 ATTACHED로 바꾼다. 어느 단계에서 실패해도 행은 PENDING으로 남고 고아 정리가 만료된
- * PENDING의 파일을 지운다.
+ * <p>발급하면 파일 행이 PENDING으로 생기고 파일은 pending/ 아래에 올라간다. 확정{@link #confirm}은 도메인 트랜잭션보다 먼저 호출해 파일을 정식
+ * 키로 옮기고, 도메인 트랜잭션이 {@link StorageFileService#attach}로 행을 ATTACHED로 바꾼다. 어느 단계에서 실패해도 행은 PENDING으로
+ * 남고 고아 정리가 만료된 PENDING의 파일을 지운다.
  */
 @Service
 public class StorageUploadService {
@@ -40,6 +40,7 @@ public class StorageUploadService {
   private final StorageFileRepository storageFileRepository;
   private final StorageUploadProperties properties;
 
+  /** 유효시간 설정이 정합성 전제를 깨면 앱 기동을 거부한다. */
   public StorageUploadService(
       StorageService storageService,
       UploadTokenCodec uploadTokenCodec,
@@ -54,6 +55,7 @@ public class StorageUploadService {
               + ", minimumAge="
               + cleanupProperties.minimumAge());
     }
+    // URL이 토큰보다 오래 살면, 토큰이 만료돼 확정할 수 없는 파일을 계속 올릴 수 있다
     if (properties.urlTtl().compareTo(properties.tokenTtl()) > 0) {
       throw new IllegalStateException(
           "upload url ttl must not exceed upload token ttl: urlTtl="
@@ -67,6 +69,11 @@ public class StorageUploadService {
     this.properties = properties;
   }
 
+  /**
+   * 파일마다 업로드 URL과 토큰을 발급하고 PENDING 행을 저장한다. 파일은 아직 올라오지 않았으므로 이름과 신고한 크기만 검사한다.
+   *
+   * @return 요청한 파일 순서와 같은 발급 결과
+   */
   public List<UploadIssueResponseDto> issue(long userId, UploadIssueRequestDto request) {
     UploadPurpose purpose = request.getPurpose();
     List<UploadIssueRequestDto.FileItem> files = request.getFiles();
@@ -110,10 +117,12 @@ public class StorageUploadService {
             .toList();
     // 하나라도 검사에 실패하면 아무것도 옮기지 않는다
     List<InspectedUpload> inspected = unpromoted.stream().map(this::inspectUploadedFile).toList();
+    // pending/ 에 저장된 파일을 옮긴다.
     inspected.forEach(file -> storageService.promoteUpload(file.storedFileName(), file.version()));
     return claimsList.stream().map(this::toFileUploadDto).toList();
   }
 
+  /** 파일 하나의 발급 결과와 PENDING 행을 만든다. 신고한 크기와 이름의 확장자만 보는 사전 검사이고, 실제 내용은 {@link #confirm}이 검사한다. */
   private IssuedUpload issueOne(
       long userId, UploadPurpose purpose, UploadIssueRequestDto.FileItem file) {
     String fileName = file.getFileName();
@@ -125,6 +134,7 @@ public class StorageUploadService {
       throw StorageException.forUnsupportedFileExtension(fileName, extension);
     }
 
+    // 경로 + 랜덤 UUID
     String storedFileName = purpose.directory().path() + "/" + UUID.randomUUID() + "." + extension;
     // 브라우저마다 File.type이 다르거나 비어 있어서, 서버가 확장자로 정한 값을 PUT 헤더로 쓰게 한다
     String contentType =
@@ -144,6 +154,7 @@ public class StorageUploadService {
     UploadIssueResponseDto response =
         UploadIssueResponseDto.builder()
             .uploadUrl(
+                // pending/ + storedFileName
                 storageService.createUploadUrl(
                     storedFileName, contentType, file.getSize(), properties.urlTtl()))
             .contentType(contentType)
@@ -154,6 +165,7 @@ public class StorageUploadService {
     return new IssuedUpload(storageFile, response);
   }
 
+  /** 서명·만료를 검증하고, 다른 사용자나 다른 용도로 발급한 토큰을 거부한다. */
   private UploadClaims verifyToken(long userId, UploadPurpose purpose, String token) {
     UploadClaims claims = uploadTokenCodec.verify(token);
     if (claims.userId() != userId) {
@@ -165,6 +177,11 @@ public class StorageUploadService {
     return claims;
   }
 
+  /**
+   * pending/ 파일의 실제 크기가 토큰과 같고, 앞부분으로 감지한 형식이 확장자에 허용된 형식인지 검사한다. 이름만 바꾼 파일은 여기서 걸린다.
+   *
+   * @return 검사한 파일의 버전. 옮길 때 그 사이 바뀐 파일을 거부하는 데 쓴다.
+   */
   private InspectedUpload inspectUploadedFile(UploadClaims claims) {
     StoredFileHead fileHead = storageService.readFileHead(claims.storedFileName(), DETECTION_BYTES);
     if (fileHead.size() != claims.size()) {
@@ -182,6 +199,7 @@ public class StorageUploadService {
     return new InspectedUpload(claims.storedFileName(), fileHead.version());
   }
 
+  /** 서명된 토큰 값으로 결과를 만든다. 크기와 형식은 검사를 통과했으므로 토큰 값과 같다. */
   private FileUploadDto toFileUploadDto(UploadClaims claims) {
     return FileUploadDto.builder()
         .storedFileName(claims.storedFileName())
@@ -195,6 +213,7 @@ public class StorageUploadService {
 
   private record InspectedUpload(String storedFileName, String version) {}
 
+  /** 마지막 점 뒤를 소문자로 반환한다. 확장자가 없으면 허용 목록과 비교할 수 없으므로 거부한다. */
   private String extensionOf(String fileName) {
     int extensionStart = fileName.lastIndexOf('.');
     if (extensionStart < 0 || extensionStart == fileName.length() - 1) {

@@ -46,6 +46,7 @@ public class StorageFileService {
     Map<String, StorageFile> filesByName =
         storageFileRepository.findAllByStoredFileNameIn(names).stream()
             .collect(Collectors.toMap(StorageFile::getStoredFileName, Function.identity()));
+    // 입력과 같은 순서로 반환
     return names.stream().map(filesByName::get).toList();
   }
 
