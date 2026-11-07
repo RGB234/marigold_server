@@ -109,8 +109,8 @@ public class StorageUploadService {
             .filter(claims -> !storageService.isPromoted(claims.storedFileName()))
             .toList();
     // 하나라도 검사에 실패하면 아무것도 옮기지 않는다
-    unpromoted.forEach(this::inspectUploadedFile);
-    unpromoted.forEach(claims -> storageService.promoteUpload(claims.storedFileName()));
+    List<InspectedUpload> inspected = unpromoted.stream().map(this::inspectUploadedFile).toList();
+    inspected.forEach(file -> storageService.promoteUpload(file.storedFileName(), file.version()));
     return claimsList.stream().map(this::toFileUploadDto).toList();
   }
 
@@ -165,7 +165,7 @@ public class StorageUploadService {
     return claims;
   }
 
-  private void inspectUploadedFile(UploadClaims claims) {
+  private InspectedUpload inspectUploadedFile(UploadClaims claims) {
     StoredFileHead fileHead = storageService.readFileHead(claims.storedFileName(), DETECTION_BYTES);
     if (fileHead.size() != claims.size()) {
       throw StorageException.forUploadSizeMismatch(
@@ -179,6 +179,7 @@ public class StorageUploadService {
       throw StorageException.forInvalidMimeType(
           claims.originalFileName(), extension, detectedMimeType);
     }
+    return new InspectedUpload(claims.storedFileName(), fileHead.version());
   }
 
   private FileUploadDto toFileUploadDto(UploadClaims claims) {
@@ -191,6 +192,8 @@ public class StorageUploadService {
   }
 
   private record IssuedUpload(StorageFile file, UploadIssueResponseDto response) {}
+
+  private record InspectedUpload(String storedFileName, String version) {}
 
   private String extensionOf(String fileName) {
     int extensionStart = fileName.lastIndexOf('.');

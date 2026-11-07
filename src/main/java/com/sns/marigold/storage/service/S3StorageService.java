@@ -19,6 +19,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -116,25 +117,28 @@ public class S3StorageService extends AbstractStorageService {
     validateStoredFileName(storedFileName);
     String pendingKey = StorageDirectory.pendingKey(storedFileName);
     try {
-      long size =
-          s3Client
-              .headObject(HeadObjectRequest.builder().bucket(bucketName()).key(pendingKey).build())
-              .contentLength();
+      HeadObjectResponse metadata =
+          s3Client.headObject(
+              HeadObjectRequest.builder().bucket(bucketName()).key(pendingKey).build());
+      long size = metadata.contentLength();
+      String version = metadata.eTag();
       if (size == 0) {
-        return new StoredFileHead(0, new byte[0]);
+        return new StoredFileHead(0, new byte[0], version);
       }
+      // 업로드 URL이 살아 있는 동안 pending/ 파일을 바꿀 수 있어, 크기를 읽은 파일과 같은 버전만 읽는다
       byte[] head =
           s3Client
               .getObjectAsBytes(
                   GetObjectRequest.builder()
                       .bucket(bucketName())
                       .key(pendingKey)
+                      .ifMatch(version)
                       .range("bytes=0-" + (Math.min(size, maxBytes) - 1))
                       .build())
               .asByteArray();
-      return new StoredFileHead(size, head);
+      return new StoredFileHead(size, head, version);
     } catch (software.amazon.awssdk.services.s3.model.S3Exception e) {
-      if (e.statusCode() == 404) {
+      if (e.statusCode() == 404 || e.statusCode() == 412) {
         throw StorageException.forUploadIncomplete(storedFileName);
       }
       throw StorageException.forFileReadFailed(storedFileName, e);
@@ -144,19 +148,21 @@ public class S3StorageService extends AbstractStorageService {
   }
 
   @Override
-  public void promoteUpload(String storedFileName) {
+  public void promoteUpload(String storedFileName, String version) {
     validateStoredFileName(storedFileName);
     String pendingKey = StorageDirectory.pendingKey(storedFileName);
     try {
+      // 검사 뒤 pending/ 파일이 바뀌었으면 S3가 412로 거부한다
       s3Client.copyObject(
           CopyObjectRequest.builder()
               .sourceBucket(bucketName())
               .sourceKey(pendingKey)
+              .copySourceIfMatch(version)
               .destinationBucket(bucketName())
               .destinationKey(storedFileName)
               .build());
     } catch (software.amazon.awssdk.services.s3.model.S3Exception e) {
-      if (e.statusCode() == 404) {
+      if (e.statusCode() == 404 || e.statusCode() == 412) {
         throw StorageException.forUploadIncomplete(storedFileName);
       }
       throw StorageException.forFileUploadFailed(e);

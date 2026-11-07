@@ -21,7 +21,9 @@
 
 1. **확정 (트랜잭션 밖)**: `StorageUploadService.confirm`이 토큰을 검증하고, `pending/` 파일의 실제 크기와 앞 64KB로 감지한 형식을 검사한 뒤
    정식 키로 옮깁니다. 하나라도 검사에 실패하면 아무것도 옮기지 않습니다. 정식 키에 이미 있는 파일은 확정을 마친 것으로 보고 검사와 이동을
-   건너뜁니다.
+   건너뜁니다. S3 업로드 URL은 내용을 서명하지 않아 확정 도중에도 `pending/` 파일을 바꿀 수 있으므로, 크기를 읽을 때 받은 ETag를 조건으로
+   앞부분을 읽고(`If-Match`) 복사합니다(`x-amz-copy-source-if-match`). 그 사이 파일이 바뀌면 S3가 `412`로 거부하고 확정은
+   `UPLOAD_INCOMPLETE`로 실패합니다. 로컬 저장소는 있는 `pending/` 파일을 덮어쓰지 않아 버전을 확인하지 않습니다.
 2. **연결 (트랜잭션 안)**: `StorageFileService.attach`가 `PENDING → ATTACHED`로 바꾸고, 도메인 행은 그 `StorageFile`을 FK로 참조합니다.
    이미 쓴 업로드가 섞여 있으면 `409 UPLOAD_ALREADY_USED`로 트랜잭션 전체가 롤백됩니다.
 

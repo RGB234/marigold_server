@@ -33,7 +33,7 @@ class LocalStorageServiceTest {
     assertThatThrownBy(() -> storageService.readFile(storedFileName))
         .isInstanceOf(StorageException.class);
 
-    storageService.promoteUpload(storedFileName);
+    storageService.promoteUpload(storedFileName, null);
     LocalStorageService.LocalStoredFile storedFile = storageService.readFile(storedFileName);
 
     assertThat(tempDir.resolve(storedFileName)).isRegularFile();
@@ -50,7 +50,7 @@ class LocalStorageServiceTest {
     assertThatThrownBy(
             () ->
                 storageService.promoteUpload(
-                    "chat/attachment/11111111-1111-1111-1111-111111111111.txt"))
+                    "chat/attachment/11111111-1111-1111-1111-111111111111.txt", null))
         .isInstanceOfSatisfying(
             StorageException.class,
             e -> assertThat(e.getErrorSpec()).isEqualTo(StorageError.UPLOAD_INCOMPLETE));
@@ -66,7 +66,7 @@ class LocalStorageServiceTest {
         storedFileName, new ByteArrayInputStream(content), content.length);
 
     assertThat(storageService.isPromoted(storedFileName)).isFalse();
-    storageService.promoteUpload(storedFileName);
+    storageService.promoteUpload(storedFileName, null);
     assertThat(storageService.isPromoted(storedFileName)).isTrue();
   }
 
@@ -78,7 +78,7 @@ class LocalStorageServiceTest {
     String pending = "adoption/post/22222222-2222-2222-2222-222222222222.png";
     byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
     storageService.storeUploadedFile(promoted, new ByteArrayInputStream(content), content.length);
-    storageService.promoteUpload(promoted);
+    storageService.promoteUpload(promoted, null);
     storageService.storeUploadedFile(pending, new ByteArrayInputStream(content), content.length);
 
     storageService.discardUploadBestEffort(promoted);

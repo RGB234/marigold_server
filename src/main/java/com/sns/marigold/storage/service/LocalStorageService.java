@@ -108,14 +108,15 @@ public class LocalStorageService extends AbstractStorageService {
       throw StorageException.forUploadIncomplete(storedFileName);
     }
     try (InputStream inputStream = Files.newInputStream(filePath)) {
-      return new StoredFileHead(Files.size(filePath), inputStream.readNBytes(maxBytes));
+      return new StoredFileHead(Files.size(filePath), inputStream.readNBytes(maxBytes), null);
     } catch (IOException e) {
       throw StorageException.forFileReadFailed(storedFileName, e);
     }
   }
 
+  // storeUploadedFile이 있는 pending/ 파일을 덮어쓰지 않으므로 검사한 파일이 바뀌지 않아 version을 쓰지 않는다
   @Override
-  public void promoteUpload(String storedFileName) {
+  public void promoteUpload(String storedFileName, String version) {
     Path pendingPath = resolvePendingFile(storedFileName);
     Path targetPath = resolveStoredFile(storedFileName);
     try {

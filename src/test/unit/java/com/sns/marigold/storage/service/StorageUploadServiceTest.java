@@ -45,6 +45,7 @@ class StorageUploadServiceTest {
           .decode(
               "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
   private static final long USER_ID = 7L;
+  private static final String VERSION = "\"etag\"";
   private static final StorageUploadProperties PROPERTIES =
       new StorageUploadProperties("test-secret", Duration.ofMinutes(15), Duration.ofHours(1));
 
@@ -191,7 +192,8 @@ class StorageUploadServiceTest {
     assertThat(result.get(0).getOriginalFileName()).isEqualTo("original.png");
     assertThat(result.get(0).getContentType()).isEqualTo("image/png");
     assertThat(result.get(0).getFileSize()).isEqualTo(PNG_BYTES.length);
-    verify(storageService).promoteUpload("adoption/post/a.png");
+    // 검사한 파일의 버전을 넘겨, 그 사이 바뀐 파일은 옮기지 않게 한다
+    verify(storageService).promoteUpload("adoption/post/a.png", VERSION);
   }
 
   @Test
@@ -207,7 +209,7 @@ class StorageUploadServiceTest {
             uploadService.confirm(
                 USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, List.of(first, second)),
         StorageError.UPLOAD_INCOMPLETE);
-    verify(storageService, never()).promoteUpload(anyString());
+    verify(storageService, never()).promoteUpload(anyString(), any());
   }
 
   @Test
@@ -223,7 +225,7 @@ class StorageUploadServiceTest {
     assertThat(result.get(0).getFileSize()).isEqualTo(PNG_BYTES.length);
     // pending/에 다시 올린 파일이 있어도 읽거나 정식 키로 옮기지 않는다
     verify(storageService, never()).readFileHead(anyString(), anyInt());
-    verify(storageService, never()).promoteUpload(anyString());
+    verify(storageService, never()).promoteUpload(anyString(), any());
   }
 
   @Test
@@ -240,8 +242,8 @@ class StorageUploadServiceTest {
     assertThat(result)
         .extracting(FileUploadDto::getStoredFileName)
         .containsExactly("adoption/post/a.png", "adoption/post/b.png");
-    verify(storageService).promoteUpload("adoption/post/b.png");
-    verify(storageService, never()).promoteUpload("adoption/post/a.png");
+    verify(storageService).promoteUpload("adoption/post/b.png", VERSION);
+    verify(storageService, never()).promoteUpload(eq("adoption/post/a.png"), any());
   }
 
   @Test
@@ -298,7 +300,7 @@ class StorageUploadServiceTest {
   void confirm_SizeMismatch() {
     String token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
     given(storageService.readFileHead("adoption/post/a.png", StorageUploadService.DETECTION_BYTES))
-        .willReturn(new StoredFileHead(PNG_BYTES.length + 1L, PNG_BYTES));
+        .willReturn(new StoredFileHead(PNG_BYTES.length + 1L, PNG_BYTES, VERSION));
 
     assertError(
         () -> uploadService.confirm(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, List.of(token)),
@@ -341,7 +343,7 @@ class StorageUploadServiceTest {
 
   private void givenStoredFile(String storedFileName, byte[] bytes) {
     given(storageService.readFileHead(storedFileName, StorageUploadService.DETECTION_BYTES))
-        .willReturn(new StoredFileHead(bytes.length, bytes));
+        .willReturn(new StoredFileHead(bytes.length, bytes, VERSION));
   }
 
   private static UploadIssueRequestDto request(

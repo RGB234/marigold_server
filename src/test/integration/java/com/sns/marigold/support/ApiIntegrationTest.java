@@ -102,7 +102,7 @@ public abstract class ApiIntegrationTest extends BaseIntegrationTest {
   /** 클라이언트가 PUT을 끝낸 상태: 확정 단계가 읽는 파일 앞부분을 JPEG로 돌려준다. */
   protected void givenUploadedJpeg() {
     given(storageService.readFileHead(anyString(), anyInt()))
-        .willReturn(new StoredFileHead(JPEG_BYTES.length, JPEG_BYTES));
+        .willReturn(new StoredFileHead(JPEG_BYTES.length, JPEG_BYTES, "etag"));
   }
 
   /** 업로드 URL 발급 API로 JPEG 한 장의 업로드 토큰을 받는다. */

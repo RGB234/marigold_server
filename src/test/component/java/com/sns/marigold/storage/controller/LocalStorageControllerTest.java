@@ -189,7 +189,7 @@ class LocalStorageControllerTest {
     String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
     String url = uploadUrl(storedFileName, 5);
     mockMvc.perform(put(URI.create(url)).content("hello")).andExpect(status().isOk());
-    storageService.promoteUpload(storedFileName);
+    storageService.promoteUpload(storedFileName, null);
 
     mockMvc.perform(put(URI.create(url)).content("other")).andExpect(status().is5xxServerError());
 
@@ -206,7 +206,7 @@ class LocalStorageControllerTest {
     byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
     storageService.storeUploadedFile(
         storedFileName, new ByteArrayInputStream(content), content.length);
-    storageService.promoteUpload(storedFileName);
+    storageService.promoteUpload(storedFileName, null);
     return storedFileName;
   }
 }

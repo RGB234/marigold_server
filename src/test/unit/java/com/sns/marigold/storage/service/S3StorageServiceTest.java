@@ -34,6 +34,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
@@ -47,6 +48,7 @@ class S3StorageServiceTest {
       Base64.getDecoder()
           .decode(
               "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+  private static final String VERSION = "\"etag\"";
 
   @Mock private S3Template s3Template;
 
@@ -120,11 +122,15 @@ class S3StorageServiceTest {
   }
 
   @Test
-  @DisplayName("파일 앞부분은 실제 크기 안에서 Range로 읽는다")
+  @DisplayName("파일 앞부분은 크기를 읽은 버전과 같은 파일에서 Range로 읽는다")
   void readFileHead_ReadsRange() {
     String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
     given(s3Client.headObject(any(HeadObjectRequest.class)))
-        .willReturn(HeadObjectResponse.builder().contentLength((long) PNG_BYTES.length).build());
+        .willReturn(
+            HeadObjectResponse.builder()
+                .contentLength((long) PNG_BYTES.length)
+                .eTag(VERSION)
+                .build());
     given(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
         .willReturn(ResponseBytes.fromByteArray(GetObjectResponse.builder().build(), PNG_BYTES));
 
@@ -132,24 +138,62 @@ class S3StorageServiceTest {
 
     assertThat(head.size()).isEqualTo(PNG_BYTES.length);
     assertThat(head.head()).isEqualTo(PNG_BYTES);
+    assertThat(head.version()).isEqualTo(VERSION);
     ArgumentCaptor<GetObjectRequest> captor = ArgumentCaptor.forClass(GetObjectRequest.class);
     verify(s3Client).getObjectAsBytes(captor.capture());
     assertThat(captor.getValue().key()).isEqualTo("pending/" + storedFileName);
+    assertThat(captor.getValue().ifMatch()).isEqualTo(VERSION);
     assertThat(captor.getValue().range()).isEqualTo("bytes=0-" + (PNG_BYTES.length - 1));
   }
 
   @Test
-  @DisplayName("확정은 pending/ 파일을 정식 키로 복사한 뒤 원본을 지운다")
+  @DisplayName("크기를 읽은 뒤 pending/ 파일이 바뀌면 UPLOAD_INCOMPLETE")
+  void readFileHead_ChangedAfterHead() {
+    String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
+    given(s3Client.headObject(any(HeadObjectRequest.class)))
+        .willReturn(
+            HeadObjectResponse.builder()
+                .contentLength((long) PNG_BYTES.length)
+                .eTag(VERSION)
+                .build());
+    given(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
+        .willThrow(S3Exception.builder().statusCode(412).build());
+
+    assertThatThrownBy(() -> storageService.readFileHead(storedFileName, 64 * 1024))
+        .isInstanceOfSatisfying(
+            StorageException.class,
+            exception ->
+                assertThat(exception.getErrorSpec()).isEqualTo(StorageError.UPLOAD_INCOMPLETE));
+  }
+
+  @Test
+  @DisplayName("확정은 검사한 버전의 pending/ 파일만 정식 키로 복사한 뒤 원본을 지운다")
   void promoteUpload_CopiesThenDeletesPending() {
     String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
 
-    storageService.promoteUpload(storedFileName);
+    storageService.promoteUpload(storedFileName, VERSION);
 
     ArgumentCaptor<CopyObjectRequest> captor = ArgumentCaptor.forClass(CopyObjectRequest.class);
     verify(s3Client).copyObject(captor.capture());
     assertThat(captor.getValue().sourceKey()).isEqualTo("pending/" + storedFileName);
+    assertThat(captor.getValue().copySourceIfMatch()).isEqualTo(VERSION);
     assertThat(captor.getValue().destinationKey()).isEqualTo(storedFileName);
     verify(s3Template).deleteObject("test-bucket", "pending/" + storedFileName);
+  }
+
+  @Test
+  @DisplayName("검사 뒤 pending/ 파일이 바뀌면 확정은 UPLOAD_INCOMPLETE")
+  void promoteUpload_ChangedAfterInspection() {
+    String storedFileName = "adoption/post/11111111-1111-1111-1111-111111111111.png";
+    given(s3Client.copyObject(any(CopyObjectRequest.class)))
+        .willThrow(S3Exception.builder().statusCode(412).build());
+
+    assertThatThrownBy(() -> storageService.promoteUpload(storedFileName, VERSION))
+        .isInstanceOfSatisfying(
+            StorageException.class,
+            exception ->
+                assertThat(exception.getErrorSpec()).isEqualTo(StorageError.UPLOAD_INCOMPLETE));
+    verify(s3Template, never()).deleteObject(any(), any());
   }
 
   @Test
@@ -159,7 +203,7 @@ class S3StorageServiceTest {
     given(s3Client.copyObject(any(CopyObjectRequest.class)))
         .willThrow(NoSuchKeyException.builder().statusCode(404).build());
 
-    assertThatThrownBy(() -> storageService.promoteUpload(storedFileName))
+    assertThatThrownBy(() -> storageService.promoteUpload(storedFileName, VERSION))
         .isInstanceOfSatisfying(
             StorageException.class,
             exception ->

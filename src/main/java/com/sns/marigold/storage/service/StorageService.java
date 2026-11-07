@@ -22,8 +22,13 @@ public interface StorageService {
    */
   StoredFileHead readFileHead(String storedFileName, int maxBytes);
 
-  /** 확정 전 업로드를 정식 키로 옮깁니다. 파일이 없으면 {@code UPLOAD_INCOMPLETE}로 실패합니다. */
-  void promoteUpload(String storedFileName);
+  /**
+   * 확정 전 업로드를 정식 키로 옮깁니다. 파일이 없거나 {@code version}이 {@link #readFileHead}로 검사한 뒤 바뀌었으면 {@code
+   * UPLOAD_INCOMPLETE}로 실패합니다.
+   *
+   * @param version {@link StoredFileHead#version()}. null이면 버전을 확인하지 않습니다.
+   */
+  void promoteUpload(String storedFileName, String version);
 
   /** 정식 키에 파일이 있으면, 즉 확정을 마친 업로드면 true를 반환합니다. */
   boolean isPromoted(String storedFileName);
