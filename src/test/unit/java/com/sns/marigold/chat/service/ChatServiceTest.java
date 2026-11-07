@@ -56,6 +56,7 @@ import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.storage.StorageFileFixtures;
 import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.dto.UploadToken;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.service.StorageFileService;
@@ -458,7 +459,8 @@ class ChatServiceTest {
   @DisplayName("파일 메시지는 확정한 여러 첨부파일을 저장한다.")
   void saveFileMessage_Success() {
     // given
-    List<String> uploadTokens = List.of("token-1", "token-2");
+    List<UploadToken> uploadTokens =
+        List.of(new UploadToken("token-1"), new UploadToken("token-2"));
     given(chatRoomRepository.findById(100L)).willReturn(Optional.of(chatRoom));
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
     given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
@@ -511,7 +513,9 @@ class ChatServiceTest {
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
     given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
         .willReturn(true);
-    given(storageUploadService.confirm(1L, UploadPurpose.CHAT_ATTACHMENT, List.of("token-1")))
+    given(
+            storageUploadService.confirm(
+                1L, UploadPurpose.CHAT_ATTACHMENT, List.of(new UploadToken("token-1"))))
         .willReturn(
             List.of(
                 FileUploadDto.builder()
@@ -523,7 +527,8 @@ class ChatServiceTest {
     given(chatMessageRepository.saveAndFlush(any(ChatMessage.class)))
         .willThrow(new IllegalStateException("save failed"));
 
-    assertThatThrownBy(() -> chatService.saveFileMessage(100L, "", List.of("token-1"), 1L))
+    assertThatThrownBy(
+            () -> chatService.saveFileMessage(100L, "", List.of(new UploadToken("token-1")), 1L))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("save failed");
 
@@ -538,11 +543,14 @@ class ChatServiceTest {
     given(userRepository.findById(1L)).willReturn(Optional.of(user1));
     given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 1L))
         .willReturn(true);
-    given(storageUploadService.confirm(1L, UploadPurpose.CHAT_ATTACHMENT, List.of("token-1")))
+    given(
+            storageUploadService.confirm(
+                1L, UploadPurpose.CHAT_ATTACHMENT, List.of(new UploadToken("token-1"))))
         .willThrow(StorageException.forInvalidUploadToken("expired"));
 
     // when & then
-    assertThatThrownBy(() -> chatService.saveFileMessage(100L, "", List.of("token-1"), 1L))
+    assertThatThrownBy(
+            () -> chatService.saveFileMessage(100L, "", List.of(new UploadToken("token-1")), 1L))
         .isInstanceOf(StorageException.class);
     verify(chatMessageRepository, times(0)).saveAndFlush(any(ChatMessage.class));
   }
@@ -555,7 +563,8 @@ class ChatServiceTest {
     given(participantRepository.existsByChatRoom_IdAndUser_IdAndLeavedAtIsNull(100L, 3L))
         .willReturn(false);
 
-    assertThatThrownBy(() -> chatService.saveFileMessage(100L, "", List.of("token-1"), 3L))
+    assertThatThrownBy(
+            () -> chatService.saveFileMessage(100L, "", List.of(new UploadToken("token-1")), 3L))
         .isInstanceOf(AuthException.class);
     verifyNoInteractions(storageUploadService);
   }

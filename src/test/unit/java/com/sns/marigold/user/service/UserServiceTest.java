@@ -30,6 +30,7 @@ import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.tsid.TsidCodec;
 import com.sns.marigold.storage.StorageFileFixtures;
 import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.dto.UploadToken;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.service.StorageFileService;
@@ -263,10 +264,12 @@ class UserServiceTest {
     // given
     UserUpdateDto dto = new UserUpdateDto();
     dto.setNickname("newNickname");
-    dto.setImageUploadToken("token-1");
+    dto.setImageUploadToken(new UploadToken("token-1"));
 
     given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
-    given(storageUploadService.confirm(1L, UploadPurpose.USER_PROFILE_IMAGE, List.of("token-1")))
+    given(
+            storageUploadService.confirm(
+                1L, UploadPurpose.USER_PROFILE_IMAGE, List.of(new UploadToken("token-1"))))
         .willReturn(
             List.of(
                 confirmedImage(
@@ -300,10 +303,12 @@ class UserServiceTest {
 
     UserUpdateDto dto = new UserUpdateDto();
     dto.setNickname("newNickname");
-    dto.setImageUploadToken("token-1");
+    dto.setImageUploadToken(new UploadToken("token-1"));
 
     given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
-    given(storageUploadService.confirm(1L, UploadPurpose.USER_PROFILE_IMAGE, List.of("token-1")))
+    given(
+            storageUploadService.confirm(
+                1L, UploadPurpose.USER_PROFILE_IMAGE, List.of(new UploadToken("token-1"))))
         .willReturn(
             List.of(
                 confirmedImage(
@@ -369,7 +374,7 @@ class UserServiceTest {
     UserUpdateDto dto = new UserUpdateDto();
     dto.setNickname("newNickname");
     dto.setRemoveImage(true);
-    dto.setImageUploadToken("token-1");
+    dto.setImageUploadToken(new UploadToken("token-1"));
     given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
 
     userService.updateUser(1L, dto);

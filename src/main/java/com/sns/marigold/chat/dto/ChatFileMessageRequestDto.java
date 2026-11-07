@@ -2,6 +2,8 @@ package com.sns.marigold.chat.dto;
 
 import java.util.List;
 
+import com.sns.marigold.storage.dto.UploadToken;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,5 +23,5 @@ public class ChatFileMessageRequestDto {
   private String message;
 
   @Schema(description = "첨부파일의 업로드 토큰 목록")
-  private List<String> uploadTokens;
+  private List<UploadToken> uploadTokens;
 }

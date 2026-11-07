@@ -57,6 +57,7 @@ import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.StorageFileFixtures;
 import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.dto.UploadToken;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.objectstore.ObjectStorage;
@@ -188,11 +189,13 @@ class AdoptionPostServiceTest {
             .area("Busan")
             .neutering(Neutering.UNKNOWN)
             .features("Lovely cat")
-            .uploadTokens(List.of("token-1"))
+            .uploadTokens(List.of(new UploadToken("token-1")))
             .build();
 
     given(userService.findEntityById(1L)).willReturn(testUser);
-    given(storageUploadService.confirm(1L, UploadPurpose.ADOPTION_POST_IMAGE, List.of("token-1")))
+    given(
+            storageUploadService.confirm(
+                1L, UploadPurpose.ADOPTION_POST_IMAGE, List.of(new UploadToken("token-1"))))
         .willReturn(
             List.of(
                 confirmedImage(
@@ -236,7 +239,7 @@ class AdoptionPostServiceTest {
   @DisplayName("사용자 조회에 실패하면 업로드를 확정하지 않는다.")
   void create_UserNotFoundDoesNotConfirmUploads() {
     AdoptionPostCreateDto dto =
-        AdoptionPostCreateDto.builder().uploadTokens(List.of("token-1")).build();
+        AdoptionPostCreateDto.builder().uploadTokens(List.of(new UploadToken("token-1"))).build();
     UserException failure = UserException.forUserNotFound();
     given(userService.findEntityById(1L)).willThrow(failure);
 
@@ -249,7 +252,7 @@ class AdoptionPostServiceTest {
   @DisplayName("업로드 확정에 실패하면 트랜잭션을 시작하지 않는다.")
   void create_ConfirmFailureDoesNotStartTransaction() {
     AdoptionPostCreateDto dto =
-        AdoptionPostCreateDto.builder().uploadTokens(List.of("token-1")).build();
+        AdoptionPostCreateDto.builder().uploadTokens(List.of(new UploadToken("token-1"))).build();
     given(userService.findEntityById(1L)).willReturn(testUser);
     StorageException failure = StorageException.forInvalidUploadToken("expired");
     given(storageUploadService.confirm(anyLong(), any(), any())).willThrow(failure);
@@ -263,7 +266,7 @@ class AdoptionPostServiceTest {
   @DisplayName("확정 후 트랜잭션이 실패해도 확정한 파일을 지우지 않고 고아 정리에 맡긴다.")
   void create_TransactionFailureKeepsConfirmedFiles() {
     AdoptionPostCreateDto dto =
-        AdoptionPostCreateDto.builder().uploadTokens(List.of("token-1")).build();
+        AdoptionPostCreateDto.builder().uploadTokens(List.of(new UploadToken("token-1"))).build();
     given(userService.findEntityById(1L)).willReturn(testUser);
     given(storageUploadService.confirm(anyLong(), any(), any()))
         .willReturn(
@@ -294,11 +297,13 @@ class AdoptionPostServiceTest {
             .neutering(Neutering.YES)
             .features("Updated features")
             .imagesToKeep(List.of("adoption/post/11111111-1111-1111-1111-111111111111.jpg"))
-            .uploadTokens(List.of("token-1"))
+            .uploadTokens(List.of(new UploadToken("token-1")))
             .build();
 
     given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(testPost));
-    given(storageUploadService.confirm(1L, UploadPurpose.ADOPTION_POST_IMAGE, List.of("token-1")))
+    given(
+            storageUploadService.confirm(
+                1L, UploadPurpose.ADOPTION_POST_IMAGE, List.of(new UploadToken("token-1"))))
         .willReturn(
             List.of(
                 confirmedImage(

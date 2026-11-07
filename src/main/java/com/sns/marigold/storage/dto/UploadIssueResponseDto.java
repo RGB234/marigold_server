@@ -17,5 +17,5 @@ public class UploadIssueResponseDto {
   private String contentType;
 
   @Schema(description = "업로드 후 도메인 API에 보낼 토큰")
-  private String uploadToken;
+  private UploadToken uploadToken;
 }

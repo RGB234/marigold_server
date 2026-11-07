@@ -3,6 +3,7 @@ package com.sns.marigold.adoption.dto;
 import java.util.List;
 
 import com.sns.marigold.global.validation.ValidationPolicy;
+import com.sns.marigold.storage.dto.UploadToken;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -30,5 +31,5 @@ public class AdoptionCommentCreateDto {
   private String content;
 
   @Schema(description = "댓글 이미지의 업로드 토큰 목록. 최대 1개")
-  private List<String> uploadTokens;
+  private List<UploadToken> uploadTokens;
 }

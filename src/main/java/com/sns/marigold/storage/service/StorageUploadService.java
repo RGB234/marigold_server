@@ -15,6 +15,7 @@ import com.sns.marigold.storage.config.StorageUploadProperties;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.dto.UploadIssueRequestDto;
 import com.sns.marigold.storage.dto.UploadIssueResponseDto;
+import com.sns.marigold.storage.dto.UploadToken;
 import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.entity.StorageFileStatus;
 import com.sns.marigold.storage.exception.StorageException;
@@ -98,7 +99,7 @@ public class StorageUploadService {
    * @return 요청한 토큰 순서와 같은 확정 결과
    */
   public List<FileUploadDto> confirm(
-      long userId, UploadPurpose purpose, List<String> uploadTokens) {
+      long userId, UploadPurpose purpose, List<UploadToken> uploadTokens) {
     if (uploadTokens == null || uploadTokens.isEmpty()) {
       return List.of();
     }
@@ -161,15 +162,17 @@ public class StorageUploadService {
                     storedFileName, contentType, file.getSize(), properties.urlTtl()))
             .contentType(contentType)
             .uploadToken(
-                uploadTokenCodec.issue(
-                    storedFileName, userId, purpose, fileName, contentType, file.getSize()))
+                new UploadToken(
+                    uploadTokenCodec.issue(
+                        storedFileName, userId, purpose, fileName, contentType, file.getSize())))
             .build();
     return new IssuedUpload(storageFile, response);
   }
 
   /** 서명·만료를 검증하고, 다른 사용자나 다른 용도로 발급한 토큰을 거부한다. */
-  private UploadClaims verifyToken(long userId, UploadPurpose purpose, String token) {
-    UploadClaims claims = uploadTokenCodec.verify(token);
+  private UploadClaims verifyToken(long userId, UploadPurpose purpose, UploadToken token) {
+    // JSON 배열의 null 원소는 null 토큰으로 들어온다. 형식 오류로 거부되게 null 그대로 넘긴다
+    UploadClaims claims = uploadTokenCodec.verify(token == null ? null : token.value());
     if (claims.userId() != userId) {
       throw StorageException.forInvalidUploadToken("user mismatch");
     }

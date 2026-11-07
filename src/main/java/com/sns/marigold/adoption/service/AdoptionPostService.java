@@ -37,6 +37,7 @@ import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.chat.service.ChatService;
 import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.dto.UploadToken;
 import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.exception.StorageError;
@@ -82,7 +83,7 @@ public class AdoptionPostService {
   }
 
   public Long create(AdoptionPostCreateDto dto, Long writerId) {
-    List<String> uploadTokens = Objects.requireNonNullElse(dto.getUploadTokens(), List.of());
+    List<UploadToken> uploadTokens = Objects.requireNonNullElse(dto.getUploadTokens(), List.of());
     AdoptionPost.validateImageCount(uploadTokens.size());
 
     User writer = userService.findEntityById(writerId);
@@ -101,7 +102,7 @@ public class AdoptionPostService {
 
   public void update(Long postId, Long userId, AdoptionPostUpdateDto dto) {
     List<String> imagesToKeep = normalizeImagesToKeep(dto.getImagesToKeep());
-    List<String> uploadTokens = Objects.requireNonNullElse(dto.getUploadTokens(), List.of());
+    List<UploadToken> uploadTokens = Objects.requireNonNullElse(dto.getUploadTokens(), List.of());
 
     // 권한 없는 요청이나 잘못된 이미지 구성은 저장소 조회 전에 거부. 지연 로딩하는 이미지 목록을 읽으므로 트랜잭션 안에서 검사
     transactionTemplate.executeWithoutResult(

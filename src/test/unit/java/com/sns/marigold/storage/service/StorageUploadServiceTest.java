@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
 
@@ -31,6 +32,7 @@ import com.sns.marigold.storage.config.StorageUploadProperties;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.dto.UploadIssueRequestDto;
 import com.sns.marigold.storage.dto.UploadIssueResponseDto;
+import com.sns.marigold.storage.dto.UploadToken;
 import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.entity.StorageFileStatus;
 import com.sns.marigold.storage.exception.StorageError;
@@ -113,7 +115,7 @@ class StorageUploadServiceTest {
     assertThat(issued.getUploadUrl()).isEqualTo("https://upload.example/url");
     assertThat(issued.getContentType()).isEqualTo("image/jpeg");
 
-    UploadTokenCodec.UploadClaims claims = uploadTokenCodec.verify(issued.getUploadToken());
+    UploadTokenCodec.UploadClaims claims = uploadTokenCodec.verify(issued.getUploadToken().value());
     assertThat(claims.storedFileName()).startsWith("adoption/post/").endsWith(".jpg");
     assertThat(StorageDirectory.isValidStoredFileName(claims.storedFileName())).isTrue();
     assertThat(claims.originalFileName()).isEqualTo("Cat.JPG");
@@ -184,7 +186,7 @@ class StorageUploadServiceTest {
 
   @Test
   void confirm_Success() {
-    String token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
+    UploadToken token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
     givenStoredFile("adoption/post/a.png", PNG_BYTES);
 
     List<FileUploadDto> result =
@@ -201,8 +203,9 @@ class StorageUploadServiceTest {
 
   @Test
   void confirm_PromotesNothingWhenAnyFileFails() {
-    String first = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
-    String second = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/b.png");
+    UploadToken first = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
+    UploadToken second =
+        tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/b.png");
     givenStoredFile("adoption/post/a.png", PNG_BYTES);
     given(objectStorage.readFileHead("adoption/post/b.png", StorageUploadService.DETECTION_BYTES))
         .willThrow(StorageException.forUploadIncomplete("adoption/post/b.png"));
@@ -217,7 +220,7 @@ class StorageUploadServiceTest {
 
   @Test
   void confirm_RetryAfterPromoteSkipsPendingFile() {
-    String token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
+    UploadToken token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
     given(objectStorage.isPromoted("adoption/post/a.png")).willReturn(true);
 
     List<FileUploadDto> result =
@@ -233,8 +236,9 @@ class StorageUploadServiceTest {
 
   @Test
   void confirm_PromotesOnlyUnpromotedFiles() {
-    String first = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
-    String second = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/b.png");
+    UploadToken first = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
+    UploadToken second =
+        tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/b.png");
     given(objectStorage.isPromoted("adoption/post/a.png")).willReturn(true);
     given(objectStorage.isPromoted("adoption/post/b.png")).willReturn(false);
     givenStoredFile("adoption/post/b.png", PNG_BYTES);
@@ -257,8 +261,19 @@ class StorageUploadServiceTest {
   }
 
   @Test
+  void confirm_NullToken() {
+    // JSON 배열의 null 원소
+    List<UploadToken> tokens = Collections.singletonList(null);
+
+    assertError(
+        () -> uploadService.confirm(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, tokens),
+        StorageError.UPLOAD_TOKEN_INVALID);
+  }
+
+  @Test
   void confirm_OtherUsersToken() {
-    String token = tokenFor(USER_ID + 1, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
+    UploadToken token =
+        tokenFor(USER_ID + 1, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
 
     assertError(
         () -> uploadService.confirm(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, List.of(token)),
@@ -267,7 +282,7 @@ class StorageUploadServiceTest {
 
   @Test
   void confirm_OtherPurposeToken() {
-    String token = tokenFor(USER_ID, UploadPurpose.CHAT_ATTACHMENT, "chat/attachment/a.png");
+    UploadToken token = tokenFor(USER_ID, UploadPurpose.CHAT_ATTACHMENT, "chat/attachment/a.png");
 
     assertError(
         () -> uploadService.confirm(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, List.of(token)),
@@ -276,7 +291,7 @@ class StorageUploadServiceTest {
 
   @Test
   void confirm_DuplicatedToken() {
-    String token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
+    UploadToken token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
 
     assertError(
         () ->
@@ -289,8 +304,8 @@ class StorageUploadServiceTest {
 
   @Test
   void confirm_CountExceeded() {
-    String first = tokenFor(USER_ID, UploadPurpose.USER_PROFILE_IMAGE, "user/profile/a.png");
-    String second = tokenFor(USER_ID, UploadPurpose.USER_PROFILE_IMAGE, "user/profile/b.png");
+    UploadToken first = tokenFor(USER_ID, UploadPurpose.USER_PROFILE_IMAGE, "user/profile/a.png");
+    UploadToken second = tokenFor(USER_ID, UploadPurpose.USER_PROFILE_IMAGE, "user/profile/b.png");
 
     assertError(
         () ->
@@ -301,7 +316,7 @@ class StorageUploadServiceTest {
 
   @Test
   void confirm_SizeMismatch() {
-    String token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
+    UploadToken token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
     given(objectStorage.readFileHead("adoption/post/a.png", StorageUploadService.DETECTION_BYTES))
         .willReturn(new StoredFileHead(PNG_BYTES.length + 1L, PNG_BYTES, VERSION));
 
@@ -313,14 +328,15 @@ class StorageUploadServiceTest {
   @Test
   void confirm_MagicBytesMismatch() {
     byte[] text = "not an image".getBytes(StandardCharsets.UTF_8);
-    String token =
-        uploadTokenCodec.issue(
-            "adoption/post/a.png",
-            USER_ID,
-            UploadPurpose.ADOPTION_POST_IMAGE,
-            "original.png",
-            "image/png",
-            text.length);
+    UploadToken token =
+        new UploadToken(
+            uploadTokenCodec.issue(
+                "adoption/post/a.png",
+                USER_ID,
+                UploadPurpose.ADOPTION_POST_IMAGE,
+                "original.png",
+                "image/png",
+                text.length));
     givenStoredFile("adoption/post/a.png", text);
 
     assertError(
@@ -330,7 +346,7 @@ class StorageUploadServiceTest {
 
   @Test
   void confirm_FileMissing() {
-    String token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
+    UploadToken token = tokenFor(USER_ID, UploadPurpose.ADOPTION_POST_IMAGE, "adoption/post/a.png");
     given(objectStorage.readFileHead("adoption/post/a.png", StorageUploadService.DETECTION_BYTES))
         .willThrow(StorageException.forUploadIncomplete("adoption/post/a.png"));
 
@@ -339,9 +355,10 @@ class StorageUploadServiceTest {
         StorageError.UPLOAD_INCOMPLETE);
   }
 
-  private String tokenFor(long userId, UploadPurpose purpose, String storedFileName) {
-    return uploadTokenCodec.issue(
-        storedFileName, userId, purpose, "original.png", "image/png", PNG_BYTES.length);
+  private UploadToken tokenFor(long userId, UploadPurpose purpose, String storedFileName) {
+    return new UploadToken(
+        uploadTokenCodec.issue(
+            storedFileName, userId, purpose, "original.png", "image/png", PNG_BYTES.length));
   }
 
   private void givenStoredFile(String storedFileName, byte[] bytes) {

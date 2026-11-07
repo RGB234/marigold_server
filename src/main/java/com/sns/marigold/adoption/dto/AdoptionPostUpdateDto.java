@@ -7,6 +7,7 @@ import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
 import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.global.validation.enumvalue.EnumValue;
+import com.sns.marigold.storage.dto.UploadToken;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
@@ -76,5 +77,5 @@ public class AdoptionPostUpdateDto {
   private List<String> imagesToKeep;
 
   @Schema(description = "새로 추가할 이미지의 업로드 토큰 목록", nullable = true)
-  private List<String> uploadTokens;
+  private List<UploadToken> uploadTokens;
 }

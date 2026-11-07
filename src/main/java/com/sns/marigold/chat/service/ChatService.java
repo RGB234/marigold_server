@@ -36,6 +36,7 @@ import com.sns.marigold.chat.repository.ChatMessageRepository;
 import com.sns.marigold.chat.repository.ChatRoomRepository;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
 import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.dto.UploadToken;
 import com.sns.marigold.storage.entity.StorageFile;
 import com.sns.marigold.storage.exception.StorageException;
 import com.sns.marigold.storage.objectstore.ObjectStorage;
@@ -186,13 +187,13 @@ public class ChatService {
   public ChatMessageDto saveFileMessage(
       @NonNull Long roomId,
       String message,
-      List<String> uploadTokens,
+      List<UploadToken> uploadTokens,
       @NonNull Long currentUserId) {
     // 권한 없는 요청에는 저장소 조회 없이 먼저 거부
     transactionTemplate.executeWithoutResult(
         status -> validateCanSendMessage(findChatRoom(roomId), findSender(currentUserId)));
 
-    List<String> tokens = Objects.requireNonNullElse(uploadTokens, List.of());
+    List<UploadToken> tokens = Objects.requireNonNullElse(uploadTokens, List.of());
     String normalizedMessage = Objects.requireNonNullElse(message, "");
     // 메시지도 파일도 없는 경우
     if (!StringUtils.hasText(normalizedMessage) && tokens.isEmpty()) {

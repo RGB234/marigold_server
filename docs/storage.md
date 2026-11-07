@@ -15,6 +15,30 @@
 `pending/`은 확정 전 파일만 두는 임시 영역입니다. 운영 S3는 이 prefix에 Lifecycle 만료 규칙을 걸어, 등록되지 않은 업로드를 저장소가 직접
 지우게 합니다. 규칙은 [실행과 운영](operations.md#s3-임시-영역-pending)에 있습니다. 로컬 저장소는 같은 경로 구조를 쓰고 고아 정리가 지웁니다.
 
+## 전체 흐름
+
+도메인 API가 받는 `UploadToken`은 클라이언트가 그보다 먼저 발급받아 파일을 올린 결과입니다. 백엔드 코드만 보면 발급 단계가 보이지 않으므로,
+게시글 생성을 예로 순서를 정리합니다. 댓글·채팅 첨부·프로필도 같은 순서입니다.
+
+```mermaid
+sequenceDiagram
+    participant Client as 클라이언트
+    participant Upload as StorageUploadController<br/>StorageUploadService
+    participant S3 as ObjectStorage (S3)
+    participant Domain as AdoptionPostService
+    participant DB as MySQL
+
+    Client->>Upload: POST /storage/uploads
+    Upload->>DB: storage_file 행 저장 (PENDING)
+    Upload-->>Client: uploadUrl, uploadToken
+    Client->>S3: PUT uploadUrl (pending/{저장 파일명})
+    Client->>Domain: POST /adoption { uploadTokens }
+    Domain->>Upload: confirm(uploadTokens)
+    Upload->>S3: 크기·형식 검사 후 정식 키로 복사
+    Domain->>DB: attach (PENDING → ATTACHED) + 게시글 저장
+    Domain-->>Client: 201 Created
+```
+
 ## 저장소 계약과 트랜잭션 경계
 
 도메인 서비스는 다음 순서로 파일을 연결합니다.

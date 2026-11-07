@@ -1,6 +1,7 @@
 package com.sns.marigold.user.dto.update;
 
 import com.sns.marigold.global.validation.ValidationPolicy;
+import com.sns.marigold.storage.dto.UploadToken;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
@@ -25,7 +26,7 @@ public class UserUpdateDto {
   private String nickname;
 
   @Schema(description = "새 프로필 이미지의 업로드 토큰", nullable = true)
-  private String imageUploadToken;
+  private UploadToken imageUploadToken;
 
   @Schema(description = "현재 프로필 이미지 삭제 여부", type = "boolean", example = "false")
   private boolean removeImage = false;

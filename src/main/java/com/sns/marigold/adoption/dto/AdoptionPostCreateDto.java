@@ -8,6 +8,7 @@ import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
 import com.sns.marigold.global.validation.ValidationPolicy;
 import com.sns.marigold.global.validation.enumvalue.EnumValue;
+import com.sns.marigold.storage.dto.UploadToken;
 import com.sns.marigold.user.entity.User;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -74,7 +75,7 @@ public class AdoptionPostCreateDto {
   private String features;
 
   @Schema(description = "업로드 URL 발급 때 받은 이미지 업로드 토큰 목록. 파일을 PUT한 뒤 보냅니다.")
-  private List<String> uploadTokens;
+  private List<UploadToken> uploadTokens;
 
   /*
   이미지는 Entity에서 setter 메서드로 설정

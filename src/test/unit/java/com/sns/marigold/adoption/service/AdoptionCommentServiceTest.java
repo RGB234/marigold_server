@@ -41,6 +41,7 @@ import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.storage.StorageFileFixtures;
 import com.sns.marigold.storage.dto.FileUploadDto;
+import com.sns.marigold.storage.dto.UploadToken;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
 import com.sns.marigold.storage.objectstore.ObjectStorage;
 import com.sns.marigold.storage.service.StorageFileService;
@@ -135,14 +136,14 @@ class AdoptionCommentServiceTest {
     AdoptionCommentCreateDto dto =
         AdoptionCommentCreateDto.builder()
             .content("new comment")
-            .uploadTokens(List.of("token-1"))
+            .uploadTokens(List.of(new UploadToken("token-1")))
             .build();
     String storedFileName = "adoption/comment/33333333-3333-3333-3333-333333333333.jpg";
     given(adoptionPostRepository.findById(100L)).willReturn(Optional.of(post));
     given(userService.findEntityById(1L)).willReturn(writer);
     given(
             storageUploadService.confirm(
-                1L, UploadPurpose.ADOPTION_COMMENT_IMAGE, List.of("token-1")))
+                1L, UploadPurpose.ADOPTION_COMMENT_IMAGE, List.of(new UploadToken("token-1"))))
         .willReturn(List.of(confirmedImage(storedFileName, "new.jpg")));
     given(adoptionCommentRepository.save(any(AdoptionComment.class)))
         .willAnswer(
@@ -168,7 +169,7 @@ class AdoptionCommentServiceTest {
     AdoptionCommentCreateDto dto =
         AdoptionCommentCreateDto.builder()
             .content("new comment")
-            .uploadTokens(List.of("token-1", "token-2"))
+            .uploadTokens(List.of(new UploadToken("token-1"), new UploadToken("token-2")))
             .build();
 
     assertThatThrownBy(() -> adoptionCommentService.createComment(100L, 1L, dto))
@@ -202,7 +203,7 @@ class AdoptionCommentServiceTest {
         AdoptionCommentUpdateDto.builder()
             .content("updated comment")
             .removeImage(true)
-            .uploadTokens(List.of("token-1"))
+            .uploadTokens(List.of(new UploadToken("token-1")))
             .build();
 
     assertThatThrownBy(() -> adoptionCommentService.updateComment(100L, 10L, 1L, dto))
@@ -219,12 +220,12 @@ class AdoptionCommentServiceTest {
     AdoptionCommentUpdateDto dto =
         AdoptionCommentUpdateDto.builder()
             .content("updated comment")
-            .uploadTokens(List.of("token-1"))
+            .uploadTokens(List.of(new UploadToken("token-1")))
             .build();
     given(adoptionCommentRepository.findById(10L)).willReturn(Optional.of(comment));
     given(
             storageUploadService.confirm(
-                1L, UploadPurpose.ADOPTION_COMMENT_IMAGE, List.of("token-1")))
+                1L, UploadPurpose.ADOPTION_COMMENT_IMAGE, List.of(new UploadToken("token-1"))))
         .willReturn(
             List.of(
                 confirmedImage(
