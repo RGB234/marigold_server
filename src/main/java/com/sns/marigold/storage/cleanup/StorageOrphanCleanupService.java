@@ -87,6 +87,7 @@ public class StorageOrphanCleanupService {
     }
   }
 
+  // createdBefore 시점 이전에 생성된 PENDING 상태 파일들을 정리한다
   // 토큰 TTL이 minimumAge보다 짧아서, 만료된 PENDING은 더 확정될 수 없다
   private void expirePendingUploads(LocalDateTime createdBefore, CleanupStats stats) {
     long afterId = 0;
@@ -105,11 +106,13 @@ public class StorageOrphanCleanupService {
       if (!properties.dryRun()) {
         // 파일을 먼저 지운다. 상태 변경이 실패해도 다음 실행이 다시 지우고 바꾼다
         fileNames.forEach(objectStorage::discardUploadBestEffort);
+        // PENDING -> DELETED 일괄 업데이트
         storageFileService.expirePending(fileNames);
       }
     } while (page.size() == StorageFileInventory.PAGE_SIZE);
   }
 
+  // minimumAge보다 오래됐고 DELETED이거나 행이 없는 파일을 저장소에서 삭제한다
   // 페이지마다 조회하고 지워서, 메모리에는 한 페이지와 로그 샘플만 남는다
   private void cleanupPage(List<StoredFile> page, Instant cutoff, CleanupStats stats) {
     List<String> agedFileNames =
@@ -134,10 +137,10 @@ public class StorageOrphanCleanupService {
   }
 
   private static final class CleanupStats {
-    private long expiredPending;
-    private long scanned;
-    private long referenced;
-    private long candidates;
-    private final List<String> candidateSample = new ArrayList<>();
+    private long expiredPending; // storage_file 테이블에서 pending 상태로 만료된 행 갯수
+    private long scanned; // 스캔 수
+    private long referenced; // PENDING or ATTACHED 갯수
+    private long candidates; // 저장소 스캔에서 찾은 고아 후보 수 (DELETED이거나 행이 없고 minimumAge보다 오래된 파일)
+    private final List<String> candidateSample = new ArrayList<>(); // 삭제 대상 파일 샘플들의 이름
   }
 }
