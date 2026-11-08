@@ -38,4 +38,16 @@ class InMemoryRecentAuthStoreTest {
 
     assertThat(store.isValid("token", 1L, now)).isFalse();
   }
+
+  @Test
+  void save_RemovesExpiredEntriesNeverValidated() {
+    InMemoryRecentAuthStore store = new InMemoryRecentAuthStore();
+    Instant now = Instant.now();
+
+    store.save("expired", 1L, now.minusSeconds(1));
+    store.save("active", 2L, now.plusSeconds(300));
+
+    assertThat(store.size()).isEqualTo(1);
+    assertThat(store.isValid("active", 2L, now)).isTrue();
+  }
 }

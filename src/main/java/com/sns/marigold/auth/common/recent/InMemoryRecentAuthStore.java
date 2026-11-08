@@ -14,6 +14,9 @@ public class InMemoryRecentAuthStore implements RecentAuthStore {
 
   @Override
   public void save(String token, Long userId, Instant expiresAt) {
+    // 로그아웃이나 만료 후 검증이 없으면 항목이 지워지지 않으므로 저장할 때 만료된 항목을 함께 정리한다
+    Instant now = Instant.now();
+    entries.values().removeIf(entry -> !entry.expiresAt().isAfter(now));
     entries.put(token, new Entry(userId, expiresAt));
   }
 
@@ -35,6 +38,10 @@ public class InMemoryRecentAuthStore implements RecentAuthStore {
   @Override
   public void remove(String token) {
     entries.remove(token);
+  }
+
+  int size() {
+    return entries.size();
   }
 
   private record Entry(Long userId, Instant expiresAt) {}
