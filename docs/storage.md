@@ -33,9 +33,9 @@ sequenceDiagram
     Upload-->>Client: uploadUrl, uploadToken
     Client->>S3: PUT uploadUrl (pending/{저장 파일명})
     Client->>Domain: POST /adoption { uploadTokens }
-    Domain->>Upload: confirm(uploadTokens)
+    Domain->>Upload: confirm(uploadTokens) - 트랜잭션 외부
     Upload->>S3: 크기·형식 검사 후 정식 키로 복사
-    Domain->>DB: attach (PENDING → ATTACHED) + 게시글 저장
+    Domain->>DB: 트랜잭션: attach (PENDING → ATTACHED) + 게시글 저장
     Domain-->>Client: 201 Created
 ```
 
