@@ -1,6 +1,6 @@
 # 2026-11-12 users.status에서 SLEEP 제거
 
-- 관련 커밋: 없음. 커밋하면 여기에 적습니다.
+- 관련 커밋: `c030de2 refactor(user)!: 쓰지 않는 휴면 상태를 제거한다`
 - prod 적용 기록: 없음. 적용하면 날짜를 여기에 적습니다.
 
 쓰는 곳이 없던 휴면 상태를 `UserStatus`에서 지웠습니다. `users.status`는 MySQL `enum` 컬럼이라 정의에 `SLEEP`이 남아 있어도 동작하지만,
