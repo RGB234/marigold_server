@@ -3,11 +3,15 @@ package com.sns.marigold.auth.common;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullSource;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -30,15 +35,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.sns.marigold.audit.AuditLogger;
-import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.dto.LocalLoginDto;
 import com.sns.marigold.auth.common.dto.LoginResponseDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.enums.Role;
-import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.service.AuthService;
-import com.sns.marigold.auth.common.service.RecentAuthService;
+import com.sns.marigold.auth.common.service.AuthSessionService;
+import com.sns.marigold.auth.common.service.AuthSessionService.RotatedSession;
+import com.sns.marigold.auth.common.session.SessionTokens;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.auth.oauth2.RandomUsernameGenerator;
@@ -50,7 +55,6 @@ import com.sns.marigold.user.enums.UserStatus;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
 
-import io.jsonwebtoken.Claims;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -63,15 +67,11 @@ class AuthServiceTest {
 
   @Mock private PasswordEncoder passwordEncoder;
 
-  @Mock private JwtManager jwtManager;
+  @Mock private AuthSessionService authSessionService;
 
   @Mock private CookieManager cookieManager;
 
   @Mock private RandomUsernameGenerator randomUsernameGenerator;
-
-  @Mock private RecentAuthService recentAuthService;
-
-  @Mock private CsrfTokenService csrfTokenService;
 
   @Mock private AuditLogger auditLogger;
 
@@ -87,11 +87,9 @@ class AuthServiceTest {
         new AuthService(
             userRepository,
             passwordEncoder,
-            jwtManager,
+            authSessionService,
             cookieManager,
             randomUsernameGenerator,
-            recentAuthService,
-            csrfTokenService,
             auditLogger,
             meterRegistry);
 
@@ -215,18 +213,16 @@ class AuthServiceTest {
   void emailLogin_Success() {
     // given
     LocalLoginDto dto = createEmailLoginDto("test@example.com", "password123");
+    HttpServletRequest request = mock(HttpServletRequest.class);
     HttpServletResponse response = mock(HttpServletResponse.class);
 
     given(userRepository.findByEmail(dto.getEmail())).willReturn(Optional.of(testUser));
     given(passwordEncoder.matches(dto.getPassword(), testUser.getPassword())).willReturn(true);
-    given(jwtManager.createAccessToken(any(CustomPrincipal.class)))
-        .willReturn("access_token_value");
-    given(jwtManager.createRefreshToken(any(CustomPrincipal.class)))
-        .willReturn("refresh_token_value");
-    given(jwtManager.getRefreshTtlInSeconds()).willReturn(86400L);
+    given(authSessionService.start(any(CustomPrincipal.class)))
+        .willReturn(new SessionTokens("access_token_value", "refresh_token_value", 86400L));
 
     // when
-    LoginResponseDto result = authService.emailLogin(dto, response);
+    LoginResponseDto result = authService.emailLogin(dto, request, response);
 
     // then
     verify(cookieManager, times(1))
@@ -235,8 +231,7 @@ class AuthServiceTest {
             eq(CookieManager.REFRESH_TOKEN_NAME),
             eq("refresh_token_value"),
             eq(86400L));
-    verify(recentAuthService, times(1)).issue(response, testUser.getId());
-    verify(csrfTokenService).issue(response, "refresh_token_value");
+    verify(authSessionService, never()).endPrevious(any());
     assertThat(result.getAccessToken()).isEqualTo("access_token_value");
     assertThat(result.getPrincipal().getUserId()).isEqualTo(testUser.getId());
     assertThat(result.getPrincipal().getAuthorities()).containsExactly(Role.ROLE_PERSON.name());
@@ -246,11 +241,33 @@ class AuthServiceTest {
   }
 
   @Test
-  @DisplayName("토큰 재발급 시 완전한 인증 세션 정보를 반환한다.")
+  @DisplayName("refresh 쿠키가 있는 채로 다시 로그인하면 새 세션을 만든 뒤 이전 세션을 폐기한다.")
+  void emailLogin_EndsPreviousSession() {
+    LocalLoginDto dto = createEmailLoginDto("test@example.com", "password123");
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+
+    given(userRepository.findByEmail(dto.getEmail())).willReturn(Optional.of(testUser));
+    given(passwordEncoder.matches(dto.getPassword(), testUser.getPassword())).willReturn(true);
+    given(cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME))
+        .willReturn(new Cookie(CookieManager.REFRESH_TOKEN_NAME, "previous_refresh_token"));
+    given(authSessionService.start(any(CustomPrincipal.class)))
+        .willReturn(new SessionTokens("access_token_value", "refresh_token_value", 86400L));
+
+    authService.emailLogin(dto, request, response);
+
+    InOrder inOrder = inOrder(authSessionService);
+    inOrder.verify(authSessionService).start(any(CustomPrincipal.class));
+    inOrder.verify(authSessionService).endPrevious("previous_refresh_token");
+    verify(cookieManager)
+        .addCookie(response, CookieManager.REFRESH_TOKEN_NAME, "refresh_token_value", 86400L);
+  }
+
+  @Test
+  @DisplayName("토큰 재발급 시 세션에서 찾은 사용자의 현재 권한으로 access token을 발급한다.")
   void reissue_ReturnsCompleteSession() {
     HttpServletRequest request = mock(HttpServletRequest.class);
     HttpServletResponse response = mock(HttpServletResponse.class);
-    Claims claims = mock(Claims.class);
     User latestUser =
         User.builder()
             .id(testUser.getId())
@@ -263,14 +280,11 @@ class AuthServiceTest {
 
     given(cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME))
         .willReturn(new Cookie(CookieManager.REFRESH_TOKEN_NAME, "refresh_token_value"));
-    given(jwtManager.getRefreshClaims("refresh_token_value")).willReturn(claims);
-    given(jwtManager.isRefreshToken(claims)).willReturn(true);
-    given(jwtManager.getUserId(claims)).willReturn(testUser.getId());
+    given(authSessionService.rotate("refresh_token_value"))
+        .willReturn(new RotatedSession(testUser.getId(), "session-1", "new_refresh_token", 3600L));
     given(userRepository.findById(testUser.getId())).willReturn(Optional.of(latestUser));
-    given(jwtManager.createAccessToken(any(CustomPrincipal.class))).willReturn("new_access_token");
-    given(jwtManager.createRefreshToken(any(CustomPrincipal.class)))
-        .willReturn("new_refresh_token");
-    given(jwtManager.getRefreshTtlInSeconds()).willReturn(86400L);
+    given(authSessionService.createAccessToken(any(CustomPrincipal.class), eq("session-1")))
+        .willReturn("new_access_token");
 
     LoginResponseDto result = authService.reissue(request, response);
 
@@ -278,31 +292,25 @@ class AuthServiceTest {
     assertThat(result.getPrincipal().getUserId()).isEqualTo(testUser.getId());
     assertThat(result.getPrincipal().getAuthorities()).containsExactly(Role.ROLE_ADMIN.name());
     verify(cookieManager)
-        .addCookie(response, CookieManager.REFRESH_TOKEN_NAME, "new_refresh_token", 86400L);
-    verify(csrfTokenService).issue(response, "new_refresh_token");
+        .addCookie(response, CookieManager.REFRESH_TOKEN_NAME, "new_refresh_token", 3600L);
   }
 
   @Test
-  @DisplayName("Access token으로 토큰을 재발급할 수 없다.")
-  void reissue_RejectsAccessToken() {
+  @DisplayName("refresh 쿠키가 없으면 재발급할 수 없다.")
+  void reissue_RejectsMissingCookie() {
     HttpServletRequest request = mock(HttpServletRequest.class);
     HttpServletResponse response = mock(HttpServletResponse.class);
-    Claims claims = mock(Claims.class);
-
-    given(cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME))
-        .willReturn(new Cookie(CookieManager.REFRESH_TOKEN_NAME, "access_token_value"));
-    given(jwtManager.getRefreshClaims("access_token_value")).willReturn(claims);
 
     assertThatThrownBy(() -> authService.reissue(request, response))
         .isInstanceOf(AuthException.class);
+    verifyNoInteractions(authSessionService);
   }
 
   @Test
-  @DisplayName("삭제된 사용자는 토큰을 재발급할 수 없다.")
+  @DisplayName("삭제된 사용자는 토큰을 재발급할 수 없고, 방금 회전한 세션도 폐기한다.")
   void reissue_RejectsDeletedUser() {
     HttpServletRequest request = mock(HttpServletRequest.class);
     HttpServletResponse response = mock(HttpServletResponse.class);
-    Claims claims = mock(Claims.class);
     User deletedUser =
         User.builder()
             .id(testUser.getId())
@@ -315,14 +323,15 @@ class AuthServiceTest {
 
     given(cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME))
         .willReturn(new Cookie(CookieManager.REFRESH_TOKEN_NAME, "refresh_token_value"));
-    given(jwtManager.getRefreshClaims("refresh_token_value")).willReturn(claims);
-    given(jwtManager.isRefreshToken(claims)).willReturn(true);
-    given(jwtManager.getUserId(claims)).willReturn(testUser.getId());
+    given(authSessionService.rotate("refresh_token_value"))
+        .willReturn(new RotatedSession(testUser.getId(), "session-1", "new_refresh_token", 3600L));
     given(userRepository.findById(testUser.getId())).willReturn(Optional.of(deletedUser));
 
     assertThatThrownBy(() -> authService.reissue(request, response))
         .isInstanceOf(UserException.class)
         .hasMessageContaining(UserException.forUserDeleted().getMessage());
+    verify(authSessionService).revoke("session-1");
+    verify(cookieManager, never()).addCookie(any(), any(), any(), anyLong());
   }
 
   @Test
@@ -330,13 +339,14 @@ class AuthServiceTest {
   void emailLogin_InvalidPassword() {
     // given
     LocalLoginDto dto = createEmailLoginDto("test@example.com", "wrongpassword");
+    HttpServletRequest request = mock(HttpServletRequest.class);
     HttpServletResponse response = mock(HttpServletResponse.class);
 
     given(userRepository.findByEmail(dto.getEmail())).willReturn(Optional.of(testUser));
     given(passwordEncoder.matches(dto.getPassword(), testUser.getPassword())).willReturn(false);
 
     // when & then
-    assertThatThrownBy(() -> authService.emailLogin(dto, response))
+    assertThatThrownBy(() -> authService.emailLogin(dto, request, response))
         .isInstanceOf(AuthException.class)
         .hasMessageContaining(AuthException.forInvalidCredentials().getMessage());
   }
@@ -346,6 +356,7 @@ class AuthServiceTest {
   void emailLogin_DeletedUser() {
     // given
     LocalLoginDto dto = createEmailLoginDto("test@example.com", "password123");
+    HttpServletRequest request = mock(HttpServletRequest.class);
     HttpServletResponse response = mock(HttpServletResponse.class);
 
     User deletedUser =
@@ -360,7 +371,7 @@ class AuthServiceTest {
     given(passwordEncoder.matches(dto.getPassword(), deletedUser.getPassword())).willReturn(true);
 
     // when & then
-    assertThatThrownBy(() -> authService.emailLogin(dto, response))
+    assertThatThrownBy(() -> authService.emailLogin(dto, request, response))
         .isInstanceOf(UserException.class)
         .hasMessageContaining(UserException.forUserDeleted().getMessage());
   }

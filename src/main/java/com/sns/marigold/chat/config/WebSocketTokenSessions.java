@@ -2,6 +2,7 @@ package com.sns.marigold.chat.config;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,11 +18,12 @@ import org.springframework.web.socket.WebSocketSession;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 
-/** 인증 토큰 만료 시 또는 방을 나갔을 때 수신 전용 연결까지 종료하고 종료 예약을 정리합니다. */
+/** 인증 토큰 만료, 인증 세션 폐기, 방 나가기 때 수신 전용 연결까지 종료하고 종료 예약을 정리합니다. */
 @Component
 @Slf4j
 public class WebSocketTokenSessions {
   private static final CloseStatus JWT_EXPIRED = new CloseStatus(4001, "JWT expired");
+  private static final CloseStatus SESSION_REVOKED = new CloseStatus(4002, "Session revoked");
   private static final CloseStatus LEFT_ROOM = new CloseStatus(4003, "Left chat room");
 
   private final Map<String, Session> sessions = new ConcurrentHashMap<>();
@@ -35,7 +37,8 @@ public class WebSocketTokenSessions {
     sessions.put(socket.getId(), new Session(socket));
   }
 
-  void expireAt(String sessionId, Instant expiresAt) {
+  /** CONNECT에서 확인한 인증 세션을 기록하고 access token 만료 시각에 연결 종료를 예약합니다. */
+  void expireAt(String sessionId, String authSessionId, Instant expiresAt) {
     Session session = sessions.get(sessionId);
     if (session == null) {
       throw new AccessDeniedException("WebSocket session is closed");
@@ -44,6 +47,7 @@ public class WebSocketTokenSessions {
       if (sessions.get(sessionId) != session || session.expiration != null) {
         throw new AccessDeniedException("Invalid CONNECT session");
       }
+      session.authSessionId = authSessionId;
       long delay = Math.max(0, expiresAt.toEpochMilli() - System.currentTimeMillis());
       session.expiration = scheduler.schedule(() -> close(sessionId), delay, TimeUnit.MILLISECONDS);
     }
@@ -65,6 +69,16 @@ public class WebSocketTokenSessions {
         (sessionId, session) -> {
           if (userId.equals(session.userId) && session.roomIds.contains(roomId)) {
             close(sessionId, LEFT_ROOM);
+          }
+        });
+  }
+
+  /** 로그아웃·탈퇴 등으로 폐기된 인증 세션의 연결을 끊습니다. 다시 연결해도 CONNECT 검사에서 거부됩니다. */
+  public void closeAuthSessions(Collection<String> authSessionIds) {
+    sessions.forEach(
+        (sessionId, session) -> {
+          if (authSessionIds.contains(session.authSessionId)) {
+            close(sessionId, SESSION_REVOKED);
           }
         });
   }
@@ -104,6 +118,7 @@ public class WebSocketTokenSessions {
     private final WebSocketSession socket;
     private final Set<Long> roomIds = ConcurrentHashMap.newKeySet();
     private volatile Long userId;
+    private volatile String authSessionId;
     private ScheduledFuture<?> expiration;
 
     private Session(WebSocketSession socket) {

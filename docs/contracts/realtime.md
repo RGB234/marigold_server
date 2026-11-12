@@ -1,10 +1,10 @@
 # 실시간 채팅 (WebSocket/STOMP)
 
-채팅방·메시지 이력·첨부파일 메시지는 REST로, 텍스트 메시지 송수신은 STOMP로 처리합니다. 토큰과 CSRF 자체의 규칙은 [인증](auth.md)을 참고합니다.
+채팅방·메시지 이력·첨부파일 메시지는 REST로, 텍스트 메시지 송수신은 STOMP로 처리합니다. 토큰 규칙은 [인증](auth.md)을 참고합니다.
 
 채팅은 SockJS endpoint `/ws`를 사용합니다.
 
-- CONNECT native header: `Authorization: Bearer {token}`, `X-CSRF-TOKEN: {token}`
+- CONNECT native header: `Authorization: Bearer {token}`
 - SEND: `/pub/chat/message`
 - SUBSCRIBE: `/sub/chat/room/{roomId}`
 - 사용자 오류 queue: `/user/queue/errors`
@@ -15,12 +15,12 @@
 
 | 단계 | 서버가 확인하는 것 |
 | --- | --- |
-| 핸드셰이크 | 허용된 프론트엔드 origin인지. `XSRF-TOKEN` 쿠키와 `refresh_token`(없으면 `recent_auth`) 쿠키 값을 CSRF 결속 재료로 세션에 보관 |
-| CONNECT | `X-CSRF-TOKEN`이 쿠키와 같고 보관한 결속 값으로 서명되었는지, access token의 서명·만료·용도. 토큰 만료 시각을 세션에 기록 |
+| 핸드셰이크 | 허용된 프론트엔드 origin인지 |
+| CONNECT | access token의 서명·만료·용도와 인증 세션이 살아 있는지. 인증 세션과 토큰 만료 시각을 연결에 기록 |
 | SUBSCRIBE | CONNECT를 통과한 세션인지, 기록한 만료 시각이 지나지 않았는지, 허용된 경로인지, 방 구독이면 DB에서 나가지 않은 참여자인지 |
 | SEND | CONNECT를 통과한 세션인지, 경로가 `/pub/chat/message`인지, 기록한 만료 시각이 지나지 않았는지. 저장할 때 참여 여부와 방 종료 여부를 DB에서 다시 확인 |
 
-refresh token은 핸드셰이크에서 CSRF 결속 값으로만 쓰이며 토큰으로 검증하지 않습니다. CONNECT 이후에는 JWT를 다시 검증하지 않습니다.
+CONNECT는 쿠키가 아닌 `Authorization` 헤더로 인증하므로 CSRF token을 요구하지 않습니다. CONNECT 이후에는 JWT를 다시 검증하지 않습니다.
 
 ## 성공 응답
 
@@ -66,10 +66,11 @@ CONNECT, SUBSCRIBE 등 프로토콜 처리 중 연결을 계속 사용할 수 �
 | close code | reason | 언제 |
 | --- | --- | --- |
 | `4001` | `JWT expired` | CONNECT에 쓴 access token이 만료될 때 |
+| `4002` | `Session revoked` | 로그아웃, refresh token 재사용 감지, 회원 탈퇴, 같은 브라우저의 재로그인으로 CONNECT에 쓴 access token의 인증 세션이 폐기될 때 |
 | `4003` | `Left chat room` | `DELETE /chat/rooms/{roomId}/leave`로 방을 나갈 때, 그 사용자가 그 방을 구독 중인 연결 |
 
-연결 중에는 토큰을 연장할 수 없으므로, 연결은 access token 유효시간(기본 600초)마다 끊깁니다. 클라이언트는 새 access token을 발급받아 다시 연결합니다. `4003` 뒤에 다시 연결해도 다시 참여하기 전까지 그 방의 SUBSCRIBE는 거부됩니다.
+연결 중에는 토큰을 연장할 수 없으므로, 연결은 access token 유효시간(기본 600초)마다 끊깁니다. 클라이언트는 새 access token을 발급받아 다시 연결합니다. `4002` 뒤에도 클라이언트는 refresh를 시도합니다. 세션이 폐기되어 refresh가 `401`로 실패하면 다시 로그인해야 하고, 같은 브라우저의 재로그인으로 끊긴 경우에는 새 쿠키로 refresh가 성공해 그대로 다시 연결합니다. `4003` 뒤에 다시 연결해도 다시 참여하기 전까지 그 방의 SUBSCRIBE는 거부됩니다.
 
 연결이 끊긴 동안의 메시지는 실시간으로 다시 오지 않습니다. 클라이언트는 연결될 때마다 REST 이력을 읽어 `id`로 중복을 걸러 합칩니다.
 
-`4003` 종료는 요청을 받은 서버의 연결에만 적용됩니다. 다중 서버 제약은 [아키텍처](../architecture.md#재시작과-다중-서버)를 참고합니다.
+`4002`·`4003` 종료는 요청을 받은 서버의 연결에만 적용됩니다. 다중 서버 제약은 [아키텍처](../architecture.md#재시작과-다중-서버)를 참고합니다.

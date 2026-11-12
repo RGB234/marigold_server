@@ -11,7 +11,7 @@ import { authHeaders, getAuthContext } from './auth-context.js';
 
 const TEST_IMAGE_BYTES = open(STORAGE_IMAGE_PATH, 'b');
 
-// 파일 PUT은 서명된 URL로만 인증한다. 우리 서버 쿠키가 붙으면 CSRF 검사 대상이 되거나 S3 서명이 깨지므로 빈 jar를 쓴다.
+// 파일 PUT은 서명된 URL로만 인증한다. 우리 서버 쿠키가 붙으면 S3 서명이 깨지므로 빈 jar를 쓴다.
 let uploadJar = null;
 
 function shortTitle(prefix) {

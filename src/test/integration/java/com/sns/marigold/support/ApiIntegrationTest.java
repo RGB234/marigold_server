@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -18,25 +19,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
-import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.common.jwt.JwtManager;
-import com.sns.marigold.auth.common.recent.RecentAuthStore;
-import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.auth.common.service.AuthSessionService;
+import com.sns.marigold.auth.common.session.AuthSessionStore;
 import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.storage.objectstore.StoredFileHead;
 import com.sns.marigold.storage.service.UploadPurpose;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.repository.UserRepository;
-
-import jakarta.servlet.http.Cookie;
 
 @AutoConfigureMockMvc
 public abstract class ApiIntegrationTest extends BaseIntegrationTest {
@@ -52,9 +49,9 @@ public abstract class ApiIntegrationTest extends BaseIntegrationTest {
 
   @Autowired protected JwtManager jwtManager;
 
-  @Autowired protected RecentAuthStore recentAuthStore;
+  @Autowired protected AuthSessionService authSessionService;
 
-  @Autowired protected CsrfTokenService csrfTokenService;
+  @Autowired protected AuthSessionStore authSessionStore;
 
   @Autowired protected UserRepository userRepository;
 
@@ -72,31 +69,31 @@ public abstract class ApiIntegrationTest extends BaseIntegrationTest {
     tester2 = userRepository.save(user2);
   }
 
+  /** 방금 로그인한 세션의 access token. 요청마다 Redis 세션을 확인하고, 최근 인증도 통과한다. */
   protected String getAccessToken(@NonNull User tester) {
-    CustomPrincipal principal =
-        new CustomPrincipal(
-            tester.getId(),
-            Collections.singletonList(new SimpleGrantedAuthority(tester.getRole().name())),
-            Map.of(),
-            AuthStatus.LOGIN_SUCCESS);
-
-    return jwtManager.createAccessToken(principal);
+    return authSessionService.start(principal(tester)).accessToken();
   }
 
-  protected Cookie getRecentAuthCookie(@NonNull User tester) {
-    String token = UUID.randomUUID().toString();
-    recentAuthStore.save(token, tester.getId(), Instant.now().plusSeconds(300));
-    return new Cookie(CookieManager.RECENT_AUTH_TOKEN_NAME, token);
+  /** 로그인한 지 한 시간 지난 세션의 access token. 최근 인증이 필요한 API의 거부를 확인할 때 쓴다. */
+  protected String getStaleAccessToken(@NonNull User tester) {
+    String sessionId = UUID.randomUUID().toString();
+    Instant now = Instant.now();
+    authSessionStore.create(
+        sessionId,
+        tester.getId(),
+        UUID.randomUUID().toString(),
+        now.minus(Duration.ofHours(1)),
+        now.plus(Duration.ofDays(1)),
+        now.plus(Duration.ofDays(14)));
+    return jwtManager.createAccessToken(principal(tester), sessionId);
   }
 
-  protected Cookie getCsrfCookie(@NonNull String token) {
-    return new Cookie(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, token);
-  }
-
-  protected String getCsrfToken(@NonNull String sessionBinding) {
-    MockHttpServletResponse response = new MockHttpServletResponse();
-    csrfTokenService.issue(response, sessionBinding);
-    return Objects.requireNonNull(response.getHeader(CsrfTokenService.CSRF_TOKEN_HEADER_NAME));
+  private CustomPrincipal principal(User tester) {
+    return new CustomPrincipal(
+        tester.getId(),
+        Collections.singletonList(new SimpleGrantedAuthority(tester.getRole().name())),
+        Map.of(),
+        AuthStatus.LOGIN_SUCCESS);
   }
 
   /** 클라이언트가 PUT을 끝낸 상태: 확정 단계가 읽는 파일 앞부분을 JPEG로 돌려준다. */

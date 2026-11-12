@@ -23,13 +23,9 @@ spring:
 
 app:
   auth:
-    csrf:
-      secret: "12345678901234567890123456789012"
     jwt:
       access:
         secret: "12345678901234567890123456789012"
-      refresh:
-        secret: "abcdefghijklmnopqrstuvwxyz123456"
   storage:
     upload:
       token-secret: "integration-test-upload-token-secret"

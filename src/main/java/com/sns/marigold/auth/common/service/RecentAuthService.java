@@ -1,59 +1,40 @@
 package com.sns.marigold.auth.common.service;
 
 import java.time.Instant;
-import java.util.UUID;
 
+import org.springframework.lang.Nullable;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
+import com.sns.marigold.auth.common.AccessTokenDetails;
 import com.sns.marigold.auth.common.recent.RecentAuthProperties;
-import com.sns.marigold.auth.common.recent.RecentAuthStore;
-import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.auth.common.session.AuthSessionStore;
 import com.sns.marigold.auth.exception.AuthException;
 
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
+/** 민감한 작업은 그 요청의 세션이 최근(기본 5분 안)에 로그인으로 만들어졌을 때만 허용합니다. 재인증은 다시 로그인하는 것입니다. */
 @Service
 @RequiredArgsConstructor
 public class RecentAuthService {
 
-  private final RecentAuthStore recentAuthStore;
-  private final CookieManager cookieManager;
+  private final AuthSessionStore sessionStore;
   private final RecentAuthProperties recentAuthProperties;
 
-  public void issue(HttpServletResponse response, Long userId) {
-    String token = UUID.randomUUID().toString();
-    long ttlSeconds = recentAuthProperties.ttlSeconds();
-    recentAuthStore.save(token, userId, Instant.now().plusSeconds(ttlSeconds));
-    cookieManager.addCookie(response, CookieManager.RECENT_AUTH_TOKEN_NAME, token, ttlSeconds);
-  }
-
-  public void validate(HttpServletRequest request, Long expectedUserId) {
-    String token = getRecentAuthToken(request);
-    boolean valid = recentAuthStore.isValid(token, expectedUserId, Instant.now());
-
-    if (!valid) {
+  /** access token으로 인증된 요청의 세션을 확인합니다. */
+  public void validate(@Nullable Authentication authentication) {
+    if (authentication == null
+        || !(authentication.getDetails() instanceof AccessTokenDetails details)) {
       throw AuthException.forRecentAuthRequired();
     }
+    validate(details.sessionId());
   }
 
-  public void clear(HttpServletRequest request, HttpServletResponse response) {
-    Cookie cookie = cookieManager.getCookie(request, CookieManager.RECENT_AUTH_TOKEN_NAME);
-    if (cookie != null) {
-      recentAuthStore.remove(cookie.getValue());
-    }
-
-    cookieManager.expireCookie(response, CookieManager.RECENT_AUTH_TOKEN_NAME);
-  }
-
-  private String getRecentAuthToken(HttpServletRequest request) {
-    Cookie cookie = cookieManager.getCookie(request, CookieManager.RECENT_AUTH_TOKEN_NAME);
-    if (cookie == null || cookie.getValue() == null || cookie.getValue().isBlank()) {
+  public void validate(String sessionId) {
+    Instant authenticatedAt = sessionStore.getAuthenticatedAt(sessionId);
+    if (authenticatedAt == null
+        || !authenticatedAt.plusSeconds(recentAuthProperties.ttlSeconds()).isAfter(Instant.now())) {
       throw AuthException.forRecentAuthRequired();
     }
-
-    return cookie.getValue();
   }
 }

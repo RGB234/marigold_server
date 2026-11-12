@@ -8,7 +8,6 @@ import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -21,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.HttpHeaders;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
@@ -30,7 +28,6 @@ import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
-import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
@@ -44,11 +41,9 @@ import com.sns.marigold.adoption.enums.Sex;
 import com.sns.marigold.adoption.enums.Species;
 import com.sns.marigold.adoption.repository.AdoptionPostRepository;
 import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.enums.Role;
-import com.sns.marigold.auth.common.jwt.JwtManager;
-import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.auth.common.service.AuthSessionService;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.dto.ChatMessageDto;
 import com.sns.marigold.chat.dto.ChatMessageRequestDto;
@@ -73,8 +68,7 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
 
   @LocalServerPort private int port;
 
-  @Autowired private JwtManager jwtManager;
-  @Autowired private CsrfTokenService csrfTokenService;
+  @Autowired private AuthSessionService authSessionService;
   @Autowired private UserRepository userRepository;
   @Autowired private AdoptionPostRepository adoptionPostRepository;
   @Autowired private ChatRoomRepository chatRoomRepository;
@@ -134,7 +128,7 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
             Collections.singletonList(new SimpleGrantedAuthority(user1.getRole().name())),
             Map.of(),
             AuthStatus.LOGIN_SUCCESS);
-    accessToken = jwtManager.createAccessToken(principal);
+    accessToken = authSessionService.start(principal).accessToken();
   }
 
   @AfterEach
@@ -336,28 +330,28 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
     assertThat(messageKeeper.get(5, TimeUnit.SECONDS).getMessage()).isEqualTo("valid after error");
   }
 
+  @Test
+  @DisplayName("인증 세션이 폐기되면 그 세션의 WebSocket 연결을 끊고 같은 token으로 다시 연결할 수 없다")
+  void revokedAuthSessionClosesConnection() throws Exception {
+    StompSession session = connect();
+    assertThat(session.isConnected()).isTrue();
+
+    authSessionService.endAll(user1.getId());
+
+    long deadline = System.currentTimeMillis() + 5_000;
+    while (session.isConnected() && System.currentTimeMillis() < deadline) {
+      Thread.sleep(50);
+    }
+    assertThat(session.isConnected()).isFalse();
+    assertThatThrownBy(this::connect)
+        .isInstanceOfAny(ExecutionException.class, TimeoutException.class);
+  }
+
   private StompSession connect() throws InterruptedException, ExecutionException, TimeoutException {
     WebSocketStompClient client = Objects.requireNonNull(stompClient);
     String token = Objects.requireNonNull(accessToken);
-    String sessionBinding = UUID.randomUUID().toString();
-    MockHttpServletResponse response = new MockHttpServletResponse();
-    csrfTokenService.issue(response, sessionBinding);
-    String csrfToken =
-        Objects.requireNonNull(response.getHeader(CsrfTokenService.CSRF_TOKEN_HEADER_NAME));
     StompHeaders connectHeaders = new StompHeaders();
     connectHeaders.add("Authorization", "Bearer " + token);
-    connectHeaders.add(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfToken);
-
-    WebSocketHttpHeaders webSocketHeaders = new WebSocketHttpHeaders();
-    webSocketHeaders.add(
-        HttpHeaders.COOKIE,
-        CsrfTokenService.CSRF_TOKEN_COOKIE_NAME
-            + "="
-            + csrfToken
-            + "; "
-            + CookieManager.RECENT_AUTH_TOKEN_NAME
-            + "="
-            + sessionBinding);
 
     // WebSocket Config에서 SockJS를 사용 중이므로 순수 WebSocket 경로에는 /websocket을 붙인다.
     String url = Objects.requireNonNull(String.format("ws://localhost:%d/ws/websocket", port));
@@ -365,7 +359,7 @@ public class ChatIntegrationTest extends BaseIntegrationTest {
         client
             .connectAsync(
                 url,
-                webSocketHeaders,
+                new WebSocketHttpHeaders(),
                 connectHeaders,
                 new StompSessionHandlerAdapter() {
                   @Override

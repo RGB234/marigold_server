@@ -9,15 +9,15 @@ let cachedChatContext = null;
 function getChatContext() {
   if (!cachedChatContext) {
     const { room, user } = getRandomChatFixture();
-    cachedChatContext = { room, user, token: null, csrfToken: null, refreshToken: null, targetUser: user };
+    cachedChatContext = { room, user, token: null, targetUser: user };
   }
 
-  if (!cachedChatContext.token || !cachedChatContext.csrfToken || !cachedChatContext.refreshToken) {
-    const { token, csrfToken, refreshToken, targetUser } = login(cachedChatContext.user, 'chat_auth_login');
-    cachedChatContext = { ...cachedChatContext, token, csrfToken, refreshToken, targetUser };
+  if (!cachedChatContext.token) {
+    const { token, targetUser } = login(cachedChatContext.user, 'chat_auth_login');
+    cachedChatContext = { ...cachedChatContext, token, targetUser };
   }
 
-  if (!cachedChatContext.token || !cachedChatContext.csrfToken || !cachedChatContext.refreshToken) {
+  if (!cachedChatContext.token) {
     return null;
   }
 
@@ -45,7 +45,7 @@ export function chatScenario() {
   const context = getChatContext();
 
   if (context) {
-    chatSession(context.token, context.csrfToken, context.refreshToken, context.targetUser.id, context.room.id);
+    chatSession(context.token, context.targetUser.id, context.room.id);
   }
 
   sleep(1);

@@ -4,20 +4,24 @@ import java.io.IOException;
 import java.util.Objects;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
-import com.sns.marigold.auth.common.jwt.JwtManager;
-import com.sns.marigold.auth.common.service.RecentAuthService;
+import com.sns.marigold.auth.common.service.AuthSessionService;
+import com.sns.marigold.auth.common.session.SessionTokens;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.global.config.UrlProperties;
+import com.sns.marigold.global.error.ErrorSpec;
+import com.sns.marigold.global.error.exception.ApplicationException;
 
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -28,12 +32,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-  private final JwtManager jwtManager;
+  private final AuthSessionService authSessionService;
   private final CookieManager cookieManager;
-  private final CsrfTokenService csrfTokenService;
-  private final RecentAuthService recentAuthService;
   private final UrlProperties urlProperties;
   private final AuditLogger auditLogger;
+  private final OAuth2FailureHandler failureHandler;
 
   @Override
   public void onAuthenticationSuccess(
@@ -47,17 +50,32 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     // 정상 상태(로그인, 신규가입)일 때만 토큰 및 쿠키 발급
     if (authStatus == AuthStatus.LOGIN_SUCCESS || authStatus == AuthStatus.SIGNUP_SUCCESS) {
-      // 1. JWT 토큰 생성
-      String refreshToken = jwtManager.createRefreshToken(principal);
+      // 1. 세션을 Redis에 저장. 실패하면 쿠키 없이 오류 redirect로 보낸다
+      SessionTokens tokens;
+      try {
+        tokens = authSessionService.start(principal);
+      } catch (ApplicationException e) {
+        ErrorSpec error = e.getErrorSpec();
+        failureHandler.onAuthenticationFailure(
+            request,
+            response,
+            new OAuth2AuthenticationException(
+                new OAuth2Error(error.code(), error.publicMessage(), null), e));
+        return;
+      }
 
-      // 2. Refresh/CSRF/Recent-Auth 토큰
+      // 2. 새 쿠키가 이전 쿠키를 덮어쓰면 이전 세션은 아무도 쓰지 않은 채 만료까지 남으므로 지금 폐기한다
+      Cookie previous = cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME);
+      if (previous != null) {
+        authSessionService.endPrevious(previous.getValue());
+      }
+
+      // 3. Refresh 토큰
       cookieManager.addCookie(
           response,
           CookieManager.REFRESH_TOKEN_NAME,
-          refreshToken,
-          jwtManager.getRefreshTtlInSeconds());
-      csrfTokenService.issue(response, refreshToken);
-      recentAuthService.issue(response, principal.getUserId());
+          tokens.refreshToken(),
+          tokens.refreshMaxAgeSeconds());
     }
 
     String callbackUrl = urlProperties.frontend().auth().callback();
@@ -69,7 +87,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     String redirectUrl = uriBuilder.build().toUriString();
 
-    // 3. 리다이렉션 처리
+    // 4. 리다이렉션 처리
     if (response.isCommitted()) {
       log.warn("응답이 이미 커밋되어 리다이렉트 할 수 없습니다.");
       return;

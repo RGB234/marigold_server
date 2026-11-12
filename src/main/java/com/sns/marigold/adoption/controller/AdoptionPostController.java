@@ -61,15 +61,11 @@ public class AdoptionPostController {
   @Operation(
       summary = "입양 게시글 생성",
       description = "입양 게시글을 생성합니다. 이미지는 먼저 업로드 URL을 발급받아 올린 뒤 업로드 토큰으로 보냅니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "201", description = "생성 성공"),
     @ApiResponse(responseCode = "400", description = "입력값 또는 이미지 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
-    @ApiResponse(responseCode = "403", description = "CSRF token 누락 또는 불일치")
   })
   @PreAuthorize("isAuthenticated()")
   @PostMapping("")
@@ -175,15 +171,12 @@ public class AdoptionPostController {
   @Operation(
       summary = "입양 게시글 수정",
       description = "작성자가 입양 게시글과 이미지를 수정합니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "204", description = "수정 성공"),
     @ApiResponse(responseCode = "400", description = "입력값 또는 이미지 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
-    @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
+    @ApiResponse(responseCode = "403", description = "권한 없음"),
     @ApiResponse(responseCode = "404", description = "게시글 없음")
   })
   @PreAuthorize("isAuthenticated()")
@@ -207,15 +200,12 @@ public class AdoptionPostController {
   @Operation(
       summary = "입양 게시글 상태 변경",
       description = "작성자가 입양 게시글 상태를 변경합니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "204", description = "상태 변경 성공"),
     @ApiResponse(responseCode = "400", description = "상태값 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
-    @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
+    @ApiResponse(responseCode = "403", description = "권한 없음"),
     @ApiResponse(responseCode = "404", description = "게시글 없음")
   })
   @PreAuthorize("isAuthenticated()")
@@ -236,14 +226,11 @@ public class AdoptionPostController {
   @Operation(
       summary = "입양 게시글 삭제",
       description = "작성자가 입양 게시글을 삭제합니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "204", description = "삭제 성공"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
-    @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
+    @ApiResponse(responseCode = "403", description = "권한 없음"),
     @ApiResponse(responseCode = "404", description = "게시글 없음")
   })
   @PreAuthorize("isAuthenticated()")
@@ -284,15 +271,12 @@ public class AdoptionPostController {
   @Operation(
       summary = "입양 완료 처리",
       description = "작성자가 후보자를 선택해 입양 완료 상태로 변경합니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "204", description = "입양 완료 성공"),
     @ApiResponse(responseCode = "400", description = "요청값 오류 또는 입양 후보가 아닌 사용자"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
-    @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
+    @ApiResponse(responseCode = "403", description = "권한 없음"),
     @ApiResponse(responseCode = "404", description = "게시글 또는 후보자 없음")
   })
   @PreAuthorize("isAuthenticated()")
@@ -312,15 +296,12 @@ public class AdoptionPostController {
   @Operation(
       summary = "입양 완료 취소",
       description = "작성자가 입양 완료 상태를 취소합니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "204", description = "입양 완료 취소 성공"),
     @ApiResponse(responseCode = "400", description = "상태 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
-    @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
+    @ApiResponse(responseCode = "403", description = "권한 없음"),
     @ApiResponse(responseCode = "404", description = "게시글 없음")
   })
   @PreAuthorize("isAuthenticated()")

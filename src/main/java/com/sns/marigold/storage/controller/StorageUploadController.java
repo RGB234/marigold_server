@@ -37,15 +37,11 @@ public class StorageUploadController {
   @Operation(
       summary = "업로드 URL 발급",
       description = "파일마다 직접 PUT할 URL과 업로드 토큰을 발급합니다. 클라이언트는 URL로 파일을 올린 뒤, 도메인 API에 토큰을 보냅니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "발급 성공"),
     @ApiResponse(responseCode = "400", description = "개수, 크기, 확장자 정책 위반"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
-    @ApiResponse(responseCode = "403", description = "CSRF token 누락 또는 불일치")
   })
   @PreAuthorize("isAuthenticated()")
   @PostMapping("/uploads")

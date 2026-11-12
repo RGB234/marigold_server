@@ -59,15 +59,11 @@ public class ChatController {
   @Operation(
       summary = "채팅방 조회 또는 생성",
       description = "입양 게시글과 상대 사용자 기준으로 기존 채팅방을 조회하거나 새로 생성합니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "조회 또는 생성 성공"),
     @ApiResponse(responseCode = "400", description = "요청값 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
-    @ApiResponse(responseCode = "403", description = "CSRF token 누락 또는 불일치"),
     @ApiResponse(responseCode = "404", description = "입양 게시글 또는 사용자 없음"),
     @ApiResponse(responseCode = "409", description = "입양 완료된 게시글에는 새 채팅방을 만들 수 없음")
   })
@@ -175,15 +171,12 @@ public class ChatController {
   @Operation(
       summary = "파일 메시지 생성",
       description = "채팅방에 파일 첨부 메시지를 생성하고 WebSocket으로 브로드캐스트합니다. 첨부파일은 업로드 토큰으로 보냅니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "201", description = "생성 성공"),
     @ApiResponse(responseCode = "400", description = "요청값 또는 파일 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
-    @ApiResponse(responseCode = "403", description = "채팅방 참여자 아님 또는 CSRF token 오류"),
+    @ApiResponse(responseCode = "403", description = "채팅방 참여자 아님"),
     @ApiResponse(responseCode = "404", description = "채팅방 없음")
   })
   @PreAuthorize("isAuthenticated()")
@@ -206,15 +199,12 @@ public class ChatController {
   @Operation(
       summary = "채팅방 나가기",
       description = "인증된 사용자가 채팅방에서 나갑니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "204", description = "나가기 성공"),
     @ApiResponse(responseCode = "400", description = "채팅방 ID 형식 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
-    @ApiResponse(responseCode = "403", description = "채팅방 참여자 아님 또는 CSRF token 오류"),
+    @ApiResponse(responseCode = "403", description = "채팅방 참여자 아님"),
     @ApiResponse(responseCode = "404", description = "채팅방 없음")
   })
   @PreAuthorize("isAuthenticated()")

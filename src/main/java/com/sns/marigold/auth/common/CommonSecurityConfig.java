@@ -16,7 +16,6 @@ import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.cors.CorsUtils;
 
-import com.sns.marigold.auth.common.csrf.CsrfTokenValidationFilter;
 import com.sns.marigold.auth.common.handler.CustomLogoutHandler;
 import com.sns.marigold.auth.common.handler.CustomLogoutSuccessHandler;
 import com.sns.marigold.auth.common.handler.SecurityFailureHandler;
@@ -38,7 +37,6 @@ public class CommonSecurityConfig {
   private final SecurityFailureHandler securityFailureHandler;
   private final CustomLogoutHandler customLogoutHandler;
   private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
-  private final CsrfTokenValidationFilter csrfTokenValidationFilter;
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
   private final SecurityBoundaryExceptionFilter securityBoundaryExceptionFilter;
 
@@ -58,7 +56,8 @@ public class CommonSecurityConfig {
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .cors(corsCustomizer -> corsCustomizer.configurationSource(customCorsConfigurationSource))
-        .csrf(AbstractHttpConfigurer::disable) // 세션 기반 인증을 비활성했으므로 커스텀 CSRF 필터 사용
+        // 쿠키로 인증되는 요청은 refresh·logout(POST)뿐이고, 인증 쿠키가 SameSite=Lax라 다른 사이트의 POST에는 실리지 않는다
+        .csrf(AbstractHttpConfigurer::disable)
         .httpBasic(AbstractHttpConfigurer::disable)
         .authorizeHttpRequests(
             auth ->
@@ -74,9 +73,8 @@ public class CommonSecurityConfig {
                     .anyRequest()
                     .permitAll())
         .formLogin(AbstractHttpConfigurer::disable)
-        .addFilterBefore(csrfTokenValidationFilter, LogoutFilter.class)
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-        .addFilterBefore(securityBoundaryExceptionFilter, CsrfTokenValidationFilter.class)
+        .addFilterBefore(securityBoundaryExceptionFilter, LogoutFilter.class)
         .logout(
             logout ->
                 logout
@@ -99,15 +97,6 @@ public class CommonSecurityConfig {
     FilterRegistrationBean<JwtAuthenticationFilter> registration =
         new FilterRegistrationBean<>(filter);
     registration.setEnabled(false); // SecurityFilterChain에서만 실행
-    return registration;
-  }
-
-  @Bean
-  public FilterRegistrationBean<CsrfTokenValidationFilter> csrfFilterRegistration(
-      CsrfTokenValidationFilter filter) {
-    FilterRegistrationBean<CsrfTokenValidationFilter> registration =
-        new FilterRegistrationBean<>(filter);
-    registration.setEnabled(false);
     return registration;
   }
 

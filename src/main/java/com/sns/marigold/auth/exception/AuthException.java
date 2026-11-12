@@ -42,6 +42,10 @@ public class AuthException extends ApplicationException {
     return new AuthException(AuthError.RECENT_AUTH_REQUIRED);
   }
 
+  public static AuthException forSessionStoreUnavailable(Throwable cause) {
+    return new AuthException(AuthError.SESSION_STORE_UNAVAILABLE, cause);
+  }
+
   public static AuthException forInternalServerError() {
     return new AuthException(AuthError.INTERNAL_SERVER_ERROR);
   }

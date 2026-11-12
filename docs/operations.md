@@ -4,9 +4,9 @@
 
 | 프로필 | 주요 용도 | 데이터베이스와 저장소 | 개발 도구 |
 | --- | --- | --- | --- |
-| `local` | 로컬 개발 | MySQL 스키마 자동 갱신, 로컬 파일 저장 | Swagger 활성화 |
-| `integration-test` | 통합 테스트 | Testcontainers MySQL, 테스트 설정 | Swagger 비활성화 |
-| `prod` | 운영 | 기존 MySQL 스키마 사용, S3 저장 | Swagger 비활성화 |
+| `local` | 로컬 개발 | MySQL 스키마 자동 갱신, 로컬 Redis, 로컬 파일 저장 | Swagger 활성화 |
+| `integration-test` | 통합 테스트 | Testcontainers MySQL·Redis, 테스트 설정 | Swagger 비활성화 |
+| `prod` | 운영 | 기존 MySQL 스키마 사용, 외부 Redis, S3 저장 | Swagger 비활성화 |
 
 `local` 프로필은 `application-local.yml`에 설정된 MySQL에 연결합니다. 실행 전에 접속 대상 데이터베이스(기본값: `marigold`)와 계정이 준비되어 있어야 합니다. 로컬 MySQL 서비스의 실행 및 종료는 수동으로 이뤄집니다.
 
@@ -16,6 +16,15 @@
 sc.exe query state= all | findstr /i mysql
 net start MySQL84
 net stop MySQL84
+```
+
+인증 세션을 저장하는 Redis도 실행 중이어야 합니다. Redis는 공식 Windows 빌드가 없으므로 Docker로 실행합니다. 기본 접속 대상은
+`localhost:6379`입니다.
+
+```powershell
+docker run -d --name marigold-redis -p 6379:6379 redis:7.4-alpine
+docker start marigold-redis
+docker stop marigold-redis
 ```
 
 
@@ -35,8 +44,6 @@ net stop MySQL84
 | 변수 | 설명                                                                                                                            |
 | --- |-------------------------------------------------------------------------------------------------------------------------------|
 | `ACCESS_SECRET` | Access Token 서명 키입니다. 32 byte 이상의 임의 문자열을 사용합니다.                                                                              |
-| `REFRESH_SECRET` | Refresh Token 서명 키입니다. 32 byte 이상의 임의 문자열을 사용하고 `ACCESS_SECRET`과 다른 값으로 설정합니다.                                                |
-| `CSRF_SECRET` | CSRF token 서명 키입니다. 32 byte 이상이어야 합니다.                                                                                        |
 | `BASE_URL` | backend base URL입니다. 예를 들면, OAuth2 callback 등록 주소는 `${BASE_URL}/oauth2/code/kakao`와 `${BASE_URL}/oauth2/code/naver`가 되는 식입니다. |
 | `KAKAO_CLIENT_ID` | Kakao Developers에 등록한 OAuth2 client ID입니다.                                                                                    |
 | `KAKAO_CLIENT_SECRET` | Kakao Developers에서 발급하고 활성화한 OAuth2 client secret입니다.                                                                         |
@@ -52,7 +59,49 @@ net stop MySQL84
 | `DB_URL` | MySQL JDBC URL입니다.                        |
 | `DB_USERNAME` | MySQL 접속 계정입니다. 로컬 기본값은 `root`입니다.        |
 | `DB_PASSWORD` | MySQL 접속 비밀번호입니다. 로컬 기본값은 빈 문자열입니다.       |
-| `FRONTEND_ORIGIN` | 프론트엔드 origin입니다. CORS 허용 origin으로 사용합니다.  |
+| `FRONTEND_ORIGIN` | 프론트엔드 origin입니다. CORS 허용 origin으로 사용합니다. `BASE_URL`과 같은 사이트(같은 등록 도메인과 scheme)여야 인증 쿠키가 전송됩니다([인증 계약](contracts/auth.md#토큰과-csrf)). `*.workers.dev`·`*.pages.dev` 같은 공용 도메인은 서브도메인마다 다른 사이트이므로 사용자 지정 도메인을 씁니다. |
+
+### Redis
+
+인증 세션을 저장합니다. 인증이 필요한 요청마다 조회하므로, Redis가 응답하지 않으면 해당 요청은 2초 안에 `503`으로 실패합니다
+([인증 계약](contracts/auth.md#세션-저장소-장애)).
+
+| 변수 | 설명 |
+| --- | --- |
+| `REDIS_HOST` | Redis host입니다. 로컬 기본값은 `localhost`이며 `prod`에서는 필수입니다. |
+| `REDIS_PORT` | Redis port입니다. 기본값은 `6379`입니다. |
+| `REDIS_PASSWORD` | Redis 비밀번호입니다. 비어 있으면 인증 없이 접속합니다. |
+
+TLS가 필요한 Redis(예: 전송 중 암호화를 켠 ElastiCache)는 `spring.data.redis.ssl.enabled=true`도 설정해야 합니다.
+
+#### 운영 Redis 설정
+
+인증 세션은 Redis에만 있으므로, Redis가 데이터를 버리면 그 세션의 사용자는 로그아웃됩니다. `prod` Redis는 아래 두 가지를 지켜야 합니다.
+로컬 Docker Redis는 기본값으로 충분합니다.
+
+**메모리 정책은 `maxmemory-policy noeviction`으로 둡니다.**
+
+- 세션 키는 모두 TTL이 있어서, `volatile-*`나 `allkeys-*` 정책이면 메모리가 찼을 때 살아 있는 세션이 지워지고 사용자가 무작위로
+  로그아웃됩니다.
+- `noeviction`이면 메모리가 찼을 때 새 쓰기만 실패합니다. 새 로그인과 refresh는 `503 AUTH_SESSION_STORE_UNAVAILABLE`로 실패하고,
+  이미 있는 세션 확인은 계속 됩니다. `used_memory`를 지켜보고 메모리를 여유 있게 잡습니다. 세션 하나는 수백 바이트입니다.
+- Redis 자체의 기본값은 `noeviction`이지만 ElastiCache 기본 파라미터 그룹은 `volatile-lru`입니다. ElastiCache를 쓰면 사용자 지정
+  파라미터 그룹을 만들어 바꿉니다.
+
+**재시작과 장애에도 세션이 남도록 영속성을 켭니다.**
+
+- 디스크나 복제본에 남기지 않으면 Redis가 재시작되거나 죽을 때 모든 세션이 사라져 전체 사용자가 다시 로그인해야 합니다.
+- 직접 운영하는 Redis는 AOF(`appendonly yes`, `appendfsync everysec`)를 켜고, 데이터 디렉터리를 컨테이너 밖 볼륨에 둡니다.
+- ElastiCache는 복제본과 Multi-AZ 자동 장애 조치를 켭니다.
+- 어느 쪽이든 마지막 약 1초(AOF `everysec`)나 복제 지연만큼의 쓰기는 잃을 수 있습니다. 그 사이에 refresh한 세션은 서버에 이전 token이
+  남아, 다음 refresh가 재사용으로 판정되어 폐기됩니다. 해당 사용자만 다시 로그인하면 됩니다.
+
+직접 운영하는 Redis는 다음으로 확인합니다. ElastiCache는 `CONFIG` 명령이 막혀 있으므로 파라미터 그룹에서 확인합니다.
+
+```bash
+redis-cli CONFIG GET maxmemory-policy
+redis-cli CONFIG GET appendonly
+```
 
 
 ### S3 저장소
@@ -78,7 +127,7 @@ net stop MySQL84
 
 ## Docker 실행
 
-아래 명령은 `back/` 디렉터리에서 실행합니다. `.env.example`을 참고해 `.env.prod`를 준비하고 공통 인증·OAuth2, DB, frontend, S3의 운영 필수값을 채워야 합니다. `.env.prod`는 커밋하지 않습니다.
+아래 명령은 `back/` 디렉터리에서 실행합니다. `.env.example`을 참고해 `.env.prod`를 준비하고 공통 인증·OAuth2, DB, frontend, Redis, S3의 운영 필수값을 채워야 합니다. `.env.prod`는 커밋하지 않습니다.
 
 `application-prod.yml`은 `spring.config.import`에 적힌 경로의 환경파일을 `optional:` 없이 읽으므로, 그 파일이 없으면 기동에 실패합니다. `--env-file`로 값을 넘기는 것만으로는 부족하며, 컨테이너 안의 같은 경로에 파일을 마운트해야 합니다.
 
@@ -141,7 +190,7 @@ Lifecycle 규칙은 안전망입니다. 규칙이 없어도 고아 정리의 만
 
 애플리케이션은 다음 Actuator endpoint를 노출합니다.
 
-- `/actuator/health`
+- `/actuator/health`: DB와 Redis 연결 상태를 포함합니다.
 - `/actuator/metrics`
 - `/actuator/prometheus`
 

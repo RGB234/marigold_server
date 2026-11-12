@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 
-import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.global.config.UrlProperties;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,7 +35,6 @@ public class CustomCorsConfigurationSource implements CorsConfigurationSource {
     config.setAllowCredentials(true);
     //
     config.setAllowedHeaders(Collections.singletonList("*"));
-    config.setExposedHeaders(Collections.singletonList(CsrfTokenService.CSRF_TOKEN_HEADER_NAME));
     config.setMaxAge(3600L); // 1h
     return config;
   }

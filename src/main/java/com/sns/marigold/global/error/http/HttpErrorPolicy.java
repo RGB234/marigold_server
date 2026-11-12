@@ -20,6 +20,7 @@ public final class HttpErrorPolicy {
       case CONFLICT -> HttpStatus.CONFLICT;
       case GONE -> HttpStatus.GONE;
       case LIMIT_EXCEEDED -> HttpStatus.PAYLOAD_TOO_LARGE;
+      case UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
       case DEPENDENCY_FAILURE, INTERNAL -> HttpStatus.INTERNAL_SERVER_ERROR;
     };
   }

@@ -27,6 +27,7 @@ flowchart LR
     Broker -->|메시지 발행| Client
     HTTP <-->|인증 코드 교환 및 사용자 정보| OAuth["Kakao / Naver"]
     Services -->|JPA 및 JDBC| DB[("MySQL")]
+    Services -->|인증 세션| Redis[("Redis")]
     Storage -->|local| Local["로컬 파일시스템"]
     Storage -->|s3| S3["Amazon S3"]
 ```
@@ -43,7 +44,7 @@ REST는 데이터 조회·변경과 업로드 URL 발급을, STOMP는 실시간 
 
 ### 패키지 책임
 
-- `auth`: 로컬 로그인과 가입, OAuth2, JWT, refresh·CSRF·recent-auth 쿠키
+- `auth`: 로컬 로그인과 가입, OAuth2, JWT, Redis 인증 세션, refresh 쿠키, 최근 인증
 - `user`: 사용자, 프로필 이미지, 자격 증명 연결과 계정 관리
 - `adoption`: 입양 게시글, 이미지, 댓글과 답글, 입양자 확정
 - `chat`: 게시글 기반 채팅방, 참여자, 메시지와 첨부파일
@@ -88,20 +89,28 @@ REST는 데이터 조회·변경과 업로드 URL 발급을, STOMP는 실시간 
 OAuth2 요청은 우선순위 1의 `OAuth2SecurityConfig`, 일반 요청은 우선순위 2의 `CommonSecurityConfig`가 처리합니다. 두 체인 모두
 HTTP 세션 기반 인증을 사용하지 않습니다.
 
-1. 로컬 로그인은 사용자 조회, 비밀번호와 사용자 상태 확인 후 access·refresh token을 발급합니다. Access token은 본문으로 반환하고
-   refresh·CSRF·최근 인증 정보는 쿠키로 발급합니다.
-2. 일반 REST 요청은 커스텀 CSRF 필터와 JWT 인증 필터를 거칩니다. JWT 검증 결과로 `CustomPrincipal`을 만들고, Controller의
-   `@PreAuthorize`와 Service의 소유자·참여자 검사로 접근을 제한합니다. 일반 보안 체인의 URL 규칙 자체는 `permitAll`이므로 새 API의 권한은
-   명시적으로 설정해야 합니다.
-3. Refresh 요청은 refresh token을 검증하고 DB에서 현재 사용자 상태와 권한을 다시 읽은 뒤 access·refresh·CSRF token을 재발급합니다.
-4. OAuth2 로그인·가입 성공 시 refresh·CSRF·최근 인증 쿠키를 발급하고 프론트엔드로 redirect합니다. 프론트엔드는 refresh API로 access
-   token을 얻습니다.
-5. 자격 증명 등록과 회원 탈퇴 같은 민감 작업은 `RecentAuthService`로 최근 인증도 검사합니다.
+1. 로컬 로그인은 사용자 조회, 비밀번호와 사용자 상태 확인 후 Redis에 인증 세션을 만들고 token을 발급합니다. Access token은
+   세션 ID(`sid`) claim을 담은 JWT로 본문에 반환합니다. Refresh token은 `{sid}.{비밀값}` 형태의 불투명 값으로 쿠키에 담고, 세션에는
+   비밀값의 SHA-256만 저장합니다(`RefreshToken`).
+2. 일반 REST 요청은 JWT 인증 필터를 거칩니다. 별도 CSRF 필터는 없으며, 쿠키로 인증되는 refresh·logout은 `SameSite=Lax` 쿠키로
+   보호합니다. JWT 인증 필터는 서명을 검증하고 Redis에서 세션이 살아 있는지 확인한 뒤
+   `CustomPrincipal`을 만들고, Controller의 `@PreAuthorize`와 Service의 소유자·참여자 검사로 접근을 제한합니다. 일반 보안 체인의 URL
+   규칙 자체는 `permitAll`이므로 새 API의 권한은 명시적으로 설정해야 합니다.
+3. Refresh 요청은 쿠키 값의 해시를 Redis 세션의 현재 해시와 Lua 스크립트로 원자적으로 비교해 새 값으로 바꿉니다. 현재 token이
+   아니면(유예 안의 직전 token 제외) 세션을 폐기합니다. 회전한 뒤 세션의 사용자를 DB에서 다시 읽어 상태를 확인하고, 거부하면 그
+   세션도 폐기합니다. 통과하면 현재 권한으로 access token을 발급합니다.
+4. OAuth2 로그인·가입 성공 시 세션을 만들고 refresh 쿠키를 발급한 뒤 프론트엔드로 redirect합니다. 프론트엔드는 refresh
+   API로 access token을 얻습니다.
+5. 자격 증명 등록, 회원 탈퇴, OAuth 계정 연결은 `RecentAuthService`로 최근 인증도 검사합니다. 세션에 저장한 로그인 시각
+   (`authenticatedAt`)이 유효시간 안인지 보며, refresh로는 바뀌지 않습니다.
+6. 로그아웃은 그 세션을, 회원 탈퇴는 커밋 뒤 `AuthUserDeletedListener`가 사용자의 모든 세션을 폐기합니다. 폐기는
+   `AuthSessionsRevokedEvent`로 알려 chat 도메인이 그 세션의 WebSocket 연결을 끊습니다.
 
-`JwtAuthenticationService`는 access token을 검사할 때 DB를 조회하지 않습니다. 그 결과 생기는 권한 변경의 반영 지연, 헤더·쿠키와 CSRF 적용
-조건, 기본 유효시간은 [인증 계약](contracts/auth.md)에 있습니다.
+`JwtAuthenticationService`는 access token을 검사할 때 DB를 조회하지 않고 Redis에서 세션 존재만 확인합니다. Redis 키는 세션별
+`auth:session:{sid}` HASH와 사용자별 전체 폐기용 `auth:user:{userId}:sessions` ZSET입니다. 세션 폐기와 권한 변경의
+반영 범위, 저장소 장애 시 응답, 헤더·쿠키와 CSRF 적용 조건, 기본 유효시간은 [인증 계약](contracts/auth.md)에 있습니다.
 
-근거: [CommonSecurityConfig](../src/main/java/com/sns/marigold/auth/common/CommonSecurityConfig.java), [AuthService](../src/main/java/com/sns/marigold/auth/common/service/AuthService.java), [JwtAuthenticationService](../src/main/java/com/sns/marigold/auth/common/service/JwtAuthenticationService.java), [OAuth2SuccessHandler](../src/main/java/com/sns/marigold/auth/oauth2/handler/OAuth2SuccessHandler.java).
+근거: [CommonSecurityConfig](../src/main/java/com/sns/marigold/auth/common/CommonSecurityConfig.java), [AuthService](../src/main/java/com/sns/marigold/auth/common/service/AuthService.java), [AuthSessionService](../src/main/java/com/sns/marigold/auth/common/service/AuthSessionService.java), [RedisAuthSessionStore](../src/main/java/com/sns/marigold/auth/common/session/RedisAuthSessionStore.java), [JwtAuthenticationService](../src/main/java/com/sns/marigold/auth/common/service/JwtAuthenticationService.java), [OAuth2SuccessHandler](../src/main/java/com/sns/marigold/auth/oauth2/handler/OAuth2SuccessHandler.java).
 
 ### 입양 완료와 취소
 
@@ -132,7 +141,7 @@ sequenceDiagram
     participant DB as MySQL
     participant Broker as Simple Broker
     Client->>WS: CONNECT / SUBSCRIBE
-    WS->>WS: CSRF·JWT / 구독 참여 권한 확인
+    WS->>WS: JWT·세션 / 구독 참여 권한 확인
     Client->>WS: SEND 텍스트 메시지
     WS->>Controller: 인증 및 허용 경로 확인
     Controller->>Service: saveMessage
@@ -145,7 +154,7 @@ sequenceDiagram
 ```
 
 단계별 검사(핸드셰이크·CONNECT·SUBSCRIBE·SEND)와 연결 종료 코드는 [실시간 계약](contracts/realtime.md)에 있습니다. 서버 쪽에서는
-`WebSocketConfig`의 인바운드 인터셉터가 검사를 맡고, `WebSocketTokenSessions`가 세션별 토큰 만료 종료와 방 나가기 후 연결 종료를 맡습니다.
+`WebSocketConfig`의 인바운드 인터셉터가 검사를 맡고, `WebSocketTokenSessions`가 세션별 토큰 만료 종료, 인증 세션 폐기와 방 나가기 후 연결 종료를 맡습니다.
 방 나가기는 `ChatController`가 서비스 트랜잭션 커밋 뒤에 연결을 끊어, 다시 연결한 클라이언트의 구독 검사가 나간 상태를 보게 합니다.
 
 파일 메시지는 REST Controller가 `saveFileMessage`를 호출합니다. 이 메서드는 트랜잭션 밖에서 업로드 토큰을 확정한 뒤 `TransactionTemplate`으로
@@ -185,15 +194,13 @@ DB 커밋과 STOMP 발행은 원자적이지 않습니다. 현재 발행 경로�
 - 내장 STOMP Simple Broker와 WebSocket 세션은 서버 간 공유되지 않습니다. 다중 서버에서는 한 서버의 발행이 다른 서버의 구독자에게 전달되도록 별도 구성이
   필요합니다.
 - [WebSocketTokenSessions](../src/main/java/com/sns/marigold/chat/config/WebSocketTokenSessions.java)의 세션 목록과
-  만료 종료 예약도 인스턴스마다 따로 있습니다. 방 나가기는 요청을 받은 서버의 연결만 끊으므로, 다른 서버에 붙은 연결은 access token 만료로 끊길
-  때까지 그 방의 메시지를 계속 받습니다.
-- [InMemoryRecentAuthStore](../src/main/java/com/sns/marigold/auth/common/recent/InMemoryRecentAuthStore.java)
-  의 최근 인증 정보는 재시작하면 사라집니다. 다른 인스턴스에도 공유되지 않아 해당 인스턴스가 발급한 최근 인증을 다른 서버가 확인할 수 없습니다.
+  만료 종료 예약도 인스턴스마다 따로 있습니다. 방 나가기와 인증 세션 폐기는 요청을 받은 서버의 연결만 끊으므로, 다른 서버에 붙은 연결은
+  access token 만료로 끊길 때까지 메시지를 계속 받습니다.
 - 파일 삭제 이벤트·비동기 큐는 재시작 후 재생되지 않고, 고아 파일 정리의 실행 잠금도 인스턴스 간 조율을 제공하지 않습니다.
 - 로컬 파일시스템 저장소를 사용하면 파일 접근 범위도 서버의 디스크 구성에 의존합니다.
 
-따라서 HTTP 세션을 사용하지 않는다는 설정만으로 다중 서버 동작이 보장되지는 않습니다. 서버를 늘릴 때 메시지 전달, 최근 인증 상태, 파일 접근과 정리 작업의 실행 주체를
-함께 검토해야 합니다.
+인증 세션(최근 인증 판단용 로그인 시각 포함)은 Redis에 있어 재시작 뒤에도 남고 인스턴스끼리 공유됩니다. 그래도 서버를 늘릴 때는 메시지 전달, WebSocket 연결 종료,
+파일 접근과 정리 작업의 실행 주체를 함께 검토해야 합니다.
 
 ### 변경 시 확인할 테스트
 
@@ -204,6 +211,10 @@ DB 커밋과 STOMP 발행은 원자적이지 않습니다. 현재 발행 경로�
   STOMP 단계별 검사, 토큰 만료와 방 나가기에 따른 연결 종료.
 - [ChatIntegrationTest](../src/test/integration/java/com/sns/marigold/chat/api/ChatIntegrationTest.java):
   실제 애플리케이션과 DB를 사용하는 채팅 동작.
+- [AuthSessionServiceTest](../src/test/unit/java/com/sns/marigold/auth/common/service/AuthSessionServiceTest.java),
+  [RedisAuthSessionStoreIntegrationTest](../src/test/integration/java/com/sns/marigold/auth/session/RedisAuthSessionStoreIntegrationTest.java),
+  [AuthSessionApiIntegrationTest](../src/test/integration/java/com/sns/marigold/auth/api/AuthSessionApiIntegrationTest.java):
+  세션 생성, refresh 회전과 유예, 재사용 감지, 절대 만료, 로그아웃·탈퇴에 따른 폐기.
 
 파일 저장 관련 테스트는 [파일 저장](storage.md#변경-시-확인할-테스트)에 있습니다. 테스트 실행 명령과 종류별 범위는 [README](../README.md)의 검사
 항목을 참고합니다.

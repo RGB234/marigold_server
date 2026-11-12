@@ -18,8 +18,9 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import com.sns.marigold.auth.common.CustomPrincipal;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.enums.Role;
-import com.sns.marigold.auth.common.jwt.JwtManager;
 import com.sns.marigold.auth.common.service.AuthService;
+import com.sns.marigold.auth.common.service.AuthSessionService;
+import com.sns.marigold.auth.common.service.AuthSessionService.VerifiedSession;
 import com.sns.marigold.auth.common.service.RecentAuthService;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.auth.exception.AuthError;
@@ -34,8 +35,6 @@ import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.service.UserService;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -47,8 +46,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
   private final UserService userService;
   private final AuthService authService;
   private final CookieManager cookieManager;
-  private final JwtManager jwtManager;
   private final RecentAuthService recentAuthService;
+  private final AuthSessionService authSessionService;
 
   @Override
   public OAuth2User loadUser(OAuth2UserRequest userRequest) {
@@ -103,27 +102,18 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
               AuthError.UNAUTHORIZED.code(), AuthError.UNAUTHORIZED.publicMessage(), null));
     }
 
-    String refreshToken = refreshCookie.getValue();
-    Long userId;
     try {
-      Claims claims = jwtManager.getRefreshClaims(refreshToken);
-      if (!jwtManager.isRefreshToken(claims)) {
+      // 살아 있는 세션의 현재 refresh token이어야 계정을 연결할 수 있다
+      VerifiedSession session = authSessionService.verify(refreshCookie.getValue());
+      if (session == null) {
         throw AuthException.forInvalidToken();
       }
-      userId = jwtManager.getUserId(claims);
-    } catch (AuthException | JwtException | IllegalArgumentException e) {
-      throw new OAuth2AuthenticationException(
-          new OAuth2Error(
-              AuthError.TOKEN_INVALID.code(), AuthError.TOKEN_INVALID.publicMessage(), null));
-    }
-
-    try {
-      User currentUser = userService.findEntityById(userId);
+      User currentUser = userService.findEntityById(session.userId());
       authService.checkUserStatus(currentUser);
       // 2차 인증 검사
-      recentAuthService.validate(request, userId);
+      recentAuthService.validate(session.sessionId());
 
-      userService.linkOAuth2(userId, providerInfo, providerId);
+      userService.linkOAuth2(session.userId(), providerInfo, providerId);
 
       Collection<SimpleGrantedAuthority> authorities =
           List.of(new SimpleGrantedAuthority(currentUser.getRole().name()));

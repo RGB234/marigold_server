@@ -12,13 +12,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.dto.AuthPrincipalDto;
 import com.sns.marigold.auth.common.dto.LocalLoginDto;
 import com.sns.marigold.auth.common.dto.LoginResponseDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.enums.AuthStatus;
-import com.sns.marigold.auth.common.jwt.JwtManager;
+import com.sns.marigold.auth.common.service.AuthSessionService.RotatedSession;
+import com.sns.marigold.auth.common.session.SessionTokens;
 import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.auth.oauth2.RandomUsernameGenerator;
@@ -28,9 +28,6 @@ import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.JwtException;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.servlet.http.Cookie;
@@ -51,11 +48,9 @@ public class AuthService {
 
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
-  private final JwtManager jwtManager;
+  private final AuthSessionService authSessionService;
   private final CookieManager cookieManager;
   private final RandomUsernameGenerator randomUsernameGenerator;
-  private final RecentAuthService recentAuthService;
-  private final CsrfTokenService csrfTokenService;
   private final AuditLogger auditLogger;
   private final MeterRegistry meterRegistry;
 
@@ -160,7 +155,8 @@ public class AuthService {
   }
 
   @Transactional(readOnly = true)
-  public LoginResponseDto emailLogin(LocalLoginDto dto, HttpServletResponse response) {
+  public LoginResponseDto emailLogin(
+      LocalLoginDto dto, HttpServletRequest request, HttpServletResponse response) {
     User user =
         authLoginFindByEmailTimer()
             .record(() -> userRepository.findByEmail(dto.getEmail()))
@@ -180,23 +176,23 @@ public class AuthService {
             null,
             AuthStatus.LOGIN_SUCCESS);
 
-    LoginTokens loginTokens =
-        authLoginJwtCreateTimer()
-            .record(
-                () ->
-                    new LoginTokens(
-                        jwtManager.createAccessToken(principal),
-                        jwtManager.createRefreshToken(principal)));
+    SessionTokens tokens =
+        Objects.requireNonNull(
+            authLoginJwtCreateTimer().record(() -> authSessionService.start(principal)));
+
+    // 새 쿠키가 이전 쿠키를 덮어쓰면 이전 세션은 아무도 쓰지 않은 채 만료까지 남으므로 지금 폐기한다
+    Cookie previous = cookieManager.getCookie(request, CookieManager.REFRESH_TOKEN_NAME);
+    if (previous != null) {
+      authSessionService.endPrevious(previous.getValue());
+    }
 
     cookieManager.addCookie(
         response,
         CookieManager.REFRESH_TOKEN_NAME,
-        loginTokens.refreshToken(),
-        jwtManager.getRefreshTtlInSeconds());
-    recentAuthService.issue(response, user.getId());
-    csrfTokenService.issue(response, loginTokens.refreshToken());
+        tokens.refreshToken(),
+        tokens.refreshMaxAgeSeconds());
 
-    return createLoginResponse(loginTokens.accessToken(), principal);
+    return createLoginResponse(tokens.accessToken(), principal);
   }
 
   @Transactional(readOnly = true)
@@ -205,28 +201,21 @@ public class AuthService {
     if (cookie == null) {
       throw AuthException.forInvalidToken();
     }
-    String refreshToken = cookie.getValue();
+    RotatedSession rotated = authSessionService.rotate(cookie.getValue());
 
-    Claims claims;
+    // 사용자 ID는 세션에서 나오므로 회전한 뒤에 DB 상태를 본다. 거부할 때는 회전된 세션도 지워,
+    // 쿠키를 받지 못한 다음 시도가 재사용 감지로 기록되지 않게 한다
+    User user;
     try {
-      claims = jwtManager.getRefreshClaims(refreshToken);
-    } catch (ExpiredJwtException e) {
-      throw AuthException.forExpiredToken();
-    } catch (JwtException | IllegalArgumentException e) {
-      throw AuthException.forInvalidToken();
+      user =
+          userRepository
+              .findById(Objects.requireNonNull(rotated.userId()))
+              .orElseThrow(() -> UserException.forUserNotFound());
+      checkUserStatus(user);
+    } catch (UserException e) {
+      authSessionService.revoke(rotated.sessionId());
+      throw e;
     }
-
-    if (!jwtManager.isRefreshToken(claims)) {
-      throw AuthException.forInvalidToken();
-    }
-
-    Long userId = jwtManager.getUserId(claims);
-    User user =
-        userRepository
-            .findById(Objects.requireNonNull(userId))
-            .orElseThrow(() -> UserException.forUserNotFound());
-
-    checkUserStatus(user);
 
     CustomPrincipal principal =
         new CustomPrincipal(
@@ -235,17 +224,14 @@ public class AuthService {
             null,
             AuthStatus.LOGIN_SUCCESS);
 
-    String newAccessToken = jwtManager.createAccessToken(principal);
-    String newRefreshToken = jwtManager.createRefreshToken(principal);
-
     cookieManager.addCookie(
         response,
         CookieManager.REFRESH_TOKEN_NAME,
-        newRefreshToken,
-        jwtManager.getRefreshTtlInSeconds());
-    csrfTokenService.issue(response, newRefreshToken);
+        rotated.refreshToken(),
+        rotated.refreshMaxAgeSeconds());
 
-    return createLoginResponse(newAccessToken, principal);
+    return createLoginResponse(
+        authSessionService.createAccessToken(principal, rotated.sessionId()), principal);
   }
 
   private LoginResponseDto createLoginResponse(String accessToken, CustomPrincipal principal) {
@@ -286,7 +272,7 @@ public class AuthService {
   private Timer authLoginJwtCreateTimer() {
     if (authLoginJwtCreateTimer == null) {
       authLoginJwtCreateTimer =
-          authLoginTimer(AUTH_LOGIN_JWT_CREATE, "Time spent creating login JWTs");
+          authLoginTimer(AUTH_LOGIN_JWT_CREATE, "Time spent creating the login session and JWTs");
     }
     return authLoginJwtCreateTimer;
   }
@@ -298,6 +284,4 @@ public class AuthService {
         .publishPercentileHistogram()
         .register(meterRegistry);
   }
-
-  private record LoginTokens(String accessToken, String refreshToken) {}
 }

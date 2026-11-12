@@ -22,7 +22,6 @@ import io.jsonwebtoken.MalformedJwtException;
 class JwtManagerTest {
 
   private static final String TEST_ACCESS_SECRET = "a".repeat(64);
-  private static final String TEST_REFRESH_SECRET = "b".repeat(64);
 
   private JwtManager jwtManager;
   private CustomPrincipal testPrincipal;
@@ -31,10 +30,7 @@ class JwtManagerTest {
   void setUp() {
     // 256bit 이상의 비밀키 (32 bytes)
     jwtManager =
-        new JwtManager(
-            new JwtProperties(
-                new JwtProperties.Token(TEST_ACCESS_SECRET, 600),
-                new JwtProperties.Token(TEST_REFRESH_SECRET, 86400)));
+        new JwtManager(new JwtProperties(new JwtProperties.Token(TEST_ACCESS_SECRET, 600)));
 
     List<SimpleGrantedAuthority> authorities =
         Collections.singletonList(new SimpleGrantedAuthority("ROLE_PERSON"));
@@ -45,7 +41,7 @@ class JwtManagerTest {
   @DisplayName("Access Token 정상 생성 및 파싱")
   void createAndParseAccessToken() {
     // when
-    String token = jwtManager.createAccessToken(testPrincipal);
+    String token = jwtManager.createAccessToken(testPrincipal, "session-1");
 
     // then
     assertThat(token).isNotBlank();
@@ -53,37 +49,13 @@ class JwtManagerTest {
 
     Claims claims = jwtManager.getAccessClaims(token);
     assertThat(claims.getSubject()).isEqualTo("1");
+    assertThat(jwtManager.getSessionId(claims)).isEqualTo("session-1");
     assertThat(claims.get("sub")).isEqualTo("1");
     assertThat(jwtManager.isAccessToken(claims)).isTrue();
-    assertThat(jwtManager.isRefreshToken(claims)).isFalse();
 
     List<SimpleGrantedAuthority> authorities = jwtManager.getAuthorities(claims);
     assertThat(authorities).hasSize(1);
     assertThat(authorities.get(0).getAuthority()).isEqualTo("ROLE_PERSON");
-  }
-
-  @Test
-  @DisplayName("Refresh Token 정상 생성 및 파싱")
-  void createAndParseRefreshToken() {
-    // when
-    String token = jwtManager.createRefreshToken(testPrincipal);
-
-    // then
-    assertThat(token).isNotBlank();
-
-    Claims claims = jwtManager.getRefreshClaims(token);
-    assertThat(claims.getSubject()).isEqualTo("1");
-    assertThat(claims.getId()).isNotBlank();
-    assertThat(jwtManager.isRefreshToken(claims)).isTrue();
-    assertThat(jwtManager.isAccessToken(claims)).isFalse();
-    // Refresh token should not have authorities
-    assertThat(claims.get(JwtManager.AUTHORITIES_KEY)).isNull();
-  }
-
-  @Test
-  void refreshTokens_AreUniquePerIssue() {
-    assertThat(jwtManager.createRefreshToken(testPrincipal))
-        .isNotEqualTo(jwtManager.createRefreshToken(testPrincipal));
   }
 
   @Test
@@ -103,11 +75,8 @@ class JwtManagerTest {
     // given
     // 유효시간이 0인 JwtManager 생성 (테스트용)
     JwtManager expiredJwtManager =
-        new JwtManager(
-            new JwtProperties(
-                new JwtProperties.Token(TEST_ACCESS_SECRET, 0),
-                new JwtProperties.Token(TEST_REFRESH_SECRET, 0)));
-    String token = expiredJwtManager.createAccessToken(testPrincipal);
+        new JwtManager(new JwtProperties(new JwtProperties.Token(TEST_ACCESS_SECRET, 0)));
+    String token = expiredJwtManager.createAccessToken(testPrincipal, "session-1");
 
     // when & then
     Thread.sleep(10); // 확실하게 만료시키기 위해 약간의 대기

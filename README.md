@@ -6,7 +6,7 @@ Marigold의 사용자 인증, 입양 게시글, 댓글, 채팅, 파일 저장을
 
 - Java 17, Spring Boot 3, Gradle
 - Spring Web, Spring Data JPA, MySQL
-- Spring Security, JWT, Kakao/Naver OAuth2
+- Spring Security, JWT, Kakao/Naver OAuth2, Redis(인증 세션)
 - SockJS/STOMP WebSocket
 - 로컬 파일시스템 또는 Amazon S3
 - Actuator, Micrometer, Prometheus
@@ -15,7 +15,7 @@ Marigold의 사용자 인증, 입양 게시글, 댓글, 채팅, 파일 저장을
 
 ## 로컬 실행
 
-필요한 도구는 JDK 17과 MySQL 8입니다. 통합 테스트를 실행하려면 Docker도 필요합니다.
+필요한 도구는 JDK 17, MySQL 8과 Redis 7입니다. 로컬 Redis는 Docker로 실행하며 방법은 [실행과 운영](docs/operations.md#실행-프로필)에 있습니다. 통합 테스트를 실행하려면 Docker도 필요합니다.
 
 PowerShell에서 환경 파일을 준비합니다.
 
@@ -24,7 +24,7 @@ New-Item -ItemType Directory -Force ..\secrets\back | Out-Null
 Copy-Item .env.example ..\secrets\back\.env.local
 ```
 
-`../secrets/back/.env.local`에 Access·Refresh·CSRF 비밀키, OAuth 클라이언트 정보와 로컬 DB 접속 정보를 입력합니다. 세 비밀키는 각각 32바이트 이상이어야 하며, Access와 Refresh 비밀키는 서로 다른 값을 사용해야 합니다. `DB_URL`이 가리키는 데이터베이스는 미리 생성되어 있어야 합니다.
+`../secrets/back/.env.local`에 Access token 비밀키, OAuth 클라이언트 정보와 로컬 DB 접속 정보를 입력합니다. 비밀키는 32바이트 이상이어야 합니다. `DB_URL`이 가리키는 데이터베이스는 미리 생성되어 있어야 합니다.
 
 ```powershell
 .\gradlew.bat bootRun --args='--spring.profiles.active=local'
@@ -67,11 +67,11 @@ Copy-Item .env.example ..\secrets\back\.env.local
 | --- | --- | --- |
 | `src/test/unit/java` | 객체 로직, 직렬화·검증 규칙 | `test` |
 | `src/test/component/java` | MVC·보안·트랜잭션 이벤트 구성, 실제 협력 객체를 연결한 인증·로컬 저장소 동작 | `componentTest` |
-| `src/test/integration/java` | 애플리케이션 여러 계층과 실제 MySQL 연결 | `integrationTest` |
+| `src/test/integration/java` | 애플리케이션 여러 계층과 실제 MySQL·Redis 연결 | `integrationTest` |
 
 단일 객체를 직접 호출하고 협력 객체를 mock으로 대체하는 테스트는 `unit`, 제한된 기능의 실제 객체나 Spring 구성을 연결하는 테스트는 `component`에 둡니다. 컴포넌트 테스트는 임시 파일이나 내장 서버를 사용할 수 있지만 외부 DB·S3는 필요하지 않습니다.
 
-`integrationTest`는 Testcontainers로 MySQL 컨테이너를 시작하므로 Docker가 실행 중이어야 합니다. 공통 지원 코드는 `src/test/integration/java/com/sns/marigold/support`, 전용 설정은 `src/test/integration/resources/application-integration-test.yaml`에 있습니다. `check`를 실행하면 세 종류의 테스트와 포맷 검사를 모두 실행합니다.
+`integrationTest`는 Testcontainers로 MySQL과 Redis 컨테이너를 시작하므로 Docker가 실행 중이어야 합니다. 공통 지원 코드는 `src/test/integration/java/com/sns/marigold/support`, 전용 설정은 `src/test/integration/resources/application-integration-test.yaml`에 있습니다. `check`를 실행하면 세 종류의 테스트와 포맷 검사를 모두 실행합니다.
 
 ## 문서
 

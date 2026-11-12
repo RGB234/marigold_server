@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -34,11 +33,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import com.sns.marigold.audit.AuditLogger;
+import com.sns.marigold.auth.common.AccessTokenDetails;
 import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.enums.AuthStatus;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
-import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.auth.exception.AuthError;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
@@ -52,10 +50,6 @@ class WebSocketConfigTest {
 
   @Mock private RoomParticipantRepository participantRepository;
 
-  @Mock private CookieManager cookieManager;
-
-  @Mock private CsrfTokenService csrfTokenService;
-
   @Mock private AuditLogger auditLogger;
   @Mock private WebSocketTokenSessions tokenSessions;
   @Mock private StompProtocolErrorHandler stompProtocolErrorHandler;
@@ -64,7 +58,7 @@ class WebSocketConfigTest {
 
   @Test
   void connectRequiresJwt() {
-    assertThatThrownBy(() -> inbound(connectAccessor("csrf-token")))
+    assertThatThrownBy(() -> inbound(connectAccessor()))
         .isInstanceOfSatisfying(
             AuthException.class,
             exception -> assertThat(exception.getErrorSpec()).isEqualTo(AuthError.UNAUTHORIZED));
@@ -73,7 +67,7 @@ class WebSocketConfigTest {
 
   @Test
   void connectRejectsInvalidJwt() {
-    StompHeaderAccessor accessor = connectAccessor("csrf-token");
+    StompHeaderAccessor accessor = connectAccessor();
     accessor.addNativeHeader("Authorization", "Bearer invalid");
     given(jwtAuthenticationService.getAuthentication("invalid"))
         .willThrow(new IllegalArgumentException("invalid"));
@@ -88,15 +82,15 @@ class WebSocketConfigTest {
     Instant expiresAt = Instant.now().plusSeconds(60);
     UsernamePasswordAuthenticationToken auth =
         (UsernamePasswordAuthenticationToken) authentication(1L);
-    auth.setDetails(expiresAt);
+    auth.setDetails(new AccessTokenDetails("auth-session", expiresAt));
     given(jwtAuthenticationService.getAuthentication("valid")).willReturn(auth);
-    StompHeaderAccessor accessor = connectAccessor("csrf-token");
+    StompHeaderAccessor accessor = connectAccessor();
     accessor.setSessionId("session");
     accessor.addNativeHeader("Authorization", "Bearer valid");
     inbound(accessor);
     assertThat(accessor.getUser()).isSameAs(auth);
     assertThat(accessor.getSessionAttributes()).containsEntry("jwtExpiresAt", expiresAt);
-    verify(tokenSessions).expireAt("session", expiresAt);
+    verify(tokenSessions).expireAt("session", "auth-session", expiresAt);
   }
 
   @Test
@@ -109,9 +103,9 @@ class WebSocketConfigTest {
   void connectRejectsExpiredAuthentication() {
     UsernamePasswordAuthenticationToken auth =
         (UsernamePasswordAuthenticationToken) authentication(1L);
-    auth.setDetails(Instant.now().minusSeconds(1));
+    auth.setDetails(new AccessTokenDetails("auth-session", Instant.now().minusSeconds(1)));
     given(jwtAuthenticationService.getAuthentication("expired")).willReturn(auth);
-    StompHeaderAccessor accessor = connectAccessor("csrf-token");
+    StompHeaderAccessor accessor = connectAccessor();
     accessor.addNativeHeader("Authorization", "Bearer expired");
     assertThatThrownBy(() -> inbound(accessor))
         .isInstanceOfSatisfying(
@@ -180,8 +174,7 @@ class WebSocketConfigTest {
     accessor.setUser(authentication(1L));
     accessor.setDestination(destination);
     accessor.setSessionAttributes(
-        new HashMap<>(
-            Map.of("csrfValidated", true, "jwtExpiresAt", Instant.now().plusSeconds(60))));
+        new HashMap<>(Map.of("jwtExpiresAt", Instant.now().plusSeconds(60))));
     return accessor;
   }
 
@@ -201,53 +194,14 @@ class WebSocketConfigTest {
 
   @BeforeEach
   void setUp() {
-    lenient()
-        .when(csrfTokenService.isValid("csrf-token", "csrf-token", "refresh-token"))
-        .thenReturn(true);
     webSocketConfig =
         new WebSocketConfig(
             jwtAuthenticationService,
             participantRepository,
-            cookieManager,
-            csrfTokenService,
             auditLogger,
             urlProperties(),
             tokenSessions,
             stompProtocolErrorHandler);
-  }
-
-  @Test
-  @DisplayName("WebSocket CONNECT는 CSRF 쿠키와 헤더가 일치하면 통과한다.")
-  void validateCsrf_AllowsMatchingToken() {
-    // given
-    StompHeaderAccessor accessor = connectAccessor("csrf-token");
-
-    // when & then
-    assertThatCode(() -> webSocketConfig.validateCsrf(accessor)).doesNotThrowAnyException();
-    assertThat(accessor.getSessionAttributes()).containsEntry("csrfValidated", Boolean.TRUE);
-  }
-
-  @Test
-  @DisplayName("WebSocket CONNECT는 CSRF 쿠키와 헤더가 불일치하면 거부한다.")
-  void validateCsrf_DeniesMismatchedToken() {
-    // given
-    StompHeaderAccessor accessor = connectAccessor("other-token");
-
-    // when & then
-    assertThatThrownBy(() -> webSocketConfig.validateCsrf(accessor))
-        .isInstanceOf(AccessDeniedException.class);
-  }
-
-  @Test
-  @DisplayName("WebSocket SEND/SUBSCRIBE는 CONNECT CSRF 검증이 선행되어야 한다.")
-  void requireCsrfValidated_DeniesWhenConnectWasNotValidated() {
-    // given
-    StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
-    accessor.setSessionAttributes(new HashMap<>());
-
-    // when & then
-    assertThatThrownBy(() -> webSocketConfig.requireCsrfValidated(accessor))
-        .isInstanceOf(AccessDeniedException.class);
   }
 
   @Test
@@ -304,13 +258,9 @@ class WebSocketConfigTest {
         .isInstanceOf(AccessDeniedException.class);
   }
 
-  private StompHeaderAccessor connectAccessor(String csrfHeader) {
+  private StompHeaderAccessor connectAccessor() {
     StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
-    Map<String, Object> sessionAttributes = new HashMap<>();
-    sessionAttributes.put(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, "csrf-token");
-    sessionAttributes.put("csrfSessionBinding", "refresh-token");
-    accessor.setSessionAttributes(sessionAttributes);
-    accessor.addNativeHeader(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfHeader);
+    accessor.setSessionAttributes(new HashMap<>());
     return accessor;
   }
 

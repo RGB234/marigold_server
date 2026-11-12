@@ -17,6 +17,10 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
+  data:
+    redis:
+      host: ${REDIS_HOST} # 운영에서는 기본값(localhost) 없이 반드시 지정한다
+
   cloud:
     aws:
       credentials:

@@ -3,11 +3,11 @@ package com.sns.marigold.auth.common.jwt;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.crypto.SecretKey;
 
+import org.springframework.lang.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
@@ -25,24 +25,19 @@ public class JwtManager {
   public static final String AUTHORITIES_KEY = "auth";
   public static final String TOKEN_USE_KEY = "token_use";
   public static final String ACCESS_TOKEN_USE = "access";
-  public static final String REFRESH_TOKEN_USE = "refresh";
+  public static final String SESSION_ID_KEY = "sid";
 
   private final SecretKey accessKey;
-  private final SecretKey refreshKey;
   @Getter public final long accessTtlInMilliseconds;
-  @Getter public final long refreshTtlInMilliseconds;
 
   public JwtManager(JwtProperties jwtProperties) {
     this.accessKey =
         Keys.hmacShaKeyFor(jwtProperties.access().secret().getBytes(StandardCharsets.UTF_8));
-    this.refreshKey =
-        Keys.hmacShaKeyFor(jwtProperties.refresh().secret().getBytes(StandardCharsets.UTF_8));
     this.accessTtlInMilliseconds = jwtProperties.access().ttlSeconds() * 1000;
-    this.refreshTtlInMilliseconds = jwtProperties.refresh().ttlSeconds() * 1000;
   }
 
-  /** Access Token 생성 */
-  public String createAccessToken(CustomPrincipal principal) {
+  /** Access Token 생성. 요청마다 sid의 세션이 살아 있는지 확인한다 */
+  public String createAccessToken(CustomPrincipal principal, String sessionId) {
     Date now = new Date();
     Date validity = new Date(now.getTime() + accessTtlInMilliseconds);
 
@@ -55,24 +50,10 @@ public class JwtManager {
         .subject(principal.getUserId().toString())
         .claim(AUTHORITIES_KEY, authorities) // 권한 정보
         .claim(TOKEN_USE_KEY, ACCESS_TOKEN_USE)
+        .claim(SESSION_ID_KEY, sessionId)
         .issuedAt(now)
         .expiration(validity)
         .signWith(accessKey)
-        .compact();
-  }
-
-  /** Refresh Token 생성 */
-  public String createRefreshToken(CustomPrincipal principal) {
-    Date now = new Date();
-    Date validity = new Date(now.getTime() + refreshTtlInMilliseconds);
-
-    return Jwts.builder()
-        .subject(principal.getUserId().toString())
-        .id(UUID.randomUUID().toString())
-        .claim(TOKEN_USE_KEY, REFRESH_TOKEN_USE)
-        .issuedAt(now)
-        .expiration(validity)
-        .signWith(refreshKey)
         .compact();
   }
 
@@ -80,21 +61,19 @@ public class JwtManager {
     return parseClaims(token, accessKey);
   }
 
-  public Claims getRefreshClaims(String token) {
-    return parseClaims(token, refreshKey);
-  }
-
   /** Token에서 User ID 추출 */
   public Long getUserId(Claims claims) {
     return Long.parseLong(claims.get("sub", String.class));
   }
 
-  public boolean isAccessToken(Claims claims) {
-    return ACCESS_TOKEN_USE.equals(claims.get(TOKEN_USE_KEY, String.class));
+  /** 인증 세션 ID. 세션 도입 전에 발급된 token에는 없다 */
+  @Nullable
+  public String getSessionId(Claims claims) {
+    return claims.get(SESSION_ID_KEY, String.class);
   }
 
-  public boolean isRefreshToken(Claims claims) {
-    return REFRESH_TOKEN_USE.equals(claims.get(TOKEN_USE_KEY, String.class));
+  public boolean isAccessToken(Claims claims) {
+    return ACCESS_TOKEN_USE.equals(claims.get(TOKEN_USE_KEY, String.class));
   }
 
   /** Token에서 권한 정보 추출 */
@@ -105,10 +84,6 @@ public class JwtManager {
       return List.of();
     }
     return authorities.stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList());
-  }
-
-  public Long getRefreshTtlInSeconds() {
-    return this.refreshTtlInMilliseconds / 1000;
   }
 
   private Claims parseClaims(String token, SecretKey key) {

@@ -29,5 +29,7 @@ class HttpErrorPolicyTest {
         .isEqualTo(HttpStatus.PAYLOAD_TOO_LARGE);
     assertThat(HttpErrorPolicy.statusOf(StorageError.FILE_READ_FAILED))
         .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    assertThat(HttpErrorPolicy.statusOf(AuthError.SESSION_STORE_UNAVAILABLE))
+        .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
   }
 }

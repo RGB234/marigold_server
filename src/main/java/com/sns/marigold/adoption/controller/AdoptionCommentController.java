@@ -47,15 +47,11 @@ public class AdoptionCommentController {
   @Operation(
       summary = "댓글 생성",
       description = "입양 게시글에 댓글을 생성합니다. 이미지는 업로드 토큰으로 보냅니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "201", description = "생성 성공"),
     @ApiResponse(responseCode = "400", description = "입력값 또는 이미지 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
-    @ApiResponse(responseCode = "403", description = "CSRF token 누락 또는 불일치"),
     @ApiResponse(responseCode = "404", description = "게시글 없음")
   })
   @PreAuthorize("isAuthenticated()")
@@ -79,15 +75,12 @@ public class AdoptionCommentController {
   @Operation(
       summary = "댓글 수정",
       description = "작성자가 댓글 내용과 이미지를 수정합니다. 새 이미지는 업로드 토큰으로 보냅니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "204", description = "수정 성공"),
     @ApiResponse(responseCode = "400", description = "입력값 또는 이미지 오류"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
-    @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
+    @ApiResponse(responseCode = "403", description = "권한 없음"),
     @ApiResponse(responseCode = "404", description = "게시글 또는 댓글 없음")
   })
   @PreAuthorize("isAuthenticated()")
@@ -122,14 +115,11 @@ public class AdoptionCommentController {
   @Operation(
       summary = "댓글 삭제",
       description = "작성자가 댓글을 삭제합니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "204", description = "삭제 성공"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
-    @ApiResponse(responseCode = "403", description = "권한 없음 또는 CSRF token 오류"),
+    @ApiResponse(responseCode = "403", description = "권한 없음"),
     @ApiResponse(responseCode = "404", description = "댓글 없음")
   })
   @PreAuthorize("isAuthenticated()")

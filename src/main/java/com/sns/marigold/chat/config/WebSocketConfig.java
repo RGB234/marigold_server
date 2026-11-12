@@ -7,9 +7,6 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.server.ServerHttpRequest;
-import org.springframework.http.server.ServerHttpResponse;
-import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
@@ -26,20 +23,17 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
-import org.springframework.web.socket.server.HandshakeInterceptor;
 
 import com.sns.marigold.audit.AuditLogger;
+import com.sns.marigold.auth.common.AccessTokenDetails;
 import com.sns.marigold.auth.common.CustomPrincipal;
-import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.service.JwtAuthenticationService;
-import com.sns.marigold.auth.common.util.CookieManager;
 import com.sns.marigold.auth.exception.AuthException;
 import com.sns.marigold.chat.ChatDestinations;
 import com.sns.marigold.chat.repository.RoomParticipantRepository;
@@ -49,8 +43,6 @@ import com.sns.marigold.global.tsid.TsidCodec;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -60,14 +52,10 @@ import lombok.extern.slf4j.Slf4j;
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-  private static final String CSRF_VALIDATED_SESSION_ATTRIBUTE = "csrfValidated";
-  private static final String CSRF_SESSION_BINDING_ATTRIBUTE = "csrfSessionBinding";
   private static final String JWT_EXPIRES_AT = "jwtExpiresAt";
 
   private final JwtAuthenticationService jwtAuthenticationService;
   private final RoomParticipantRepository participantRepository;
-  private final CookieManager cookieManager;
-  private final CsrfTokenService csrfTokenService;
   private final AuditLogger auditLogger;
   private final UrlProperties urlProperties;
   private final WebSocketTokenSessions tokenSessions;
@@ -104,8 +92,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     // SockJS 사용
     registry
         .addEndpoint("/ws")
+        // CONNECT는 쿠키가 아닌 Authorization 헤더로 인증하므로 CSRF 검사가 필요 없고, Origin 검사로 다른 사이트의 연결을 막는다
         .setAllowedOrigins(allowedFrontendOrigin())
-        .addInterceptors(csrfHandshakeInterceptor())
         .withSockJS();
   }
 
@@ -129,13 +117,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             if (accessor != null) {
               try {
                 if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-                  validateCsrf(accessor);
                   authenticate(accessor);
                 }
 
                 if (StompCommand.SEND.equals(accessor.getCommand())
                     || StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-                  requireCsrfValidated(accessor);
                   requireAuthenticatedSession(accessor);
                   if (StompCommand.SEND.equals(accessor.getCommand())
                       && !ChatDestinations.MESSAGE_SEND.equals(accessor.getDestination())) {
@@ -194,77 +180,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     return frontendUri.getScheme() + "://" + frontendUri.getAuthority();
   }
 
-  private HandshakeInterceptor csrfHandshakeInterceptor() {
-    return new HandshakeInterceptor() {
-      @Override
-      public boolean beforeHandshake(
-          @NonNull ServerHttpRequest request,
-          @NonNull ServerHttpResponse response,
-          @NonNull WebSocketHandler wsHandler,
-          @NonNull Map<String, Object> attributes) {
-        if (request instanceof ServletServerHttpRequest servletRequest) {
-          HttpServletRequest httpRequest = servletRequest.getServletRequest();
-          Cookie csrfCookie =
-              cookieManager.getCookie(httpRequest, CsrfTokenService.CSRF_TOKEN_COOKIE_NAME);
-          if (csrfCookie != null) {
-            attributes.put(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME, csrfCookie.getValue());
-          }
-          String sessionBinding = csrfTokenService.resolveSessionBinding(httpRequest);
-          if (sessionBinding != null) {
-            attributes.put(CSRF_SESSION_BINDING_ATTRIBUTE, sessionBinding);
-          }
-        }
-        return true;
-      }
-
-      @Override
-      public void afterHandshake(
-          @NonNull ServerHttpRequest request,
-          @NonNull ServerHttpResponse response,
-          @NonNull WebSocketHandler wsHandler,
-          @Nullable Exception exception) {}
-    };
-  }
-
-  void validateCsrf(@NonNull StompHeaderAccessor accessor) {
-    Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
-    String csrfCookie = getCsrfCookieValue(sessionAttributes);
-    String csrfHeader = accessor.getFirstNativeHeader(CsrfTokenService.CSRF_TOKEN_HEADER_NAME);
-    String sessionBinding = getSessionBinding(sessionAttributes);
-
-    if (!csrfTokenService.isValid(csrfCookie, csrfHeader, sessionBinding)) {
-      throw new AccessDeniedException("CSRF token is missing or invalid");
-    }
-
-    Objects.requireNonNull(sessionAttributes).put(CSRF_VALIDATED_SESSION_ATTRIBUTE, Boolean.TRUE);
-  }
-
-  void requireCsrfValidated(@NonNull StompHeaderAccessor accessor) {
-    Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
-    if (sessionAttributes == null
-        || !Boolean.TRUE.equals(sessionAttributes.get(CSRF_VALIDATED_SESSION_ATTRIBUTE))) {
-      throw new AccessDeniedException("CSRF validation is required");
-    }
-  }
-
-  @Nullable
-  private String getCsrfCookieValue(@Nullable Map<String, Object> sessionAttributes) {
-    if (sessionAttributes == null) {
-      return null;
-    }
-    Object csrfCookie = sessionAttributes.get(CsrfTokenService.CSRF_TOKEN_COOKIE_NAME);
-    return csrfCookie instanceof String value ? value : null;
-  }
-
-  @Nullable
-  private String getSessionBinding(@Nullable Map<String, Object> sessionAttributes) {
-    if (sessionAttributes == null) {
-      return null;
-    }
-    Object sessionBinding = sessionAttributes.get(CSRF_SESSION_BINDING_ATTRIBUTE);
-    return sessionBinding instanceof String value ? value : null;
-  }
-
   void authenticate(@NonNull StompHeaderAccessor accessor) {
     String authorizationHeader = accessor.getFirstNativeHeader("Authorization");
     if (!StringUtils.hasText(authorizationHeader) || !authorizationHeader.startsWith("Bearer ")) {
@@ -289,15 +204,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 
     if (!authentication.isAuthenticated()
-        || !(authentication.getDetails() instanceof Instant expiresAt)) {
+        || !(authentication.getDetails() instanceof AccessTokenDetails details)) {
       throw AuthException.forInvalidToken();
     }
+    Instant expiresAt = details.expiresAt();
     if (!expiresAt.isAfter(Instant.now())) {
       throw AuthException.forExpiredToken();
     }
 
     Map<String, Object> attributes = Objects.requireNonNull(accessor.getSessionAttributes());
-    tokenSessions.expireAt(Objects.requireNonNull(accessor.getSessionId()), expiresAt);
+    tokenSessions.expireAt(
+        Objects.requireNonNull(accessor.getSessionId()), details.sessionId(), expiresAt);
     attributes.put(JWT_EXPIRES_AT, expiresAt);
     accessor.setUser(authentication);
   }

@@ -8,6 +8,14 @@ spring:
     properties:
       hibernate:
         default_batch_fetch_size: 100 # 이미지 목록의 storage_file 지연 로딩을 IN 조회로 묶는다
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      # 인증된 요청마다 Redis를 거치므로, 장애 때 요청이 오래 묶이지 않고 503으로 빨리 실패하게 한다
+      timeout: 2s
+      connect-timeout: 2s
 
 server:
   servlet:
@@ -40,11 +48,9 @@ app:
       access:
         secret: ${ACCESS_SECRET}
         ttl-seconds: 600
-      refresh:
-        secret: ${REFRESH_SECRET}
-        ttl-seconds: 86400
-    csrf:
-      secret: ${CSRF_SECRET}
-      ttl-seconds: ${app.auth.jwt.refresh.ttl-seconds}
     recent-auth:
-      ttl-seconds: 300
+      ttl-seconds: 300 # 로그인 후 이 시간 안의 세션만 민감한 작업(자격 증명 등록, 탈퇴, 계정 연결)을 할 수 있다
+    session:
+      refresh-ttl-seconds: 86400 # refresh token(불투명 값) 한 개의 유효시간
+      absolute-ttl-seconds: 1209600 # 2주. refresh로 연장해도 로그인 후 이 시간이 지나면 다시 로그인해야 한다
+      reuse-grace-seconds: 10 # 직전 refresh token 재시도를 받아 주는 시간. 이후에 오면 탈취로 보고 세션을 폐기한다

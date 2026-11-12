@@ -16,7 +16,10 @@ import jakarta.servlet.http.HttpServletResponse;
 public class CookieManager {
 
   public static final String REFRESH_TOKEN_NAME = "refresh_token";
-  public static final String RECENT_AUTH_TOKEN_NAME = "recent_auth";
+
+  // 프론트엔드와 백엔드가 같은 사이트라는 전제에서 CSRF 방어를 맡는다. 다른 사이트의 POST에는 쿠키가 실리지 않는다.
+  // Strict는 쓰지 않는다: OAuth2 callback은 제공자에서 넘어오는 cross-site GET 이동이라 state·refresh 쿠키가 실려야 한다
+  private static final String SAME_SITE = "Lax";
 
   /**
    * HttpOnly, Secure 쿠키 추가
@@ -27,16 +30,6 @@ public class CookieManager {
    * @param maxAge 만료 시간(초)
    */
   public void addCookie(HttpServletResponse response, String name, String value, long maxAge) {
-    addCookie(response, name, value, maxAge, true);
-  }
-
-  public void addReadableCookie(
-      HttpServletResponse response, String name, String value, long maxAge) {
-    addCookie(response, name, value, maxAge, false);
-  }
-
-  private void addCookie(
-      HttpServletResponse response, String name, String value, long maxAge, boolean httpOnly) {
     if (response == null || name == null || value == null) {
       return;
     }
@@ -44,9 +37,9 @@ public class CookieManager {
     ResponseCookie cookie =
         ResponseCookie.from(name, value)
             .path("/")
-            .httpOnly(httpOnly)
+            .httpOnly(true)
             .secure(true) // HTTPS 환경에서만 사용
-            .sameSite("None") // cross-site 프론트엔드 요청에도 인증 쿠키를 전송
+            .sameSite(SAME_SITE)
             .maxAge(maxAge)
             .build();
 
@@ -69,7 +62,7 @@ public class CookieManager {
             .path("/") // 생성했을 때와 동일한 경로
             .httpOnly(true) // 생성 옵션과 동일하게
             .secure(true)
-            .sameSite("None")
+            .sameSite(SAME_SITE)
             .maxAge(0) // 즉시 만료
             .build();
 

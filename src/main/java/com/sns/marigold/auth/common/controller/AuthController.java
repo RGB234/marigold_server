@@ -10,12 +10,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.common.dto.LocalLoginDto;
 import com.sns.marigold.auth.common.dto.LoginResponseDto;
 import com.sns.marigold.auth.common.dto.UserAuthStatusDto;
 import com.sns.marigold.auth.common.service.AuthService;
-import com.sns.marigold.global.config.SwaggerConfig;
 import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.user.dto.create.LocalSignupDto;
 
@@ -23,7 +21,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -43,7 +40,6 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
   private final AuthService authService;
-  private final CsrfTokenService csrfTokenService;
 
   @Operation(summary = "로컬 회원가입", description = "이메일, 비밀번호, 닉네임으로 로컬 계정을 생성합니다.")
   @ApiResponses({
@@ -60,7 +56,7 @@ public class AuthController {
 
   @Operation(
       summary = "로컬 로그인",
-      description = "이메일/비밀번호로 로그인하고 accessToken을 응답 body로, refresh token과 CSRF token을 쿠키로 발급합니다.")
+      description = "이메일/비밀번호로 로그인하고 accessToken을 응답 body로, refresh token을 쿠키로 발급합니다.")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "로그인 성공"),
     @ApiResponse(responseCode = "400", description = "인증 정보 오류"),
@@ -70,8 +66,9 @@ public class AuthController {
   @PostMapping("/login")
   public LoginResponseDto localLogin(
       @Valid @RequestBody LocalLoginDto dto,
+      @Parameter(hidden = true) HttpServletRequest request,
       @Parameter(hidden = true) HttpServletResponse response) {
-    LoginResponseDto loginResponse = authService.emailLogin(dto, response);
+    LoginResponseDto loginResponse = authService.emailLogin(dto, request, response);
     return loginResponse;
   }
 
@@ -91,24 +88,16 @@ public class AuthController {
   @GetMapping("/status")
   public UserAuthStatusDto getAuthStatus(
       @Parameter(hidden = true) Authentication authentication,
-      @Parameter(hidden = true) HttpServletRequest request,
-      @Parameter(hidden = true) HttpServletResponse response) {
-    UserAuthStatusDto authStatus = authService.getAuthStatus(authentication, request);
-    if (authStatus.isRefreshTokenPresent()) {
-      csrfTokenService.issue(request, response);
-    }
-
-    return authStatus;
+      @Parameter(hidden = true) HttpServletRequest request) {
+    return authService.getAuthStatus(authentication, request);
   }
 
   @Operation(
       summary = "accessToken 재발급",
-      description = "refresh token 쿠키로 새 accessToken과 refresh token을 발급합니다.",
-      security = {@SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)})
+      description = "refresh token 쿠키로 새 accessToken과 refresh token을 발급합니다.")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "재발급 성공"),
-    @ApiResponse(responseCode = "401", description = "refresh token 누락, 만료 또는 오류"),
-    @ApiResponse(responseCode = "403", description = "CSRF token 누락 또는 불일치")
+    @ApiResponse(responseCode = "401", description = "refresh token 누락, 만료 또는 오류")
   })
   @PreAuthorize("permitAll()")
   @PostMapping("/refresh")

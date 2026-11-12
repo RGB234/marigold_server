@@ -13,7 +13,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
-import com.sns.marigold.auth.common.csrf.CsrfTokenService;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.tsid.TsidCodec;
 import com.sns.marigold.global.web.UrlConstants;
@@ -109,8 +108,6 @@ public class UserApiIntegrationTest extends ApiIntegrationTest {
   @DisplayName("OAuth2 가입 사용자는 이메일/비밀번호 로그인 정보를 등록할 수 있다")
   void registerCredentials_Success() throws Exception {
     User user = java.util.Objects.requireNonNull(tester1);
-    var recentAuthCookie = getRecentAuthCookie(user);
-    String csrfToken = getCsrfToken(recentAuthCookie.getValue());
     String requestBody =
         """
         {
@@ -123,8 +120,6 @@ public class UserApiIntegrationTest extends ApiIntegrationTest {
         .perform(
             post(UrlConstants.USER_BASE + "/credentials")
                 .header("Authorization", "Bearer " + getAccessToken(user))
-                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfToken)
-                .cookie(recentAuthCookie, getCsrfCookie(csrfToken))
                 .contentType("application/json")
                 .content(requestBody))
         .andExpect(status().isNoContent());
@@ -134,9 +129,10 @@ public class UserApiIntegrationTest extends ApiIntegrationTest {
   }
 
   @Test
-  @DisplayName("Recent auth 없이 이메일 비밀번호 로그인 정보를 등록할 수 없다")
+  @DisplayName("로그인한 지 오래된 세션으로는 이메일 비밀번호 로그인 정보를 등록할 수 없다")
   void registerCredentials_RecentAuthRequired() throws Exception {
     User user = java.util.Objects.requireNonNull(tester1);
+    String staleAccessToken = getStaleAccessToken(user);
     String requestBody =
         """
         {
@@ -148,7 +144,7 @@ public class UserApiIntegrationTest extends ApiIntegrationTest {
     mockMvc
         .perform(
             post(UrlConstants.USER_BASE + "/credentials")
-                .header("Authorization", "Bearer " + getAccessToken(user))
+                .header("Authorization", "Bearer " + staleAccessToken)
                 .contentType("application/json")
                 .content(requestBody))
         .andExpect(status().isForbidden())
@@ -156,15 +152,14 @@ public class UserApiIntegrationTest extends ApiIntegrationTest {
   }
 
   @Test
-  @DisplayName("Recent auth는 실패한 제출 후에도 TTL 동안 재사용할 수 있다")
+  @DisplayName("최근 인증은 실패한 제출 후에도 유효 시간 동안 재사용할 수 있다")
   void registerCredentials_RecentAuthReusableAfterFailedSubmission() throws Exception {
     User user = java.util.Objects.requireNonNull(tester1);
     User otherUser = java.util.Objects.requireNonNull(tester2);
     otherUser.addEmailAndPassword("used@example.com", "encoded-password");
     userRepository.save(otherUser);
+    String accessToken = getAccessToken(user);
 
-    var recentAuthCookie = getRecentAuthCookie(user);
-    String csrfToken = getCsrfToken(recentAuthCookie.getValue());
     String duplicateRequestBody =
         """
         {
@@ -183,9 +178,7 @@ public class UserApiIntegrationTest extends ApiIntegrationTest {
     mockMvc
         .perform(
             post(UrlConstants.USER_BASE + "/credentials")
-                .header("Authorization", "Bearer " + getAccessToken(user))
-                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfToken)
-                .cookie(recentAuthCookie, getCsrfCookie(csrfToken))
+                .header("Authorization", "Bearer " + accessToken)
                 .contentType("application/json")
                 .content(duplicateRequestBody))
         .andExpect(status().isConflict())
@@ -194,9 +187,7 @@ public class UserApiIntegrationTest extends ApiIntegrationTest {
     mockMvc
         .perform(
             post(UrlConstants.USER_BASE + "/credentials")
-                .header("Authorization", "Bearer " + getAccessToken(user))
-                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfToken)
-                .cookie(recentAuthCookie, getCsrfCookie(csrfToken))
+                .header("Authorization", "Bearer " + accessToken)
                 .contentType("application/json")
                 .content(validRequestBody))
         .andExpect(status().isNoContent());
@@ -206,25 +197,21 @@ public class UserApiIntegrationTest extends ApiIntegrationTest {
   @DisplayName("인증된 사용자는 본인 계정을 삭제할 수 있다")
   void deleteUser_Success() throws Exception {
     User user = java.util.Objects.requireNonNull(tester1);
-    var recentAuthCookie = getRecentAuthCookie(user);
-    String csrfToken = getCsrfToken(recentAuthCookie.getValue());
     mockMvc
         .perform(
             delete(UrlConstants.USER_BASE + "/delete")
-                .header("Authorization", "Bearer " + getAccessToken(user))
-                .header(CsrfTokenService.CSRF_TOKEN_HEADER_NAME, csrfToken)
-                .cookie(recentAuthCookie, getCsrfCookie(csrfToken)))
+                .header("Authorization", "Bearer " + getAccessToken(user)))
         .andExpect(status().isNoContent());
   }
 
   @Test
-  @DisplayName("Recent auth 없이 본인 계정을 삭제할 수 없다")
+  @DisplayName("로그인한 지 오래된 세션으로는 본인 계정을 삭제할 수 없다")
   void deleteUser_RecentAuthRequired() throws Exception {
     User user = java.util.Objects.requireNonNull(tester1);
     mockMvc
         .perform(
             delete(UrlConstants.USER_BASE + "/delete")
-                .header("Authorization", "Bearer " + getAccessToken(user)))
+                .header("Authorization", "Bearer " + getStaleAccessToken(user)))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.errorCode").value("AUTH_RECENT_AUTH_REQUIRED"));
   }

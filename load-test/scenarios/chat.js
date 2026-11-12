@@ -11,18 +11,14 @@ function createStompFrame(command, headers = {}, body = '') {
   return frame;
 }
 
-export function chatSession(token, csrfToken, refreshToken, userId, roomId) {
-  if (!token || !csrfToken || !refreshToken || !userId || !roomId) {
+export function chatSession(token, userId, roomId) {
+  if (!token || !userId || !roomId) {
     // If not authenticated or missing room, skip chat test
     return;
   }
 
   const url = WS_BASE_URL;
   const params = {
-    headers: {
-      // 핸드셰이크에서 refresh_token 쿠키를 CSRF 결속 값으로 보관하고, CONNECT의 X-CSRF-TOKEN을 그 값으로 검증한다.
-      Cookie: `XSRF-TOKEN=${csrfToken}; refresh_token=${refreshToken}`,
-    },
     tags: { name: 'chat_websocket' }
   };
 
@@ -32,8 +28,7 @@ export function chatSession(token, csrfToken, refreshToken, userId, roomId) {
       const connectFrame = createStompFrame('CONNECT', {
         'accept-version': '1.1,1.2',
         'heart-beat': '10000,10000',
-        'Authorization': `Bearer ${token}`,
-        'X-CSRF-TOKEN': csrfToken
+        'Authorization': `Bearer ${token}`
       });
       socket.send(connectFrame);
     });

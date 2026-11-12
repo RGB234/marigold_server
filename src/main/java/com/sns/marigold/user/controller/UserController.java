@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,7 +33,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -48,10 +48,7 @@ public class UserController {
   @Operation(
       summary = "Email/Password 등록",
       description = "소셜 로그인으로 가입한 사용자가 이메일/비밀번호 로그인 수단을 추가합니다. 최근 인증이 필요합니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "204", description = "등록 성공"),
     @ApiResponse(responseCode = "400", description = "입력값 오류"),
@@ -67,12 +64,12 @@ public class UserController {
           @RequestBody(description = "등록할 이메일과 비밀번호", required = true)
           @org.springframework.web.bind.annotation.RequestBody
           EmailPasswordRegisterDto dto,
-      @Parameter(hidden = true) HttpServletRequest request) {
+      @Parameter(hidden = true) Authentication authentication) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw com.sns.marigold.auth.exception.AuthException.forUnauthorized();
     }
-    recentAuthService.validate(request, userId);
+    recentAuthService.validate(authentication);
     userService.registerEmailAndPassword(userId, dto);
     return ResponseEntity.noContent().build();
   }
@@ -80,10 +77,7 @@ public class UserController {
   @Operation(
       summary = "내 프로필 수정",
       description = "인증된 사용자의 닉네임과 프로필 이미지를 수정합니다. 새 이미지는 업로드 토큰으로 보냅니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "수정 성공"),
     @ApiResponse(responseCode = "400", description = "입력값 또는 이미지 파일 오류"),
@@ -180,10 +174,7 @@ public class UserController {
   @Operation(
       summary = "회원 탈퇴",
       description = "인증된 사용자를 탈퇴 처리합니다. 최근 인증이 필요합니다.",
-      security = {
-        @SecurityRequirement(name = SwaggerConfig.BEARER_AUTH),
-        @SecurityRequirement(name = SwaggerConfig.CSRF_TOKEN)
-      })
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
   @ApiResponses({
     @ApiResponse(responseCode = "204", description = "탈퇴 성공"),
     @ApiResponse(responseCode = "401", description = "인증 필요"),
@@ -194,12 +185,12 @@ public class UserController {
   @DeleteMapping("/delete")
   public ResponseEntity<Void> deleteUser(
       @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
-      @Parameter(hidden = true) HttpServletRequest request) {
+      @Parameter(hidden = true) Authentication authentication) {
     Long userId = principal.getUserId();
     if (userId == null) {
       throw com.sns.marigold.auth.exception.AuthException.forAccessDenied();
     }
-    recentAuthService.validate(request, userId);
+    recentAuthService.validate(authentication);
     userService.deleteUser(principal.getUserId());
     return ResponseEntity.noContent().build();
   }
