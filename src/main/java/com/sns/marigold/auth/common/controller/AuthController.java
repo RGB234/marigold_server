@@ -60,7 +60,7 @@ public class AuthController {
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "로그인 성공"),
     @ApiResponse(responseCode = "400", description = "인증 정보 오류"),
-    @ApiResponse(responseCode = "403", description = "탈퇴, 정지 또는 휴면 사용자")
+    @ApiResponse(responseCode = "403", description = "탈퇴 또는 정지 사용자")
   })
   @PreAuthorize("permitAll()")
   @PostMapping("/login")

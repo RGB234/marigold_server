@@ -12,8 +12,6 @@ public enum AuthStatus {
   LINK_SUCCESS, // 기존 유저 소셜 연동 성공
   @Schema(description = "제재된 사용자")
   BANNED, // 제재된 유저
-  @Schema(description = "휴면 사용자")
-  SLEEP, // 휴면 유저
   @Schema(description = "탈퇴한 사용자")
   DELETED // 탈퇴한 유저
 }

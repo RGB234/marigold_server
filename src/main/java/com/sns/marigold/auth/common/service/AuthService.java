@@ -246,7 +246,6 @@ public class AuthService {
     switch (user.getStatus()) {
       case DELETED -> throw UserException.forUserDeleted();
       case BANNED -> throw UserException.forUserBanned();
-      case SLEEP -> throw UserException.forUserSleeping();
       default -> {}
     }
   }

@@ -68,7 +68,7 @@ OAuth 제공자의 인증을 마치고 사용자 정보를 정상적으로 확�
 - `LOGIN_SUCCESS`: 기존 사용자 로그인 성공입니다. Refresh 쿠키가 발급되며, 프론트엔드는 token refresh API를 호출해 access token을 받아야 합니다.
 - `SIGNUP_SUCCESS`: 신규 사용자 가입과 로그인 성공입니다. `LOGIN_SUCCESS`와 같은 쿠키가 발급되며, token refresh API로 access token을 받아야 합니다.
 - `LINK_SUCCESS`: 로그인 중인 사용자에게 OAuth 계정 연결을 완료했습니다. 새로운 인증 token이나 쿠키는 발급하지 않습니다.
-- `BANNED`, `SLEEP`, `DELETED`: OAuth 제공자의 인증은 성공했지만 서비스의 사용자 상태 때문에 로그인할 수 없습니다. 인증 token과 쿠키를 발급하지 않습니다.
+- `BANNED`, `DELETED`: OAuth 제공자의 인증은 성공했지만 서비스의 사용자 상태 때문에 로그인할 수 없습니다. 인증 token과 쿠키를 발급하지 않습니다.
 
 OAuth 제공자 오류, callback 검증 실패 또는 계정 연결에 필요한 인증 실패처럼 OAuth2 처리를 완료하지 못한 경우에는 다음과 같이 redirect합니다.
 

@@ -9,7 +9,7 @@ erDiagram
         varchar(255) password "nullable (OAuth2 전용 계정)"
         enum role "ROLE_PERSON|ROLE_ADMIN"
         varchar(50) nickname UK "uk_users_nickname"
-        enum status "ACTIVE|DELETED|BANNED|SLEEP"
+        enum status "ACTIVE|DELETED|BANNED"
         datetime(6) deleted_at "논리 삭제"
     }
 

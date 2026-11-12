@@ -185,6 +185,7 @@ Lifecycle 규칙은 안전망입니다. 규칙이 없어도 고아 정리의 만
 | --- | --- | --- |
 | 2026-10-24 | 게시글·댓글 `version` 컬럼 | [2026-10-24-adoption-version-columns](migrations/2026-10-24-adoption-version-columns.md) |
 | 2026-10-25 | `storage_file` 테이블 도입과 파일 테이블 전환 | [2026-10-25-storage-file](migrations/2026-10-25-storage-file.md) |
+| 2026-11-12 | `users.status`에서 `SLEEP` 제거 | [2026-11-12-users-status-drop-sleep](migrations/2026-11-12-users-status-drop-sleep.md) |
 
 ## 관측
 

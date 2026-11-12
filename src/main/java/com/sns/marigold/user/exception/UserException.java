@@ -41,10 +41,6 @@ public class UserException extends ApplicationException {
     return new UserException(UserError.BANNED);
   }
 
-  public static UserException forUserSleeping() {
-    return new UserException(UserError.SLEEPING);
-  }
-
   public static UserException forAdminCannotBeBanned() {
     return new UserException(UserError.ADMIN_CANNOT_BE_BANNED);
   }
