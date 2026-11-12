@@ -149,6 +149,14 @@ public class User {
     this.deletedAt = LocalDateTime.now();
   }
 
+  public void ban() {
+    this.status = UserStatus.BANNED;
+  }
+
+  public void unban() {
+    this.status = UserStatus.ACTIVE;
+  }
+
   public String getDisplayNickname() {
     if (this.status == UserStatus.DELETED) {
       return "탈퇴한 유저";

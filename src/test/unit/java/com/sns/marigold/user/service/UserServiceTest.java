@@ -15,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -26,6 +27,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.sns.marigold.audit.AuditLogger;
 import com.sns.marigold.auth.common.enums.Role;
+import com.sns.marigold.auth.common.service.AuthSessionService;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.global.tsid.TsidCodec;
 import com.sns.marigold.storage.StorageFileFixtures;
@@ -40,7 +42,9 @@ import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.entity.UserImage;
+import com.sns.marigold.user.enums.UserStatus;
 import com.sns.marigold.user.event.UserDeletedEvent;
+import com.sns.marigold.user.exception.UserError;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
 
@@ -62,6 +66,8 @@ class UserServiceTest {
   @Mock private PasswordEncoder passwordEncoder;
 
   @Mock private AuditLogger auditLogger;
+
+  @Mock private AuthSessionService authSessionService;
 
   @InjectMocks private UserService userService;
 
@@ -418,6 +424,80 @@ class UserServiceTest {
         .publishEvent(
             new DeleteOldStorageFilesEvent(
                 List.of("user/profile/22222222-2222-2222-2222-222222222222.jpg")));
+  }
+
+  @Test
+  @DisplayName("사용자를 정지하면 상태를 바꾼 트랜잭션이 끝난 뒤 그 사용자의 모든 세션을 폐기한다.")
+  void banUser_Success() {
+    given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+
+    userService.banUser(99L, 1L);
+
+    assertThat(testUser.getStatus()).isEqualTo(UserStatus.BANNED);
+    InOrder inOrder = inOrder(transactionTemplate, authSessionService);
+    inOrder.verify(transactionTemplate).executeWithoutResult(any());
+    inOrder.verify(authSessionService).endAll(1L);
+  }
+
+  @Test
+  @DisplayName("이미 정지된 사용자를 다시 정지해도 세션을 폐기한다. 세션 폐기가 실패했을 때 같은 요청으로 재시도할 수 있어야 한다.")
+  void banUser_AlreadyBanned_StillRevokesSessions() {
+    User banned = User.builder().id(1L).nickname("banned").status(UserStatus.BANNED).build();
+    given(userRepository.findById(1L)).willReturn(Optional.of(banned));
+
+    userService.banUser(99L, 1L);
+
+    assertThat(banned.getStatus()).isEqualTo(UserStatus.BANNED);
+    verify(authSessionService).endAll(1L);
+  }
+
+  @Test
+  @DisplayName("관리자 계정은 정지할 수 없다.")
+  void banUser_RejectsAdmin() {
+    User admin = User.builder().id(1L).nickname("admin").role(Role.ROLE_ADMIN).build();
+    given(userRepository.findById(1L)).willReturn(Optional.of(admin));
+
+    assertThatThrownBy(() -> userService.banUser(99L, 1L))
+        .isInstanceOfSatisfying(
+            UserException.class,
+            e -> assertThat(e.getErrorSpec()).isEqualTo(UserError.ADMIN_CANNOT_BE_BANNED));
+    assertThat(admin.getStatus()).isEqualTo(UserStatus.ACTIVE);
+    verifyNoInteractions(authSessionService);
+  }
+
+  @Test
+  @DisplayName("탈퇴한 사용자는 정지할 수 없고 탈퇴 상태로 남는다.")
+  void banUser_RejectsDeletedUser() {
+    User deleted = User.builder().id(1L).nickname("deleted").status(UserStatus.DELETED).build();
+    given(userRepository.findById(1L)).willReturn(Optional.of(deleted));
+
+    assertThatThrownBy(() -> userService.banUser(99L, 1L))
+        .isInstanceOfSatisfying(
+            UserException.class, e -> assertThat(e.getErrorSpec()).isEqualTo(UserError.DELETED));
+    assertThat(deleted.getStatus()).isEqualTo(UserStatus.DELETED);
+    verifyNoInteractions(authSessionService);
+  }
+
+  @Test
+  @DisplayName("정지를 해제하면 정상 상태로 돌아온다.")
+  void unbanUser_Success() {
+    User banned = User.builder().id(1L).nickname("banned").status(UserStatus.BANNED).build();
+    given(userRepository.findById(1L)).willReturn(Optional.of(banned));
+
+    userService.unbanUser(99L, 1L);
+
+    assertThat(banned.getStatus()).isEqualTo(UserStatus.ACTIVE);
+  }
+
+  @Test
+  @DisplayName("정지 상태가 아닌 사용자는 해제해도 상태가 바뀌지 않는다. 탈퇴한 사용자가 되살아나지 않는다.")
+  void unbanUser_LeavesNonBannedUserAsIs() {
+    User deleted = User.builder().id(1L).nickname("deleted").status(UserStatus.DELETED).build();
+    given(userRepository.findById(1L)).willReturn(Optional.of(deleted));
+
+    userService.unbanUser(99L, 1L);
+
+    assertThat(deleted.getStatus()).isEqualTo(UserStatus.DELETED);
   }
 
   private static FileUploadDto confirmedImage(String storedFileName, String originalFileName) {

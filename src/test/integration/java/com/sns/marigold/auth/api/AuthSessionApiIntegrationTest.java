@@ -21,10 +21,13 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import com.sns.marigold.auth.common.enums.Role;
 import com.sns.marigold.auth.common.util.CookieManager;
+import com.sns.marigold.global.tsid.TsidCodec;
 import com.sns.marigold.global.web.UrlConstants;
 import com.sns.marigold.support.ApiIntegrationTest;
 import com.sns.marigold.user.entity.User;
+import com.sns.marigold.user.enums.UserStatus;
 
 import jakarta.servlet.http.Cookie;
 
@@ -138,6 +141,66 @@ class AuthSessionApiIntegrationTest extends ApiIntegrationTest {
         .andExpect(jsonPath("$.errorCode").value("AUTH_TOKEN_INVALID"));
     me(current).andExpect(status().isOk());
     me(otherDevice).andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("관리자가 정지하면 그 사용자의 세션이 바로 폐기되고 로그인도 거부되며, 해제하면 다시 로그인할 수 있다")
+  void banRevokesSessionsImmediately() throws Exception {
+    Session session = login();
+    String adminToken = getAccessToken(saveUser("admin", Role.ROLE_ADMIN));
+    String target = TsidCodec.encode(Objects.requireNonNull(tester1).getId());
+
+    mockMvc
+        .perform(
+            post(UrlConstants.USER_BASE + "/{userId}/ban", target)
+                .header("Authorization", "Bearer " + adminToken))
+        .andExpect(status().isNoContent());
+
+    me(session)
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.errorCode").value("AUTH_TOKEN_INVALID"));
+    refresh(session).andExpect(status().isUnauthorized());
+    mockMvc
+        .perform(loginRequest())
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.errorCode").value("USER_BANNED"));
+
+    mockMvc
+        .perform(
+            delete(UrlConstants.USER_BASE + "/{userId}/ban", target)
+                .header("Authorization", "Bearer " + adminToken))
+        .andExpect(status().isNoContent());
+
+    me(login()).andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("관리자가 아니면 정지와 해제를 할 수 없다")
+  void banRequiresAdmin() throws Exception {
+    Session session = login();
+    String target = TsidCodec.encode(Objects.requireNonNull(tester2).getId());
+
+    mockMvc
+        .perform(post(UrlConstants.USER_BASE + "/{userId}/ban", target))
+        .andExpect(status().isUnauthorized());
+    mockMvc
+        .perform(
+            post(UrlConstants.USER_BASE + "/{userId}/ban", target)
+                .header("Authorization", "Bearer " + session.accessToken()))
+        .andExpect(status().isForbidden());
+    mockMvc
+        .perform(
+            delete(UrlConstants.USER_BASE + "/{userId}/ban", target)
+                .header("Authorization", "Bearer " + session.accessToken()))
+        .andExpect(status().isForbidden());
+
+    assertThat(userRepository.findById(tester2.getId()).orElseThrow().getStatus())
+        .isEqualTo(UserStatus.ACTIVE);
+  }
+
+  private User saveUser(String nickname, Role role) {
+    return userRepository.save(
+        Objects.requireNonNull(User.builder().nickname(nickname).role(role).build()));
   }
 
   private Session login() throws Exception {

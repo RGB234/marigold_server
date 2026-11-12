@@ -18,7 +18,9 @@ public enum UserError implements ErrorSpec {
       "USER_OAUTH2_ACCOUNT_ALREADY_IN_USE", "이미 다른 계정에 연결된 소셜 계정입니다.", FailureKind.CONFLICT),
   DELETED("USER_DELETED", "탈퇴한 사용자입니다.", FailureKind.FORBIDDEN),
   BANNED("USER_BANNED", "이용이 제한된 사용자입니다.", FailureKind.FORBIDDEN),
-  SLEEPING("USER_SLEEPING", "휴면 상태인 사용자입니다.", FailureKind.FORBIDDEN);
+  SLEEPING("USER_SLEEPING", "휴면 상태인 사용자입니다.", FailureKind.FORBIDDEN),
+  ADMIN_CANNOT_BE_BANNED(
+      "USER_ADMIN_CANNOT_BE_BANNED", "관리자 계정은 정지할 수 없습니다.", FailureKind.FORBIDDEN);
 
   private final String code;
   private final String publicMessage;

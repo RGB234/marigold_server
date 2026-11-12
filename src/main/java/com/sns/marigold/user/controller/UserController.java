@@ -169,6 +169,49 @@ public class UserController {
     return userService.getUserById(userId.value());
   }
 
+  // ** admin **
+
+  @Operation(
+      summary = "사용자 정지",
+      description = "관리자가 사용자를 정지하고 그 사용자의 모든 인증 세션을 바로 폐기합니다. 이미 정지된 사용자에게 다시 보내도 됩니다.",
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
+  @ApiResponses({
+    @ApiResponse(responseCode = "204", description = "정지 성공"),
+    @ApiResponse(responseCode = "401", description = "인증 필요"),
+    @ApiResponse(responseCode = "403", description = "관리자가 아니거나, 대상이 관리자 또는 탈퇴한 사용자"),
+    @ApiResponse(responseCode = "404", description = "사용자 없음"),
+    @ApiResponse(responseCode = "503", description = "정지는 됐지만 세션을 폐기하지 못함. 다시 요청")
+  })
+  @PreAuthorize("hasRole('ADMIN')")
+  @PostMapping("/{userId}/ban")
+  public ResponseEntity<Void> banUser(
+      @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
+      @Parameter(description = "TSID 형식 사용자 ID", required = true) @PathVariable("userId")
+          TsidValue userId) {
+    userService.banUser(principal.getUserId(), userId.value());
+    return ResponseEntity.noContent().build();
+  }
+
+  @Operation(
+      summary = "사용자 정지 해제",
+      description = "관리자가 정지를 해제합니다. 정지 상태가 아닌 사용자는 그대로 둡니다.",
+      security = {@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH)})
+  @ApiResponses({
+    @ApiResponse(responseCode = "204", description = "해제 성공"),
+    @ApiResponse(responseCode = "401", description = "인증 필요"),
+    @ApiResponse(responseCode = "403", description = "관리자가 아님"),
+    @ApiResponse(responseCode = "404", description = "사용자 없음")
+  })
+  @PreAuthorize("hasRole('ADMIN')")
+  @DeleteMapping("/{userId}/ban")
+  public ResponseEntity<Void> unbanUser(
+      @Parameter(hidden = true) @AuthenticationPrincipal CustomPrincipal principal,
+      @Parameter(description = "TSID 형식 사용자 ID", required = true) @PathVariable("userId")
+          TsidValue userId) {
+    userService.unbanUser(principal.getUserId(), userId.value());
+    return ResponseEntity.noContent().build();
+  }
+
   // ** delete **
 
   @Operation(

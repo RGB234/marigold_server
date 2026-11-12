@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.sns.marigold.audit.AuditLogger;
+import com.sns.marigold.auth.common.enums.Role;
+import com.sns.marigold.auth.common.service.AuthSessionService;
 import com.sns.marigold.auth.oauth2.enums.ProviderInfo;
 import com.sns.marigold.storage.dto.FileUploadDto;
 import com.sns.marigold.storage.event.DeleteOldStorageFilesEvent;
@@ -26,6 +28,7 @@ import com.sns.marigold.user.dto.update.EmailPasswordRegisterDto;
 import com.sns.marigold.user.dto.update.UserUpdateDto;
 import com.sns.marigold.user.entity.User;
 import com.sns.marigold.user.entity.UserImage;
+import com.sns.marigold.user.enums.UserStatus;
 import com.sns.marigold.user.event.UserDeletedEvent;
 import com.sns.marigold.user.exception.UserException;
 import com.sns.marigold.user.repository.UserRepository;
@@ -44,6 +47,7 @@ public class UserService {
   private final ApplicationEventPublisher eventPublisher;
   private final PasswordEncoder passwordEncoder;
   private final AuditLogger auditLogger;
+  private final AuthSessionService authSessionService;
 
   @Transactional(readOnly = true)
   public boolean existsByProviderInfoAndProviderId(ProviderInfo providerInfo, String providerId) {
@@ -159,6 +163,39 @@ public class UserService {
             eventPublisher.publishEvent(new DeleteOldStorageFilesEvent(List.of(fileToDelete)));
           }
         });
+  }
+
+  /**
+   * 사용자를 정지하고 그 사용자의 모든 세션을 폐기합니다. 세션은 정지가 커밋된 뒤에 폐기합니다. 먼저 폐기하면 커밋 전에 다시 로그인해 새 세션을 받을 수 있습니다.
+   *
+   * <p>이미 정지된 사용자도 세션을 다시 폐기합니다. 세션 저장소 장애로 폐기가 실패하면(503) 같은 요청을 다시 보내면 됩니다.
+   */
+  public void banUser(Long adminId, Long targetId) {
+    transactionTemplate.executeWithoutResult(
+        status -> {
+          User user = findEntityById(targetId);
+          if (user.getStatus() == UserStatus.DELETED) {
+            throw UserException.forUserDeleted();
+          }
+          if (user.getRole() == Role.ROLE_ADMIN) {
+            throw UserException.forAdminCannotBeBanned();
+          }
+          if (user.getStatus() != UserStatus.BANNED) {
+            user.ban();
+            auditLogger.info("event=user_banned userId={} adminId={}", targetId, adminId);
+          }
+        });
+    authSessionService.endAll(targetId);
+  }
+
+  /** 정지를 해제합니다. 정지 상태가 아니면(탈퇴 포함) 아무것도 바꾸지 않습니다. */
+  @Transactional
+  public void unbanUser(Long adminId, Long targetId) {
+    User user = findEntityById(targetId);
+    if (user.getStatus() == UserStatus.BANNED) {
+      user.unban();
+      auditLogger.info("event=user_unbanned userId={} adminId={}", targetId, adminId);
+    }
   }
 
   // soft delete And PII scrubbing

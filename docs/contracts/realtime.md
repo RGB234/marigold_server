@@ -66,7 +66,7 @@ CONNECT, SUBSCRIBE 등 프로토콜 처리 중 연결을 계속 사용할 수 �
 | close code | reason | 언제 |
 | --- | --- | --- |
 | `4001` | `JWT expired` | CONNECT에 쓴 access token이 만료될 때 |
-| `4002` | `Session revoked` | 로그아웃, refresh token 재사용 감지, 회원 탈퇴, 같은 브라우저의 재로그인으로 CONNECT에 쓴 access token의 인증 세션이 폐기될 때 |
+| `4002` | `Session revoked` | 로그아웃, refresh token 재사용 감지, 회원 탈퇴, 관리자의 정지, 같은 브라우저의 재로그인으로 CONNECT에 쓴 access token의 인증 세션이 폐기될 때 |
 | `4003` | `Left chat room` | `DELETE /chat/rooms/{roomId}/leave`로 방을 나갈 때, 그 사용자가 그 방을 구독 중인 연결 |
 
 연결 중에는 토큰을 연장할 수 없으므로, 연결은 access token 유효시간(기본 600초)마다 끊깁니다. 클라이언트는 새 access token을 발급받아 다시 연결합니다. `4002` 뒤에도 클라이언트는 refresh를 시도합니다. 세션이 폐기되어 refresh가 `401`로 실패하면 다시 로그인해야 하고, 같은 브라우저의 재로그인으로 끊긴 경우에는 새 쿠키로 refresh가 성공해 그대로 다시 연결합니다. `4003` 뒤에 다시 연결해도 다시 참여하기 전까지 그 방의 SUBSCRIBE는 거부됩니다.
